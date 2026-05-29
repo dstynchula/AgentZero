@@ -56,7 +56,7 @@ class Database:
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.path)
+        self._conn = sqlite3.connect(self.path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
 
@@ -107,6 +107,14 @@ class Database:
     def count_jobs(self) -> int:
         row = self._conn.execute("SELECT COUNT(*) AS n FROM jobs").fetchone()
         return int(row["n"])
+
+    def list_jobs(self) -> list[JobPosting]:
+        rows = self._conn.execute(
+            "SELECT payload FROM jobs ORDER BY company COLLATE NOCASE, title COLLATE NOCASE"
+        ).fetchall()
+        return [
+            JobPosting.model_validate(json.loads(row["payload"])) for row in rows
+        ]
 
     def add_quarantine(
         self,

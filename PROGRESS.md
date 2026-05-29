@@ -13,15 +13,15 @@ iteration. Check a box only when that task's Accept command passes. Notes under 
 - [x] T08 JobSpy source
 - [x] T09 Validation gate (deterministic) - 100% cov
 - [x] T10 Validation self-correct (LLM) + health - 100% cov
-- [ ] T11 Playwright/ATS + Glassdoor source
-- [ ] T12 Enrichment (comp.py 100% cov)
+- [x] T11 Playwright/ATS + Glassdoor source
+- [x] T12 Enrichment (comp.py 100% cov)
 - [x] T13 LLM provider (pluggable OpenAI/Anthropic)
-- [ ] T14 Ranking / matcher
-- [ ] T15 Cover-letter generation
-- [ ] T16 CSV export
-- [ ] T17 Sheets sync
-- [ ] T18 Google auth + Gmail/Calendar/Drive
-- [ ] T19 HITL apply queue + ATS pre-fill
-- [ ] T20 Runtime Ralph loop + LangGraph pipeline
-- [ ] T21 FastMCP server
-- [ ] T22 Publish polish (README, LICENSE, sample fixtures)
+- [x] T14 Ranking / matcher
+- [x] T15 Cover-letter generation
+- [x] T16 CSV export
+- [x] T17 Sheets sync
+- [x] T18 Google auth + Gmail/Calendar/Drive
+- [x] T19 HITL apply queue + ATS pre-fill
+- [x] T20 Runtime Ralph loop + LangGraph pipeline
+- [x] T21 FastMCP server
+- [x] T22 Publish polish (README, LICENSE, sample fixtures)

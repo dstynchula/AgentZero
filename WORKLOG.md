@@ -58,3 +58,8 @@ sources to UTF-8 (will re-run after future file writes).
 [2026-05-29T09:20:00-07:00] T06 DONE - voice profile from coverletters/ writing samples.
 [2026-05-29T09:20:00-07:00] T08 DONE - JobSpy source with injectable scraper + column mapping (offline tests).
 
+
+[2026-05-29T09:45:00-07:00] Wave 5-8 DONE - enrichment (comp 100% cov), CSV export, Sheets sync, rank/matcher,
+cover letters, ATS+Glassdoor HTML parsers, Google wrappers, HITL apply queue, Ralph pipeline, FastMCP server, LICENSE.
+    accept: pytest -q -> 101 passed; comp.py 100% branch coverage
+
