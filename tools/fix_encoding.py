@@ -1,7 +1,14 @@
 """Normalize repository text files to UTF-8 with LF line endings.
 
-This environment's editor writes files as UTF-16; run this before staging so the repo stays
-UTF-8. Idempotent: files already UTF-8/LF are left untouched.
+Prefer preventing UTF-16 on Windows by setting PowerShell defaults (see README):
+
+    $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+    $PSDefaultParameterValues['Set-Content:Encoding'] = 'utf8'
+
+Or:  . .\\scripts\\dev-env.ps1
+
+Run this script before ``git add`` if anything still lands as UTF-16. Idempotent: files
+already UTF-8/LF are left untouched.
 
 Usage:  python tools/fix_encoding.py
 """
