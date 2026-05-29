@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentzero"
+version = "0.1.0"
+description = "Resume-driven, open-source job-hunting agent: multi-board sourcing, enrichment, ranking, voice-matched cover letters, and a human-in-the-loop application tracker."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "AgentZero contributors" }]
+keywords = ["jobs", "job-search", "scraping", "llm", "mcp", "automation"]
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "vcrpy>=6.0",
+    "ruff>=0.6",
+    "mutmut>=2.4",
+]
+scrape = [
+    "python-jobspy>=1.1.80",
+    "playwright>=1.45",
+    "beautifulsoup4>=4.12",
+]
+llm = [
+    "openai>=1.40",
+    "anthropic>=0.34",
+]
+google = [
+    "gspread>=6.0",
+    "google-api-python-client>=2.140",
+    "google-auth>=2.33",
+    "google-auth-oauthlib>=1.2",
+]
+graph = [
+    "langgraph>=0.2",
+]
+mcp = [
+    "fastmcp>=2.10",
+]
+
+[tool.setuptools.packages.find]
+include = ["agentzero*"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "external: tests that touch live external services (skipped by default in the loop)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["agentzero"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
