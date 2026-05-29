@@ -29,10 +29,10 @@ data/*.sqlite*
 output/cover_letters/*
 !output/cover_letters/.gitkeep
 
-# User-provided inputs (keep folders, ignore contents)
-resume/*
+# Personal resume and writing samples (never commit; folders kept via .gitkeep only)
+resume/**
 !resume/.gitkeep
-coverletters/*
+coverletters/**
 !coverletters/.gitkeep
 
 # Editor / OS
