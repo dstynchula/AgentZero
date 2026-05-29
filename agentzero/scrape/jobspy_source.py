@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from agentzero.config import Settings, get_settings
+from agentzero.ingest.resume import RESUME_DIR
 from agentzero.models import RawRecord
 from agentzero.scrape.base import JobSource
+
+if TYPE_CHECKING:
+    from agentzero.llm.provider import LLMProvider
 
 # Map JobSpy dataframe columns to RawRecord keys.
 JOBSPY_COLUMN_MAP = {
@@ -53,15 +58,34 @@ class JobSpySource(JobSource):
         settings: Settings | None = None,
         *,
         scraper: Callable[..., Any] | None = None,
+        llm: LLMProvider | None = None,
+        resume_dir: Path = RESUME_DIR,
     ) -> None:
-        self.settings = settings or get_settings()
+        self._base_settings = settings or get_settings()
         self._scraper = scraper
+        self._llm = llm
+        self._resume_dir = resume_dir
+
+    def _active_settings(self) -> Settings:
+        from agentzero.ingest.search_profile import get_effective_settings
+
+        return get_effective_settings(
+            self._base_settings,
+            llm=self._llm,
+            resume_dir=self._resume_dir,
+        )
+
+    @property
+    def settings(self) -> Settings:
+        """Latest settings including résumé-derived search terms (when LLM is configured)."""
+        return self._active_settings()
 
     def fetch(self) -> Sequence[RawRecord]:
+        settings = self._active_settings()
         scrape_fn = self._scraper or self._import_scrape_jobs()
         frames = []
-        for term in self.settings.search_terms:
-            for location in self.settings.locations:
+        for term in settings.search_terms:
+            for location in settings.locations:
                 df = scrape_fn(
                     site_name=[
                         "indeed",
@@ -72,10 +96,10 @@ class JobSpySource(JobSource):
                     ],
                     search_term=term,
                     location=location,
-                    results_wanted=self.settings.results_wanted,
-                    hours_old=self.settings.hours_old,
-                    country_indeed=self.settings.country_indeed,
-                    proxies=self.settings.proxies or None,
+                    results_wanted=settings.results_wanted,
+                    hours_old=settings.hours_old,
+                    country_indeed=settings.country_indeed,
+                    proxies=settings.proxies or None,
                 )
                 frames.append(df)
         if not frames:
