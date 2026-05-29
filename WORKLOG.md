@@ -27,3 +27,14 @@ sources to UTF-8 (will re-run after future file writes).
     accept: pip install -e .[dev] && pytest -q && ruff check . -> install ok; 1 passed, 1 skipped; lint clean; import ok
     commit: T01 (this commit)
 
+
+[2026-05-29T08:45:00-07:00] T02 DONE - pydantic-settings config with LLM/search/scrape/google fields; CSV list parsing; active_api_key guard.
+    files: agentzero/config.py, tests/test_config.py, tools/fix_encoding.py, .gitattributes
+    accept: pytest tests/test_config.py -q -> 5 passed; ruff clean
+    commit: T02
+
+[2026-05-29T08:48:00-07:00] T03 DONE - JobPosting model, ApplicationStatus, stable_job_id, RawRecord alias; 100% branch coverage.
+    files: agentzero/models.py, tests/test_models.py
+    accept: pytest tests/test_models.py --cov=agentzero.models --cov-branch --cov-fail-under=100 -> 10 passed, 100% cov
+    commit: T03
+

@@ -4,8 +4,8 @@ Mutable checkbox ledger for the Ralph build loop. The loop re-reads this file pl
 iteration. Check a box only when that task's Accept command passes. Notes under a task record blockers.
 
 - [x] T01 Scaffold (pyproject, package, .gitignore, .env.example, PROGRESS.md, WORKLOG.md, pytest+cov, append-only test)
-- [ ] T02 Config (pydantic-settings)
-- [ ] T03 Core models (JobPosting, stable_job_id) - 100% cov
+- [x] T02 Config (pydantic-settings)
+- [x] T03 Core models (JobPosting, stable_job_id) - 100% cov
 - [ ] T04 Storage (SQLite idempotent upsert + quarantine) - 100% cov
 - [ ] T05 Resume ingest
 - [ ] T06 Voice ingest
