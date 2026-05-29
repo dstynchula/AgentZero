@@ -11,7 +11,7 @@ iteration. Check a box only when that task's Accept command passes. Notes under 
 - [ ] T06 Voice ingest
 - [x] T07 Source interface + RawRecord
 - [ ] T08 JobSpy source
-- [ ] T09 Validation gate (deterministic) - 100% cov
+- [x] T09 Validation gate (deterministic) - 100% cov
 - [ ] T10 Validation self-correct (LLM) + health - 100% cov
 - [ ] T11 Playwright/ATS + Glassdoor source
 - [ ] T12 Enrichment (comp.py 100% cov)

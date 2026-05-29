@@ -48,3 +48,7 @@ sources to UTF-8 (will re-run after future file writes).
 [2026-05-29T08:56:00-07:00] T13 DONE - pluggable OpenAI/Anthropic LLM providers via settings.
     accept: pytest tests/test_llm.py -q -> passed
 
+
+[2026-05-29T09:02:00-07:00] T09 DONE - deterministic validate/alias/salary-parse gate; batch metrics; health assert; 100% cov.
+    accept: pytest tests/scrape/test_validate.py --cov=agentzero.scrape.validate --cov-branch --cov-fail-under=100
+
