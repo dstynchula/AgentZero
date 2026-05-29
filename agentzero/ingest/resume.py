@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from agentzero.llm.provider import LLMProvider
@@ -14,16 +14,52 @@ RESUME_DIR = Path("resume")
 SUPPORTED_SUFFIXES = {".txt", ".md", ".pdf", ".docx"}
 
 
+class ExperienceEntry(BaseModel):
+    """One role on the résumé, ordered newest-first in ``ResumeProfile.experience``."""
+
+    title: str
+    company: str | None = None
+    start: str | None = None
+    end: str | None = None
+    is_current: bool = False
+
+
+def find_latest_resume(resume_dir: Path = RESUME_DIR) -> Path:
+    candidates = sorted(
+        (p for p in resume_dir.iterdir() if p.suffix.lower() in SUPPORTED_SUFFIXES),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
+        raise FileNotFoundError(f"No résumé found in {resume_dir}")
+    return candidates[0]
+
+
 class ResumeProfile(BaseModel):
     """Structured candidate profile extracted from a résumé."""
 
     name: str | None = None
     email: str | None = None
     skills: list[str] = Field(default_factory=list)
-    experience: list[str] = Field(default_factory=list)
+    experience: list[ExperienceEntry] = Field(default_factory=list)
     summary: str | None = None
     raw_text: str
     source_path: str
+
+    @field_validator("experience", mode="before")
+    @classmethod
+    def _coerce_experience(cls, value: object) -> object:
+        if not value:
+            return []
+        if not isinstance(value, list):
+            return value
+        out: list[object] = []
+        for item in value:
+            if isinstance(item, str):
+                out.append({"title": item})
+            else:
+                out.append(item)
+        return out
 
 
 def read_resume_text(path: Path) -> str:
@@ -69,7 +105,8 @@ def extract_resume_profile(raw_text: str, *, llm: LLMProvider) -> ResumeProfile:
     response = llm.complete(
         system=(
             "Extract résumé data as JSON with keys: name, email, skills (array), "
-            "experience (array of role summaries), summary. Return JSON only."
+            "experience (array of objects, NEWEST role first, each with: title, company, "
+            "start, end, is_current boolean), summary. Return JSON only."
         ),
         user=raw_text,
     )
@@ -78,7 +115,7 @@ def extract_resume_profile(raw_text: str, *, llm: LLMProvider) -> ResumeProfile:
         name=data.get("name"),
         email=data.get("email"),
         skills=list(data.get("skills") or []),
-        experience=list(data.get("experience") or []),
+        experience=data.get("experience") or [],
         summary=data.get("summary"),
         raw_text=raw_text,
         source_path="",
@@ -90,18 +127,24 @@ def ingest_resume(
     *,
     llm: LLMProvider,
     resume_dir: Path = RESUME_DIR,
+    refresh_search: bool = True,
 ) -> ResumeProfile:
     """Load the newest résumé in ``resume_dir`` (or an explicit path) and parse it."""
     if path is None:
-        candidates = sorted(
-            (p for p in resume_dir.iterdir() if p.suffix.lower() in SUPPORTED_SUFFIXES),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-        if not candidates:
-            raise FileNotFoundError(f"No résumé found in {resume_dir}")
-        path = candidates[0]
+        path = find_latest_resume(resume_dir)
 
     raw_text = read_resume_text(path)
     profile = extract_resume_profile(raw_text, llm=llm)
-    return profile.model_copy(update={"source_path": str(path)})
+    profile = profile.model_copy(update={"source_path": str(path)})
+
+    if refresh_search:
+        from agentzero.ingest.search_profile import resolve_search_from_resume
+
+        resolve_search_from_resume(
+            llm=llm,
+            resume_dir=resume_dir,
+            resume_path=path,
+            raw_text=raw_text,
+        )
+
+    return profile

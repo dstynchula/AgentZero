@@ -31,6 +31,26 @@ If any file still ends up UTF-16, normalize before staging:
 python tools/fix_encoding.py
 ```
 
+
+
+## Resume-linked search terms
+
+Drop your résumé in 
+esume/ (git-ignored). On **every scrape run**, AgentZero:
+
+1. Reads the latest résumé in 
+esume/
+2. Uses the LLM to extract 
+ecent_roles (newest job first)
+3. Builds search_terms with **most recent job titles first**, then related keywords
+4. Saves a local snapshot to 
+esume/search_profile.json (also git-ignored) so you can inspect what was searched
+
+Pass an LLM to JobSpySource(..., llm=provider) or run ingest_resume() — without an LLM, .env search terms are used as-is.
+
+Example snapshot fields: search_terms, 
+ecent_roles, locations, salary_min.
+
 ## Quick start
 
 ```powershell

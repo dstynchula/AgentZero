@@ -14,11 +14,18 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class FakeLLM:
-    def __init__(self, payload: dict) -> None:
-        self.payload = payload
+    def __init__(self, profile_payload: dict, search_payload: dict | None = None) -> None:
+        self.profile_payload = profile_payload
+        self.search_payload = search_payload or {
+            "recent_roles": [{"title": "Engineer", "company": "Co", "is_current": True}],
+            "search_terms": ["Software Engineer"],
+            "locations": ["Remote"],
+        }
 
     def complete(self, *, system: str, user: str) -> str:
-        return json.dumps(self.payload)
+        if "job-search" in system or "search parameters" in system:
+            return json.dumps(self.search_payload)
+        return json.dumps(self.profile_payload)
 
 
 def test_read_resume_text_from_txt():
@@ -32,13 +39,29 @@ def test_extract_resume_profile_parses_llm_json():
             "name": "Jane Doe",
             "email": "jane@example.com",
             "skills": ["Python"],
-            "experience": ["Engineer at ExampleCorp"],
+            "experience": [
+                {"title": "Senior Engineer", "company": "ExampleCorp", "is_current": True},
+                {"title": "Engineer", "company": "StartupCo"},
+            ],
             "summary": "Backend engineer",
         }
     )
     profile = extract_resume_profile("raw resume text", llm=llm)
     assert profile.name == "Jane Doe"
-    assert profile.skills == ["Python"]
+    assert profile.experience[0].title == "Senior Engineer"
+    assert profile.experience[0].is_current is True
+
+
+def test_extract_resume_profile_coerces_string_experience():
+    llm = FakeLLM(
+        {
+            "name": "Jane",
+            "experience": ["Engineer at ExampleCorp"],
+            "skills": [],
+        }
+    )
+    profile = extract_resume_profile("raw", llm=llm)
+    assert profile.experience[0].title == "Engineer at ExampleCorp"
 
 
 def test_ingest_resume_from_directory(tmp_path):
@@ -51,13 +74,14 @@ def test_ingest_resume_from_directory(tmp_path):
             "name": "Jane Doe",
             "email": "jane@example.com",
             "skills": ["Python"],
-            "experience": ["Engineer"],
+            "experience": [{"title": "Engineer", "company": "Co"}],
             "summary": "Backend",
         }
     )
     profile = ingest_resume(llm=llm, resume_dir=tmp_path / "resume")
     assert isinstance(profile, ResumeProfile)
     assert profile.source_path.endswith("mine.txt")
+    assert (tmp_path / "resume" / "search_profile.json").is_file()
 
 
 def test_ingest_resume_missing_dir_raises(tmp_path):
