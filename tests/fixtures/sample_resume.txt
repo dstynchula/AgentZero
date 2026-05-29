@@ -1,0 +1,10 @@
+Jane Doe
+jane.doe@example.com
+
+Skills: Python, LangGraph, FastMCP, job search automation
+
+Experience:
+- Senior Software Engineer at ExampleCorp (2020-present)
+- Software Engineer at StartupCo (2017-2020)
+
+Summary: Backend engineer focused on data pipelines and developer tooling.

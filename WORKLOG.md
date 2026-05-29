@@ -52,3 +52,9 @@ sources to UTF-8 (will re-run after future file writes).
 [2026-05-29T09:02:00-07:00] T09 DONE - deterministic validate/alias/salary-parse gate; batch metrics; health assert; 100% cov.
     accept: pytest tests/scrape/test_validate.py --cov=agentzero.scrape.validate --cov-branch --cov-fail-under=100
 
+
+[2026-05-29T09:20:00-07:00] T10 DONE - LLM self-correct on validate gate; batch+health; validate.py 100% cov.
+[2026-05-29T09:20:00-07:00] T05 DONE - resume ingest from resume/ via LLM (txt fixture; pdf/docx optional deps).
+[2026-05-29T09:20:00-07:00] T06 DONE - voice profile from coverletters/ writing samples.
+[2026-05-29T09:20:00-07:00] T08 DONE - JobSpy source with injectable scraper + column mapping (offline tests).
+

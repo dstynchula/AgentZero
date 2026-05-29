@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
 from agentzero.models import JobPosting, RawRecord
+
+if TYPE_CHECKING:
+    from agentzero.llm.provider import LLMProvider
 
 # Per-board field aliases applied before pydantic validation.
 SOURCE_ALIASES: dict[str, dict[str, str]] = {
@@ -135,10 +139,82 @@ def validate_raw(raw: RawRecord, *, source: str) -> ValidationOutcome:
         return ValidationOutcome(job=None, error=str(exc), quarantined=True)
 
 
+def build_llm_repair_prompt(raw: RawRecord, error: str, *, source: str) -> str:
+    """Build the user prompt for an LLM repair pass."""
+    payload = {
+        "source": source,
+        "raw_record": raw,
+        "validation_error": error,
+        "target_schema": JobPosting.model_json_schema(),
+        "instructions": (
+            "Return ONLY a JSON object with canonical JobPosting fields "
+            "(title, company, url, source required). Do not wrap in markdown."
+        ),
+    }
+    return json.dumps(payload, indent=2)
+
+
+def llm_repair_raw(
+    raw: RawRecord,
+    *,
+    source: str,
+    error: str,
+    llm: LLMProvider,
+) -> RawRecord:
+    """Ask the LLM to return a corrected raw record dict."""
+    response = llm.complete(
+        system=(
+            "You normalize job listing data. Respond with a single JSON object only, "
+            "using field names from the provided schema."
+        ),
+        user=build_llm_repair_prompt(raw, error, source=source),
+    )
+    text = response.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    parsed = json.loads(text)
+    if not isinstance(parsed, dict):
+        raise TypeError("LLM repair response must be a JSON object")
+    return parsed
+
+
+def validate_raw_with_llm(
+    raw: RawRecord,
+    *,
+    source: str,
+    llm: LLMProvider | None = None,
+) -> ValidationOutcome:
+    """Validate with deterministic repair first, then optional LLM repair."""
+    outcome = validate_raw(raw, source=source)
+    if outcome.ok or llm is None:
+        return outcome
+
+    try:
+        repaired_raw = llm_repair_raw(
+            raw, source=source, error=outcome.error or "validation failed", llm=llm
+        )
+        second = validate_raw(repaired_raw, source=source)
+        if second.ok:
+            return ValidationOutcome(job=second.job, repaired=True)
+        return ValidationOutcome(
+            job=None,
+            error=second.error or outcome.error,
+            quarantined=True,
+        )
+    except (json.JSONDecodeError, TypeError, ValidationError) as exc:
+        return ValidationOutcome(
+            job=None,
+            error=f"LLM repair failed: {exc}",
+            quarantined=True,
+        )
+
+
 def validate_batch(
     records: list[RawRecord],
     *,
     source: str,
+    llm: LLMProvider | None = None,
 ) -> tuple[list[JobPosting], list[tuple[RawRecord, str]], dict[str, float]]:
     """Validate many records; return jobs, quarantine tuples, and health metrics."""
     jobs: list[JobPosting] = []
@@ -147,7 +223,11 @@ def validate_batch(
     total = len(records)
 
     for raw in records:
-        outcome = validate_raw(raw, source=source)
+        outcome = (
+            validate_raw_with_llm(raw, source=source, llm=llm)
+            if llm is not None
+            else validate_raw(raw, source=source)
+        )
         if outcome.ok and outcome.job is not None:
             jobs.append(outcome.job)
             valid += 1

@@ -7,12 +7,12 @@ iteration. Check a box only when that task's Accept command passes. Notes under 
 - [x] T02 Config (pydantic-settings)
 - [x] T03 Core models (JobPosting, stable_job_id) - 100% cov
 - [x] T04 Storage (SQLite idempotent upsert + quarantine) - 100% cov
-- [ ] T05 Resume ingest
-- [ ] T06 Voice ingest
+- [x] T05 Resume ingest
+- [x] T06 Voice ingest
 - [x] T07 Source interface + RawRecord
-- [ ] T08 JobSpy source
+- [x] T08 JobSpy source
 - [x] T09 Validation gate (deterministic) - 100% cov
-- [ ] T10 Validation self-correct (LLM) + health - 100% cov
+- [x] T10 Validation self-correct (LLM) + health - 100% cov
 - [ ] T11 Playwright/ATS + Glassdoor source
 - [ ] T12 Enrichment (comp.py 100% cov)
 - [x] T13 LLM provider (pluggable OpenAI/Anthropic)
