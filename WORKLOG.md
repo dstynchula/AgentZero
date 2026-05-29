@@ -38,3 +38,13 @@ sources to UTF-8 (will re-run after future file writes).
     accept: pytest tests/test_models.py --cov=agentzero.models --cov-branch --cov-fail-under=100 -> 10 passed, 100% cov
     commit: T03
 
+
+[2026-05-29T08:55:00-07:00] T04 DONE - SQLite jobs + quarantine tables; idempotent upsert; pipeline status gating.
+    accept: pytest tests/test_db.py --cov=agentzero.storage.db --cov-branch --cov-fail-under=100 -> 100% cov
+
+[2026-05-29T08:55:00-07:00] T07 DONE - JobSource ABC + RawRecord contract.
+    accept: pytest tests/scrape/test_base.py -q -> passed
+
+[2026-05-29T08:56:00-07:00] T13 DONE - pluggable OpenAI/Anthropic LLM providers via settings.
+    accept: pytest tests/test_llm.py -q -> passed
+

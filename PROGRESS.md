@@ -6,16 +6,16 @@ iteration. Check a box only when that task's Accept command passes. Notes under 
 - [x] T01 Scaffold (pyproject, package, .gitignore, .env.example, PROGRESS.md, WORKLOG.md, pytest+cov, append-only test)
 - [x] T02 Config (pydantic-settings)
 - [x] T03 Core models (JobPosting, stable_job_id) - 100% cov
-- [ ] T04 Storage (SQLite idempotent upsert + quarantine) - 100% cov
+- [x] T04 Storage (SQLite idempotent upsert + quarantine) - 100% cov
 - [ ] T05 Resume ingest
 - [ ] T06 Voice ingest
-- [ ] T07 Source interface + RawRecord
+- [x] T07 Source interface + RawRecord
 - [ ] T08 JobSpy source
 - [ ] T09 Validation gate (deterministic) - 100% cov
 - [ ] T10 Validation self-correct (LLM) + health - 100% cov
 - [ ] T11 Playwright/ATS + Glassdoor source
 - [ ] T12 Enrichment (comp.py 100% cov)
-- [ ] T13 LLM provider (pluggable OpenAI/Anthropic)
+- [x] T13 LLM provider (pluggable OpenAI/Anthropic)
 - [ ] T14 Ranking / matcher
 - [ ] T15 Cover-letter generation
 - [ ] T16 CSV export
