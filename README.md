@@ -14,6 +14,39 @@ loop, TDD gates, human-in-the-loop where it matters).
 
 ---
 
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    A[Scrape: 5 sources] --> B[Validate + quarantine]
+    B --> C[Enrich: comp, company, ratings]
+    C --> D[Rank against resume]
+    D --> E[Lead status in SQLite]
+    E --> F[Operator approves]
+    F --> G[Google Sheet sync]
+```
+
+---
+
+## Design tradeoffs
+
+- **Local-first trust boundary**: data and credentials stay on your machine; MCP is stdio-only
+- **Lead-gated workflow**: new jobs land as `lead` in SQLite first; only approved rows reach the sheet
+- **Full-sheet sync model**: sheet sync rewrites the worksheet from SQLite to keep one source of truth
+- **Scrape reliability over elegance**: browser/CDP paths are explicit and operationally opinionated
+- **Security pragmatism**: SSRF defenses are strongest on enrichment HTTP; board scraping intentionally navigates board URLs
+
+---
+
+## Quality bar
+
+- **CI enforced**: `ruff`, full `pytest -q`, UTF-8/UTF-16 encoding guard (`.github/workflows/ci.yml`)
+- **TDD + regression coverage** on parser drift, lead/export policy, and session safety paths
+- **Idempotent pipeline design** via stable `job_id` and per-stage status gates
+- **Explicit operator safety**: no auto-apply, no silent scrape/commit in MCP interactive flow
+
+---
+
 ## Quick start
 
 **New users:** follow **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** (install, Chrome
@@ -194,6 +227,7 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 | [examples/job_sources.json](docs/examples/job_sources.json) | Reference list of core sources (not loaded at runtime) |
 | [PROGRESS.md](PROGRESS.md) | MVP + post-MVP checkbox ledger |
 | [WORKLOG.md](WORKLOG.md) | Append-only build history |
+| [Public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) | What to include/exclude before publishing |
 
 ---
 

@@ -246,3 +246,14 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            docs/SECURITY.md, docs/BUILD_STORY.md, docs/agentzero_job_hunter_d85b7004.plan.md,
            tests/test_leads_session.py, tests/test_application_tracking.py, PROGRESS.md
     accept: pytest -q -> 309 passed; ruff check agentzero tests scripts tools -> clean
+
+[2026-05-31T16:15:00-07:00] P24 DONE - Public launch polish for portfolio-ready first impression.
+    README now has architecture-at-a-glance, design tradeoffs, and quality bar; added dedicated
+    docs/PUBLIC_RELEASE_CHECKLIST.md with include/exclude guidance; linked checklist in README.
+    files: README.md, docs/PUBLIC_RELEASE_CHECKLIST.md, PROGRESS.md, WORKLOG.md
+    accept: pytest -q -> 309 passed; ruff check agentzero tests scripts tools -> clean
+
+[2026-05-31T16:25:00-07:00] P25 DONE - WORKLOG append-only guard made encoding-robust on Windows.
+    test_worklog_append_only now reads git bytes and decodes UTF-8 explicitly (no locale mismatch).
+    files: tests/test_worklog_append_only.py, PROGRESS.md, WORKLOG.md
+    accept: pytest -q -> 309 passed; ruff check agentzero tests scripts tools -> clean

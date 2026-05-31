@@ -23,11 +23,11 @@ def _git_head_worklog() -> str | None:
         ["git", "show", "HEAD:WORKLOG.md"],
         cwd=REPO_ROOT,
         capture_output=True,
-        text=True,
+        text=False,
     )
     if result.returncode != 0:
         return None
-    return result.stdout
+    return result.stdout.decode("utf-8", errors="replace")
 
 
 def test_worklog_exists() -> None:

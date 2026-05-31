@@ -116,6 +116,19 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] Consolidate MCP imports; fix `llm/provider.py` formatting
 - [x] Tests: pipe escape + rejected prune/export split
 
+## P24 — Public launch polish (2026-05-31)
+
+- [x] README: architecture-at-a-glance diagram + design tradeoffs + quality bar
+- [x] Added `docs/PUBLIC_RELEASE_CHECKLIST.md` (security, quality, include/exclude guidance)
+- [x] README documentation index links the public release checklist
+- [x] Ledgers updated; checks re-run (`pytest -q`, `ruff check agentzero tests scripts tools`)
+
+## P25 — Append-only test UTF-8 robustness (2026-05-31)
+
+- [x] `tests/test_worklog_append_only.py` decodes `git show` output as UTF-8 bytes
+- [x] Prevent false failures on Windows locale decoding differences
+- [x] Full checks green (309 tests + ruff)
+
 ## Reference docs
 
 | Doc | Contents |
@@ -125,6 +138,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/COST_AND_MODELS.md | LLM cost estimates (2026-05-29) |
 | docs/SCRAPING.md | Scraping, rate limits, OAuth, scripts |
 | docs/SECURITY.md | Secrets, OAuth scopes, SSRF, LLM data |
+| docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist
 

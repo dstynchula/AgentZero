@@ -25,7 +25,9 @@ credentials.json
 client_secret*.json
 data/*.db
 data/*.sqlite*
+data/*.log
 data/browser_profiles/
+data/chrome_cdp_profile/
 data/indeed_browser_profile/
 data/browser_storage_state/
 
