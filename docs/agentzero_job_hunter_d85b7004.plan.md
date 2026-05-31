@@ -51,10 +51,17 @@ isProject: false
 > This file is the durable spec the Ralph build loop re-read each iteration.
 > For a narrative overview of the co-programming process, see [BUILD_STORY.md](BUILD_STORY.md).
 > Live completion state: [PROGRESS.md](../PROGRESS.md). Append-only history: [WORKLOG.md](../WORKLOG.md).
+>
+> **Scope note (P16, 2026-05-30):** cover-letter generation, voice ingest, HITL apply queue, and unused
+> Gmail/Calendar/Drive wrappers were removed. The live pipeline is scrape → enrich → rank → sheet sync;
+> application state lives in the Google Sheet + `tracking.py`.
 
 ## Mission, confirmed
 
-Build `AgentZero`: drop a resume in `resume/` and writing samples in `coverletters/`, and the agent sources jobs across many boards, enriches them (comp, company size, Glassdoor rating, posting age), ranks them against your resume, drafts cover letters in your voice, queues applications for your one-click submit, and tracks everything in a sortable/filterable spreadsheet (local CSV/SQLite + live Google Sheet). Published as a public Git repo to help others.
+Build `AgentZero`: drop a résumé in `resume/`, scrape and rank jobs across boards, approve
+leads in chat or CLI, then sync to SQLite + Google Sheets. You apply manually on each board;
+the agent never auto-submits. *(Original MVP also included cover letters and an HITL apply
+queue — removed in P16; see scope note above.)*
 
 Locked decisions (from your answers):
 - Sourcing: scrape-heavy (Playwright + JobSpy), including Glassdoor; accept ToS/fragility risk.
@@ -261,6 +268,28 @@ These followed the same TDD + commit pattern but were not in the original ledger
 - **`agentzero/ingest/search_profile.py`** — LLM extracts search terms from the résumé on every scrape run; recent job titles prioritized first; snapshot saved to `resume/search_profile.json` (git-ignored, for inspection only).
 - **`JobSpySource.fetch()`** — re-derives search terms from the latest résumé each run via `get_effective_settings()`, not stale env-only terms.
 - **Windows UTF-8 tooling** — `tools/fix_encoding.py`, `.gitattributes`, `scripts/dev-env.ps1` so Cursor/file writes don't corrupt encoding on Windows.
+- **Build documentation (P01)** — `docs/BUILD_STORY.md`, archived plan, README open-book links.
+- **LLM cost docs (P02)** — `docs/COST_AND_MODELS.md`, `scripts/estimate_cost.py`, `agentzero/cost/`, rank description truncation, search-profile session cache, default model `gpt-5-nano`.
+- **Google OAuth (P03)** — `scripts/google_auth.py`, `agentzero/google/client.py`, Sheet ID URL normalization in config.
+- **Scrape hardening (P04)** — Playwright Indeed (`browser_indeed.py`), sequential JobSpy, scrape factory, SQLite thread lock, `docs/SCRAPING.md`. See `PROGRESS.md` post-MVP section.
+- **Runtime scripts (P05)** — `scripts/smoke_test.py`; `python-docx`/`pypdf` in core dependencies.
+- **Lead session (P18)** — `ApplicationStatus.LEAD`, `agentzero/leads/session.py`, MCP tools, `run_lead_session.py`.
+- **Parser hardening (P19)** — LinkedIn SPA embedded JSON parser (company + comp); Glassdoor employer resolver for partner URLs; LinkedIn detail-page comp backfill; DuckDuckGo Glassdoor fallback when direct HTTP blocked; backfill scripts (`backfill_linkedin_comp.py`, `backfill_glassdoor_companies.py`, `run_linkedin_lead_scrape.py`).
+- **Pre-review cleanup (P21, 2026-05-31)** — SECURITY.md aligned with P16 pipeline; enrichment vs scrape SSRF scope documented; LLM untrusted-input section; session-probe post-nav guard; removed dead `BrowserIndeedSource`; factory raises when no sources; Windows token ACL via `icacls`; `list_pages` marked example-only.
+- **Export filter + docs (P22, 2026-06-01)** — `REJECTED` leads excluded from sheet export; MCP commit note; BUILD_STORY / `.env.example` alignment.
+
+Track completion in **`PROGRESS.md`** (post-MVP checkboxes) and **`WORKLOG.md`** (append-only).
+
+### P21 task ledger (pre–senior-review cleanup)
+
+| Id | Title | Files | Accept |
+|----|-------|-------|--------|
+| P21a | SECURITY.md refresh | `docs/SECURITY.md` | No cover-letter/HITL refs; SSRF scope + LLM untrusted input documented |
+| P21b | Session probe SSRF guard | `session_probe.py`, `tests/scrape/test_session_probe.py` | `validate_browser_page_url` after `page.goto`; test blocks unsafe URL |
+| P21c | Remove dead Indeed source | `browser_indeed.py`, `factory.py`, `tests/scrape/test_location.py`, `tests/scrape/test_browser_scrape.py` | `BrowserIndeedSource` removed; factory raises when empty |
+| P21d | Windows token ACL | `google/auth.py`, `tests/test_google_auth_scopes.py` | Unix `chmod 0o600`; Windows `icacls`; test chmod on unix |
+| P21e | Example-only list_pages | `sources_config.py`, `parse_list.py` | Module docstrings state not wired to production |
+| P21f | Ledgers + green CI | `PROGRESS.md`, `WORKLOG.md`, this plan | `pytest -q` + ruff clean |
 
 ## Risks / things to flag
 - Legal/ToS: scraping LinkedIn/Glassdoor/Indeed violates their ToS and may break anytime; LinkedIn/Glassdoor need proxies for volume and may hit CAPTCHAs. README will include a clear disclaimer + a "respect rate limits / use at your own risk" notice.

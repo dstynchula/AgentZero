@@ -7,16 +7,10 @@ import re
 from agentzero.models import JobPosting
 from agentzero.scrape.validate import parse_comp_from_text
 
-# Patterns like "150 employees" or "10,001+ employees"
 EMPLOYEE_COUNT_RE = re.compile(
     r"(?P<count>[\d,]+)\+?\s*(?:employees|staff|people)",
     re.IGNORECASE,
 )
-
-
-def parse_comp_from_description(description: str) -> tuple[float | None, float | None, str | None]:
-    """Extract salary range from free-text description."""
-    return parse_comp_from_text(description)
 
 
 def enrich_comp(job: JobPosting) -> JobPosting:
@@ -26,7 +20,7 @@ def enrich_comp(job: JobPosting) -> JobPosting:
     if not job.description:
         return job
     try:
-        low, high, currency = parse_comp_from_description(job.description)
+        low, high, currency = parse_comp_from_text(job.description)
     except ValueError:
         return job
     if low is None and high is None:
@@ -46,4 +40,7 @@ def parse_employee_count(text: str) -> int | None:
     match = EMPLOYEE_COUNT_RE.search(text)
     if not match:
         return None
-    return int(match.group("count").replace(",", ""))
+    raw = match.group("count").replace(",", "").strip()
+    if not raw.isdigit():
+        return None
+    return int(raw)

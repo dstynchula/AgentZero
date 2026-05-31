@@ -10,15 +10,14 @@ made, not just **what** it does.
 
 ## The idea
 
-Start with a resume and writing samples. The agent:
+Start with a résumé in `resume/`. The agent:
 
 - Scrapes multiple job boards
 - Validates and normalizes messy listings across sources
 - Enriches comp, company size, and ratings
 - Ranks jobs against your profile
-- Drafts cover letters in your voice
-- Tracks everything in a sortable spreadsheet (SQLite + CSV + Google Sheets)
-- Queues applications for human review (never auto-submits)
+- Mirrors matches to SQLite and an optional Google Sheet tracker
+- Lets you approve leads before they land on the sheet (never auto-applies)
 
 The builder (Dan) paired with **Cursor** and an LLM agent in a deliberate loop — not vibe-coding,
 not one-shot generation.
@@ -30,7 +29,7 @@ not one-shot generation.
 | **Human (Dan)** | Product intent, trade-offs, scoping questions, acceptance of plan, steering |
 | **Cursor Plan mode** | Collaborative architecture: mission, stack, DAG, task ledger, acceptance criteria |
 | **Cursor Agent mode** | Implementation: TDD, commits, loop execution |
-| **LLM (pluggable)** | Runtime intelligence: resume parsing, search-term inference, ranking, cover letters |
+| **LLM (pluggable)** | Runtime intelligence: résumé parsing, search-term inference, ranking, scrape repair |
 | **Ralph loops** | Idempotent `read state → work → write state` cycles (build-time *and* runtime) |
 | **TDD + pytest** | Every task has a runnable Accept command; tests gate "done" |
 
@@ -62,11 +61,14 @@ See the archived plan: [`agentzero_job_hunter_d85b7004.plan.md`](agentzero_job_h
 The application pipeline is the same shape:
 
 ```
-scrape → validate → enrich → rank → draft → (human applies)
+scrape → validate → enrich → rank → (operator approves leads) → sheet sync
 ```
 
 Each stage processes pending rows keyed by stable `job_id`, marks pipeline status in SQLite, and
 can fan out in parallel without double-processing. Re-running the pipeline is safe.
+
+*(Early MVP also included cover-letter generation and an HITL apply queue; those were removed in
+P16 — see [`PROGRESS.md`](../PROGRESS.md).)*
 
 ## TDD as the contract between human and agent
 
@@ -97,7 +99,7 @@ The work log grows forever; the loop stays small.
 - **Schema validation gate** with deterministic repair + LLM self-correction + quarantine
 - **Resume-linked search terms** — re-derived from the latest résumé each run, recent roles first
 - **Pluggable LLM** (OpenAI / Anthropic)
-- **Human-in-the-loop** application queue
+- **Lead session** — scrape to DB, operator approves, then sheet sync
 - **FastMCP** server surface
 - **MIT licensed**, public-repo ready
 
@@ -108,11 +110,11 @@ same pattern: test → implement → commit.
 
 This repo demonstrates:
 
-1. **Scoping before coding** — Plan mode locked decisions (HITL apply, scrape-heavy, TDD, Ralph loops) before a line of Python
+1. **Scoping before coding** — Plan mode locked decisions (scrape-heavy, lead approval, TDD, Ralph loops) before a line of Python
 2. **Small-context iterations** — Tasks scoped to ~3 files; plan + PROGRESS as loop memory
 3. **Test-gated autonomy** — The agent could run for hours; Accept commands prevented silent drift
 4. **Idempotency everywhere** — Safe to retry builds and pipeline runs
-5. **Human in the loop where it counts** — Applications are queued, not auto-submitted; architecture was human-approved
+5. **Human in the loop where it counts** — Leads require approval before sheet sync; applications are manual on each board
 6. **Open book** — Plan, progress, and work log are in the repo for inspection
 
 AgentZero is both a **tool for job search** and a **reference implementation** of disciplined
@@ -121,6 +123,8 @@ LLM-assisted software development.
 ## Related files
 
 - [Original build plan (archived)](agentzero_job_hunter_d85b7004.plan.md) — full architecture, DAG, task ledger
-- [`PROGRESS.md`](../PROGRESS.md) — task completion state
+- [`PROGRESS.md`](../PROGRESS.md) — MVP (T01–T22) + post-MVP checkbox ledger (through P22+)
 - [`WORKLOG.md`](../WORKLOG.md) — timestamped build history
+- [Scraping & OAuth](SCRAPING.md) — Playwright Indeed, rate limits, Google OAuth, runtime scripts
+- [Cost & models](COST_AND_MODELS.md) — LLM pricing and model selection
 - [`README.md`](../README.md) — setup and usage

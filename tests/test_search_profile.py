@@ -3,7 +3,9 @@ from pathlib import Path
 
 from agentzero.ingest.resume import ExperienceEntry
 from agentzero.ingest.search_profile import (
+    clear_search_profile_session_cache,
     extract_search_profile,
+    load_matching_search_profile,
     prioritize_search_terms,
     resolve_search_from_resume,
 )
@@ -68,3 +70,27 @@ def test_resolve_search_from_resume_writes_snapshot(tmp_path):
     snapshot = resume_dir / "search_profile.json"
     assert snapshot.is_file()
     assert profile.search_terms[0] == "Product Engineer"
+
+
+def test_load_matching_search_profile_uses_snapshot(tmp_path):
+    clear_search_profile_session_cache()
+    resume_dir = tmp_path / "resume"
+    resume_dir.mkdir()
+    resume = resume_dir / "mine.txt"
+    resume.write_text("resume body", encoding="utf-8")
+    llm = FakeLLM(
+        {
+            "recent_roles": [{"title": "Engineer", "company": "Co"}],
+            "search_terms": ["Engineer"],
+            "locations": ["Remote"],
+        }
+    )
+    first = resolve_search_from_resume(llm=llm, resume_dir=resume_dir)
+    assert load_matching_search_profile(resume_dir) == first
+
+    class ExplodingLLM:
+        def complete(self, *, system: str, user: str) -> str:
+            raise AssertionError("should not call LLM when snapshot matches")
+
+    second = resolve_search_from_resume(llm=ExplodingLLM(), resume_dir=resume_dir)  # type: ignore[arg-type]
+    assert second.search_terms == first.search_terms

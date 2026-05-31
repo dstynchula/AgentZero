@@ -9,7 +9,7 @@ from agentzero.config import Settings, get_settings
 
 
 class ChatClient(Protocol):
-  def create_completion(self, *, system: str, user: str) -> str: ...
+    def create_completion(self, *, system: str, user: str) -> str: ...
 
 
 class LLMProvider(ABC):
@@ -28,7 +28,6 @@ class OpenAIProvider(LLMProvider):
         client = self._client or self._build_client()
         response = client.create_completion(system=system, user=user)
         return response
-
 
     def _build_client(self) -> Any:
         try:

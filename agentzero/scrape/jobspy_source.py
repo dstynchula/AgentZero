@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -10,9 +12,14 @@ from agentzero.config import Settings, get_settings
 from agentzero.ingest.resume import RESUME_DIR
 from agentzero.models import RawRecord
 from agentzero.scrape.base import JobSource
+from agentzero.scrape.jobspy_params import build_jobspy_scrape_kwargs, iter_scrape_queries
+from agentzero.scrape.resilience import JOBSPY_SITE_NAMES
+from agentzero.scrape.sources_config import resolve_jobspy_sites
 
 if TYPE_CHECKING:
     from agentzero.llm.provider import LLMProvider
+
+log = logging.getLogger(__name__)
 
 # Map JobSpy dataframe columns to RawRecord keys.
 JOBSPY_COLUMN_MAP = {
@@ -67,6 +74,8 @@ class JobSpySource(JobSource):
         self._resume_dir = resume_dir
 
     def _active_settings(self) -> Settings:
+        if self._llm is None:
+            return self._base_settings
         from agentzero.ingest.search_profile import get_effective_settings
 
         return get_effective_settings(
@@ -83,25 +92,61 @@ class JobSpySource(JobSource):
     def fetch(self) -> Sequence[RawRecord]:
         settings = self._active_settings()
         scrape_fn = self._scraper or self._import_scrape_jobs()
+        sites = [
+            s
+            for s in resolve_jobspy_sites(settings.scrape_sites, job_sources=None)
+            if s in JOBSPY_SITE_NAMES
+        ]
+        if not sites:
+            log.warning("No valid JobSpy sites configured; skipping JobSpy fetch")
+            return []
+
         frames = []
-        for term in settings.search_terms:
-            for location in settings.locations:
-                df = scrape_fn(
-                    site_name=[
-                        "indeed",
-                        "linkedin",
-                        "glassdoor",
-                        "zip_recruiter",
-                        "google",
-                    ],
-                    search_term=term,
-                    location=location,
-                    results_wanted=settings.results_wanted,
-                    hours_old=settings.hours_old,
-                    country_indeed=settings.country_indeed,
-                    proxies=settings.proxies or None,
+        delay = settings.scrape_delay_seconds
+
+        for term, parsed in iter_scrape_queries(settings):
+            for site in sites:
+                print(
+                    f"[JobSpy/{site}] Fetching {term!r} @ {parsed.jobspy_location}…",
+                    flush=True,
                 )
-                frames.append(df)
+                try:
+                    kwargs = build_jobspy_scrape_kwargs(
+                        settings,
+                        site=site,
+                        term=term,
+                        parsed=parsed,
+                    )
+                    df = scrape_fn(**kwargs)
+                    if df is not None and len(df) > 0:
+                        frames.append(df)
+                        log.info(
+                            "JobSpy %s: %d rows for %r @ %r (remote=%s)",
+                            site,
+                            len(df),
+                            term,
+                            parsed.raw,
+                            parsed.is_remote,
+                        )
+                    else:
+                        log.warning(
+                            "JobSpy %s: 0 rows for %r @ %r (remote=%s)",
+                            site,
+                            term,
+                            parsed.raw,
+                            parsed.is_remote,
+                        )
+                except Exception as exc:
+                    log.warning(
+                        "JobSpy %s failed for %r @ %r: %s",
+                        site,
+                        term,
+                        parsed.raw,
+                        exc,
+                    )
+                if delay > 0:
+                    time.sleep(delay)
+
         if not frames:
             return []
         import pandas as pd

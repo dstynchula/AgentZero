@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -35,9 +34,20 @@ class ResumeSearchProfile(BaseModel):
     country_indeed: str | None = None
     remote_preferred: bool | None = None
     salary_min: float | None = None
+    salary_max: float | None = None
     source_resume_path: str
     source_fingerprint: str
     updated_at: str
+
+
+# Avoid duplicate LLM calls when ingest + scrape run in the same process.
+_session_profile: ResumeSearchProfile | None = None
+
+
+def clear_search_profile_session_cache() -> None:
+    """Clear the in-process search-profile cache (for tests)."""
+    global _session_profile
+    _session_profile = None
 
 
 def search_profile_path(resume_dir: Path = RESUME_DIR) -> Path:
@@ -49,11 +59,25 @@ def resume_fingerprint(path: Path) -> str:
 
 
 def load_search_profile(resume_dir: Path = RESUME_DIR) -> ResumeSearchProfile | None:
-    """Read the last saved snapshot (for inspection only — not used to drive searches)."""
+    """Read the last saved snapshot from ``resume/search_profile.json``."""
     path = search_profile_path(resume_dir)
     if not path.is_file():
         return None
     return ResumeSearchProfile.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def load_matching_search_profile(resume_dir: Path = RESUME_DIR) -> ResumeSearchProfile | None:
+    """Return the on-disk snapshot when it matches the latest résumé file."""
+    try:
+        resume_path = find_latest_resume(resume_dir)
+    except FileNotFoundError:
+        return None
+    snapshot = load_search_profile(resume_dir)
+    if snapshot is None:
+        return None
+    if snapshot.source_fingerprint != resume_fingerprint(resume_path):
+        return None
+    return snapshot
 
 
 def save_search_profile(profile: ResumeSearchProfile, resume_dir: Path = RESUME_DIR) -> Path:
@@ -63,13 +87,9 @@ def save_search_profile(profile: ResumeSearchProfile, resume_dir: Path = RESUME_
 
 
 def _parse_json_object(text: str) -> dict:
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    data = json.loads(cleaned)
-    if not isinstance(data, dict):
-        raise TypeError("LLM response must be a JSON object")
-    return data
+    from agentzero.llm.json_util import parse_llm_json_object
+
+    return parse_llm_json_object(text)
 
 
 def prioritize_search_terms(
@@ -116,7 +136,7 @@ def extract_search_profile(
             "search_terms (array of 3-6 additional job titles/keywords), "
             "locations (array of cities/regions or Remote), "
             "remote_preferred (boolean, optional), "
-            "salary_min (number USD annual, optional). "
+            "salary_min (number USD annual — minimum the candidate would accept; optional). "
             "Base search_terms on the candidate's most recent roles; "
             "older roles are lower priority."
         ),
@@ -139,6 +159,7 @@ def extract_search_profile(
         recent_roles=recent_roles,
         remote_preferred=data.get("remote_preferred"),
         salary_min=float(data["salary_min"]) if data.get("salary_min") is not None else None,
+        salary_max=None,
         source_resume_path=str(resume_path),
         source_fingerprint=resume_fingerprint(resume_path),
         updated_at=datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
@@ -152,13 +173,37 @@ def resolve_search_from_resume(
     resume_path: Path | None = None,
     raw_text: str | None = None,
     save_snapshot: bool = True,
+    force_refresh: bool = False,
+    prefer_snapshot: bool = True,
 ) -> ResumeSearchProfile:
-    """Always read the latest résumé and extract search terms (no cache reads)."""
+    """Read the latest résumé and extract search terms via the LLM.
+
+    Reuses the in-process result when the résumé file is unchanged. When
+    ``prefer_snapshot`` is true, also reuses ``resume/search_profile.json`` if
+    its fingerprint matches (fast path before the interactive prompt).
+    """
+    global _session_profile
+
     path = resume_path or find_latest_resume(resume_dir)
+    fingerprint = resume_fingerprint(path)
+    if (
+        not force_refresh
+        and _session_profile is not None
+        and _session_profile.source_fingerprint == fingerprint
+    ):
+        return _session_profile
+
+    if not force_refresh and prefer_snapshot:
+        snapshot = load_matching_search_profile(resume_dir)
+        if snapshot is not None:
+            _session_profile = snapshot
+            return snapshot
+
     text = raw_text if raw_text is not None else read_resume_text(path)
     profile = extract_search_profile(text, resume_path=path, llm=llm)
     if save_snapshot:
         save_search_profile(profile, resume_dir)
+    _session_profile = profile
     return profile
 
 
@@ -175,6 +220,10 @@ def apply_search_profile(settings: Settings, profile: ResumeSearchProfile | None
         updates["hours_old"] = profile.hours_old
     if profile.country_indeed is not None:
         updates["country_indeed"] = profile.country_indeed
+    if profile.remote_preferred is not None:
+        updates["remote_preferred"] = profile.remote_preferred
+    if profile.salary_min is not None:
+        updates["salary_min"] = profile.salary_min
     return settings.model_copy(update=updates)
 
 
@@ -186,16 +235,20 @@ def get_effective_settings(
 ) -> Settings:
     """Merge env settings with search terms extracted from the latest résumé.
 
-    When ``llm`` is provided, search terms are **always** re-derived from the résumé
-    on this call (each pipeline/scrape run). Without ``llm``, falls back to env/.env only.
+    When ``llm`` is provided, search terms are re-derived from the résumé on the
+    first call in this process (cached when the résumé file is unchanged). Without
+    ``llm``, falls back to env/.env only.
     """
     from agentzero.config import get_settings
+    from agentzero.scrape.remote_policy import apply_remote_only_settings
 
     base = settings or get_settings()
     if llm is None or not resume_dir.is_dir():
-        return base
+        return apply_remote_only_settings(base)
     try:
         profile = resolve_search_from_resume(llm=llm, resume_dir=resume_dir)
     except FileNotFoundError:
-        return base
-    return apply_search_profile(base, profile)
+        return apply_remote_only_settings(base)
+    if profile is None:
+        return apply_remote_only_settings(base)
+    return apply_remote_only_settings(apply_search_profile(base, profile))

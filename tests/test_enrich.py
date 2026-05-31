@@ -1,10 +1,12 @@
 
 
-from agentzero.enrich.comp import enrich_comp, parse_comp_from_description, parse_employee_count
+from agentzero.enrich.comp import enrich_comp, parse_employee_count
 from agentzero.enrich.company import bucket_employee_count, enrich_company_size
+from agentzero.enrich.glassdoor_company import enrich_glassdoor_company
 from agentzero.enrich.glassdoor_rating import enrich_glassdoor, parse_rating_from_description
 from agentzero.enrich.pipeline import enrich_job
 from agentzero.models import JobPosting
+from agentzero.scrape.validate import parse_comp_from_text
 
 
 def _job(**kwargs) -> JobPosting:
@@ -19,7 +21,7 @@ def _job(**kwargs) -> JobPosting:
 
 
 def test_parse_comp_from_description_range():
-    low, high, currency = parse_comp_from_description("$100,000 - $130,000")
+    low, high, currency = parse_comp_from_text("$100,000 - $130,000")
     assert low == 100_000
     assert high == 130_000
     assert currency == "USD"
@@ -78,6 +80,13 @@ def test_enrich_glassdoor_from_description():
     job = _job(description="Glassdoor rating: 3.8")
     enriched = enrich_glassdoor(job)
     assert enriched.glassdoor_rating == 3.8
+
+
+def test_enrich_glassdoor_company_skips_unknown():
+    job = _job(company="Unknown")
+    enriched = enrich_glassdoor_company(job, user_agent="test-agent")
+    assert enriched.glassdoor_rating is None
+    assert enriched.glassdoor_reviews is None
 
 
 def test_enrich_job_runs_all_steps():

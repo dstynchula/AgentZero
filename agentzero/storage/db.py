@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -58,60 +59,108 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        self._lock = threading.Lock()
         self._conn.executescript(SCHEMA)
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     def upsert_job(self, job: JobPosting) -> None:
         """Insert or replace a job row keyed by ``job_id`` (idempotent)."""
         payload = job.model_dump(mode="json")
         payload["job_id"] = job.job_id
         now = _utc_now_iso()
-        self._conn.execute(
-            """
-            INSERT INTO jobs (
-                job_id, source, company, title, url, payload, status, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(job_id) DO UPDATE SET
-                source = excluded.source,
-                company = excluded.company,
-                title = excluded.title,
-                url = excluded.url,
-                payload = excluded.payload,
-                status = excluded.status,
-                updated_at = excluded.updated_at
-            """,
-            (
-                job.job_id,
-                job.source,
-                job.company,
-                job.title,
-                job.url,
-                json.dumps(payload, default=_json_default),
-                job.status.value,
-                now,
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO jobs (
+                    job_id, source, company, title, url, payload, status, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_id) DO UPDATE SET
+                    source = excluded.source,
+                    company = excluded.company,
+                    title = excluded.title,
+                    url = excluded.url,
+                    payload = excluded.payload,
+                    status = excluded.status,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    job.job_id,
+                    job.source,
+                    job.company,
+                    job.title,
+                    job.url,
+                    json.dumps(payload, default=_json_default),
+                    job.status.value,
+                    now,
+                ),
+            )
+            self._conn.commit()
 
     def get_job(self, job_id: str) -> JobPosting | None:
-        row = self._conn.execute(
-            "SELECT payload FROM jobs WHERE job_id = ?", (job_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT payload FROM jobs WHERE job_id = ?", (job_id,)
+            ).fetchone()
         if row is None:
             return None
         data = json.loads(row["payload"])
         return JobPosting.model_validate(data)
 
     def count_jobs(self) -> int:
-        row = self._conn.execute("SELECT COUNT(*) AS n FROM jobs").fetchone()
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) AS n FROM jobs").fetchone()
         return int(row["n"])
 
+    def clear_jobs(self) -> int:
+        """Delete all job rows. Returns the number of rows removed."""
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) AS n FROM jobs").fetchone()
+            deleted = int(row["n"])
+            self._conn.execute("DELETE FROM jobs")
+            self._conn.commit()
+        return deleted
+
+    def delete_jobs(self, job_ids: list[str]) -> int:
+        """Delete jobs by ``job_id``. Returns the number of rows removed."""
+        if not job_ids:
+            return 0
+        placeholders = ",".join("?" for _ in job_ids)
+        with self._lock:
+            cursor = self._conn.execute(
+                f"DELETE FROM jobs WHERE job_id IN ({placeholders})",
+                job_ids,
+            )
+            self._conn.commit()
+            return int(cursor.rowcount)
+
+    def list_job_ids(self) -> list[str]:
+        with self._lock:
+            rows = self._conn.execute("SELECT job_id FROM jobs ORDER BY job_id").fetchall()
+        return [row["job_id"] for row in rows]
+
+    def clear_quarantine(self) -> int:
+        """Delete all quarantine rows. Returns the number of rows removed."""
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) AS n FROM quarantine").fetchone()
+            deleted = int(row["n"])
+            self._conn.execute("DELETE FROM quarantine")
+            self._conn.commit()
+        return deleted
+
+    def clear_all(self) -> tuple[int, int]:
+        """Remove all jobs and quarantine rows. Returns ``(jobs, quarantine)`` deleted."""
+        jobs = self.clear_jobs()
+        quarantine = self.clear_quarantine()
+        return jobs, quarantine
+
     def list_jobs(self) -> list[JobPosting]:
-        rows = self._conn.execute(
-            "SELECT payload FROM jobs ORDER BY company COLLATE NOCASE, title COLLATE NOCASE"
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT payload FROM jobs ORDER BY company COLLATE NOCASE, title COLLATE NOCASE"
+            ).fetchall()
         return [
             JobPosting.model_validate(json.loads(row["payload"])) for row in rows
         ]
@@ -124,25 +173,27 @@ class Database:
         source: str | None = None,
     ) -> int:
         """Store a record that failed validation (append-only audit)."""
-        cursor = self._conn.execute(
-            """
-            INSERT INTO quarantine (source, raw_payload, error, created_at)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                source,
-                json.dumps(raw_payload, default=str),
-                error,
-                _utc_now_iso(),
-            ),
-        )
-        self._conn.commit()
-        return int(cursor.lastrowid)
+        with self._lock:
+            cursor = self._conn.execute(
+                """
+                INSERT INTO quarantine (source, raw_payload, error, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    source,
+                    json.dumps(raw_payload, default=str),
+                    error,
+                    _utc_now_iso(),
+                ),
+            )
+            self._conn.commit()
+            return int(cursor.lastrowid)
 
     def list_quarantine(self) -> list[dict[str, Any]]:
-        rows = self._conn.execute(
-            "SELECT id, source, raw_payload, error, created_at FROM quarantine ORDER BY id"
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, source, raw_payload, error, created_at FROM quarantine ORDER BY id"
+            ).fetchall()
         return [
             {
                 "id": row["id"],
@@ -161,7 +212,8 @@ class Database:
         query = f"SELECT job_id FROM jobs WHERE {pipeline_column} = 'pending' ORDER BY job_id"
         if limit is not None:
             query += f" LIMIT {int(limit)}"
-        rows = self._conn.execute(query).fetchall()
+        with self._lock:
+            rows = self._conn.execute(query).fetchall()
         return [row["job_id"] for row in rows]
 
     def mark_pipeline(
@@ -172,8 +224,9 @@ class Database:
     ) -> None:
         if pipeline_column not in PIPELINE_COLUMNS:
             raise ValueError(f"Unknown pipeline column: {pipeline_column}")
-        self._conn.execute(
-            f"UPDATE jobs SET {pipeline_column} = ?, updated_at = ? WHERE job_id = ?",
-            (status, _utc_now_iso(), job_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                f"UPDATE jobs SET {pipeline_column} = ?, updated_at = ? WHERE job_id = ?",
+                (status, _utc_now_iso(), job_id),
+            )
+            self._conn.commit()

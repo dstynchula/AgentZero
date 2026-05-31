@@ -89,15 +89,9 @@ def read_resume_text(path: Path) -> str:
 
 
 def _parse_profile_json(text: str) -> dict:
-    import json
+    from agentzero.llm.json_util import parse_llm_json_object
 
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    data = json.loads(cleaned)
-    if not isinstance(data, dict):
-        raise TypeError("LLM response must be a JSON object")
-    return data
+    return parse_llm_json_object(text)
 
 
 def extract_resume_profile(raw_text: str, *, llm: LLMProvider) -> ResumeProfile:

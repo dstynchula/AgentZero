@@ -17,6 +17,7 @@ RawRecord = dict[str, Any]
 class ApplicationStatus(StrEnum):
     """Lifecycle status for a tracked job application."""
 
+    LEAD = "lead"
     NEW = "new"
     REVIEWED = "reviewed"
     QUEUED = "queued"
@@ -59,7 +60,9 @@ class JobPosting(BaseModel):
     location: str | None = None
     remote: bool | None = None
     description: str | None = None
+    careers_url: str | None = None
     match_score: float | None = None
+    match_rationale: str | None = None
     status: ApplicationStatus = ApplicationStatus.NEW
     date_first_contacted: date | None = None
     date_applied: date | None = None
@@ -74,6 +77,14 @@ class JobPosting(BaseModel):
             title=self.title,
             url=self.url,
         )
+
+    @field_validator("url")
+    @classmethod
+    def url_is_http(cls, value: str) -> str:
+        lowered = value.strip().lower()
+        if not (lowered.startswith("http://") or lowered.startswith("https://")):
+            raise ValueError("url must start with http:// or https://")
+        return value.strip()
 
     @field_validator("glassdoor_rating")
     @classmethod

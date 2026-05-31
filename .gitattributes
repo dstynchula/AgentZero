@@ -1,5 +1,9 @@
 # Keep all text files LF in the repo to avoid CRLF churn on Windows.
 * text=auto eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
 *.png binary
 *.jpg binary
 *.pdf binary

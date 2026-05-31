@@ -18,14 +18,13 @@ from __future__ import annotations
 import pathlib
 import sys
 
-SKIP_DIRS = {".venv", ".git", ".pytest_cache", "__pycache__", ".mutmut-cache"}
+SKIP_DIRS = {".venv", ".git", ".pytest_cache", "__pycache__", ".mutmut-cache", "data"}
 
 
 def looks_utf16(data: bytes) -> bool:
-    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
-        return True
-    # UTF-16LE without BOM: ASCII text yields a NUL as the second byte.
-    return len(data) > 1 and data[0] != 0 and data[1] == 0
+    from tools.encoding_check import looks_utf16 as _looks_utf16
+
+    return _looks_utf16(data)
 
 
 def main() -> int:
@@ -34,11 +33,16 @@ def main() -> int:
     for path in root.rglob("*"):
         if path.is_dir() or any(part in SKIP_DIRS for part in path.parts):
             continue
-        data = path.read_bytes()
+        try:
+            data = path.read_bytes()
+        except OSError:
+            continue
         if not data:
             continue
         if looks_utf16(data):
-            text = data.decode("utf-16")
+            from tools.encoding_check import decode_utf16
+
+            text = decode_utf16(data)
             path.write_bytes(text.replace("\r\n", "\n").encode("utf-8"))
             fixed.append(str(path.relative_to(root)))
     if fixed:

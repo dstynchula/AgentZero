@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
+from agentzero.llm.json_util import parse_llm_json_object_loose
 from agentzero.models import JobPosting, RawRecord
 
 if TYPE_CHECKING:
@@ -170,12 +171,7 @@ def llm_repair_raw(
         user=build_llm_repair_prompt(raw, error, source=source),
     )
     text = response.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-    parsed = json.loads(text)
-    if not isinstance(parsed, dict):
-        raise TypeError("LLM repair response must be a JSON object")
+    parsed = parse_llm_json_object_loose(text)
     return parsed
 
 

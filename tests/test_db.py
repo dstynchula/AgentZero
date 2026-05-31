@@ -88,3 +88,13 @@ def test_json_default_serializes_dates_and_status():
     assert _json_default(ApplicationStatus.APPLIED) == "applied"
     with pytest.raises(TypeError):
         _json_default(object())
+
+
+def test_clear_all_removes_jobs_and_quarantine(db: Database):
+    db.upsert_job(_job())
+    db.add_quarantine(raw_payload={"x": 1}, error="bad", source="indeed")
+    jobs, quarantine = db.clear_all()
+    assert jobs == 1
+    assert quarantine == 1
+    assert db.count_jobs() == 0
+    assert db.list_quarantine() == []

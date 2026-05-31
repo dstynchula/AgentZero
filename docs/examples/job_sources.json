@@ -1,0 +1,13 @@
+{
+  "_comment": "Reference only — NOT loaded by run_scrape.py. The live stack is fixed in agentzero/scrape/factory.py and configured via .env (AGENTZERO_SCRAPE_BROWSER_SITES, AGENTZERO_SCRAPE_SITES). This file documents the five core sources and remains for future custom list_pages boards via agentzero/scrape/sources_config.py.",
+  "job_sources": [],
+  "jobspy_sites": [],
+  "core_sources_reference": [
+    {"name": "Indeed", "method": "playwright", "env": "AGENTZERO_SCRAPE_BROWSER_SITES"},
+    {"name": "LinkedIn", "method": "playwright", "env": "AGENTZERO_SCRAPE_BROWSER_SITES"},
+    {"name": "Glassdoor", "method": "playwright", "env": "AGENTZERO_SCRAPE_BROWSER_SITES"},
+    {"name": "Google Jobs", "method": "jobspy", "env": "AGENTZERO_SCRAPE_SITES"},
+    {"name": "ZipRecruiter", "method": "jobspy", "env": "AGENTZERO_SCRAPE_SITES"}
+  ],
+  "rate_limiting": "Sequential fetches with AGENTZERO_SCRAPE_DELAY_SECONDS. One primary title when AGENTZERO_SCRAPE_PRIMARY_QUERY_ONLY=true."
+}
