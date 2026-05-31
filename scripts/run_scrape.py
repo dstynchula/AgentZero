@@ -22,6 +22,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from agentzero.config import get_settings
+from agentzero.ingest.resume import ingest_resume
+from agentzero.ingest.search_interactive import prepare_run_search
+from agentzero.ingest.search_profile import apply_search_profile, load_search_profile
+from agentzero.llm.provider import build_llm_provider
+from agentzero.loops.pipeline import Pipeline
+from agentzero.scrape.factory import build_scrape_source
+from agentzero.scrape.remote_policy import apply_remote_only_settings
+from agentzero.storage.db import Database
+
 
 def _print_search_settings(settings, source=None) -> None:
     from agentzero.scrape.factory import describe_scrape_stack
@@ -58,16 +68,6 @@ def run(
     search_prompt: bool,
     refresh_search: bool,
 ) -> int:
-    from agentzero.config import get_settings
-    from agentzero.ingest.resume import ingest_resume
-    from agentzero.ingest.search_interactive import prepare_run_search
-    from agentzero.ingest.search_profile import apply_search_profile, load_search_profile
-    from agentzero.llm.provider import build_llm_provider
-    from agentzero.loops.pipeline import Pipeline
-    from agentzero.scrape.factory import build_scrape_source
-    from agentzero.scrape.remote_policy import apply_remote_only_settings
-    from agentzero.storage.db import Database
-
     settings = get_settings()
     resume_profile = None
 

@@ -19,6 +19,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from agentzero.config import get_settings
+from agentzero.google.auth import SHEETS_SCOPES
+from agentzero.google.sync import sync_jobs_to_sheet
+from agentzero.rank.export_filter import filter_jobs_for_export
+from agentzero.storage.db import Database
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Sync AgentZero SQLite jobs to Google Sheets")
@@ -39,12 +45,6 @@ def main() -> int:
         help="SQLite path (default: AGENTZERO_DB_PATH / data/agentzero.db)",
     )
     args = parser.parse_args()
-
-    from agentzero.config import get_settings
-    from agentzero.google.auth import SHEETS_SCOPES
-    from agentzero.google.sync import sync_jobs_to_sheet
-    from agentzero.rank.export_filter import filter_jobs_for_export
-    from agentzero.storage.db import Database
 
     get_settings.cache_clear()
     settings = get_settings()
