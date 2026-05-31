@@ -1,5 +1,7 @@
 # AgentZero
 
+[![CI](https://github.com/dstynchula/AgentZero/actions/workflows/ci.yml/badge.svg)](https://github.com/dstynchula/AgentZero/actions/workflows/ci.yml)
+
 AgentZero is a **local, résumé-driven job search agent**. Drop your résumé in `resume/`, run a
 daily pipeline, and it will:
 
