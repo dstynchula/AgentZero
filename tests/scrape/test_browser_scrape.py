@@ -9,12 +9,19 @@ from agentzero.config import Settings
 from agentzero.models import RawRecord
 from agentzero.scrape.browser_board import BrowserJobBoardSource
 from agentzero.scrape.browser_indeed import (
+    _default_input,
+    _dismiss_indeed_consent,
+    _parse_indeed_dom_html,
+    build_indeed_search_url,
     extract_mosaic_payload,
     mosaic_results_to_records,
     page_has_job_results,
     page_needs_human,
+    page_needs_login,
+    page_session_ready,
     parse_indeed_mosaic_html,
     parse_indeed_search_html,
+    prompt_for_browser_verification,
 )
 from agentzero.scrape.browser_linkedin import (
     _closest_job_posting_id,
@@ -207,6 +214,136 @@ def test_build_scrape_source_raises_when_empty():
 
     with pytest.raises(ValueError, match="No scrape sources configured"):
         build_scrape_source(settings)
+
+
+def test_build_indeed_search_url_remote_flag():
+    parsed = parse_search_location("remote - usa")
+    url = build_indeed_search_url(term="Security Engineer", parsed=parsed)
+    assert "remotejob=1" in url
+    assert "q=Security" in url
+
+
+def test_page_session_ready_branches():
+    jobs_html = (FIXTURES / "indeed_search.html").read_text(encoding="utf-8")
+    assert page_session_ready(jobs_html, "https://www.indeed.com/")
+    assert not page_session_ready("<html></html>", "https://www.google.com/")
+    assert not page_session_ready("<html></html>", "https://www.indeed.com/account/login")
+    assert not page_session_ready("<html></html>", "https://www.indeed.com/jobs?q=x")
+
+
+def test_page_needs_login_branches():
+    login_html = "<html>ready to take the next step create an account or sign in</html>"
+    assert page_needs_login(login_html, "https://www.indeed.com/jobs?q=x")
+    assert page_needs_login("", "https://secure.indeed.com/auth")
+    assert page_needs_login("", "https://www.indeed.com/account/login")
+    assert not page_needs_login(
+        (FIXTURES / "indeed_search.html").read_text(encoding="utf-8"),
+        "https://www.indeed.com/jobs",
+    )
+
+
+def test_extract_mosaic_payload_single_quote_marker():
+    payload = {"metaData": {"mosaicProviderJobCardsModel": {"results": []}}}
+    import json
+
+    inner = json.dumps(payload)
+    html = f"window.mosaic.providerData['mosaic-provider-jobcards'] = {inner};"
+    assert extract_mosaic_payload(html) == payload
+
+
+def test_extract_mosaic_payload_invalid_json_returns_none():
+    html = 'window.mosaic.providerData["mosaic-provider-jobcards"] = {not json};'
+    assert extract_mosaic_payload(html) is None
+
+
+def test_mosaic_results_skips_bad_rows_and_enriches():
+    payload = {
+        "metaData": {
+            "mosaicProviderJobCardsModel": {
+                "results": [
+                    "not-a-dict",
+                    {"displayTitle": "T", "company": "C"},
+                    {
+                        "displayTitle": "Staff Engineer",
+                        "company": "Co",
+                        "jobkey": "jk1",
+                        "formattedLocation": "NYC",
+                        "remoteLocation": True,
+                        "salarySnippet": {"text": "$100k"},
+                        "companyRating": 4.5,
+                        "companyReviewCount": 12,
+                    },
+                ]
+            }
+        }
+    }
+    records = mosaic_results_to_records(payload)
+    assert len(records) == 1
+    assert records[0]["comp_raw"] == "$100k"
+    assert records[0]["glassdoor_rating"] == 4.5
+    assert records[0]["glassdoor_reviews"] == 12
+    assert records[0]["remote"] is True
+
+
+def test_parse_indeed_dom_html_paths():
+    html = """
+    <div data-jk="dup">
+      <a data-jk="dup" href="/viewjob?jk=dup">Dup Job</a>
+      <span data-testid="company-name">Co</span>
+    </div>
+    <div class="job_seen_beacon" data-jk="rel">
+      <h2 class="jobTitle"><a href="/viewjob?jk=rel">Relative Job</a></h2>
+      <span data-testid="company-name">Co</span>
+    </div>
+    <div class="job_seen_beacon" data-jk="abs">
+      <h2 class="jobTitle"><a href="https://www.indeed.com/viewjob?jk=abs">Abs Job</a></h2>
+    </div>
+    <div class="job_seen_beacon" data-jk="keyonly">
+      <h2 class="jobTitle"><a>Key Only</a></h2>
+      <span data-testid="company-name">Co</span>
+    </div>
+  """
+    records = _parse_indeed_dom_html(html)
+    titles = {r["title"] for r in records}
+    assert "Relative Job" in titles
+    assert "Abs Job" in titles
+    assert "Key Only" in titles
+    assert len([r for r in records if r["title"] == "Dup Job"]) == 1
+
+
+def test_parse_indeed_search_html_dom_fallback():
+    html = (FIXTURES / "indeed_search.html").read_text(encoding="utf-8")
+    records = parse_indeed_search_html("<html>no mosaic</html>" + html)
+    assert records
+
+
+def test_dismiss_indeed_consent_clicks_visible_button():
+    page = MagicMock()
+    btn = MagicMock()
+    btn.is_visible.return_value = True
+    page.locator.return_value.first = btn
+    _dismiss_indeed_consent(page)
+    btn.click.assert_called_once()
+
+
+def test_prompt_for_browser_verification_uses_input_fn(capsys):
+    seen: list[str] = []
+
+    def reader(prompt: str) -> str:
+        seen.append(prompt)
+        return ""
+
+    prompt_for_browser_verification(reason="CAPTCHA", input_fn=reader)
+    assert seen
+    assert "CAPTCHA" in capsys.readouterr().out
+
+
+def test_default_input_eof_indeed(monkeypatch):
+    def boom(_):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", boom)
+    assert _default_input("> ") == ""
 
 
 # --- LinkedIn browser parser (fixtures + inline HTML; mocks only) ---
