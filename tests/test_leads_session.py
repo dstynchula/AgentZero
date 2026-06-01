@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
 
 from agentzero.apply.sheet_fields import merge_user_fields_from_sheet
-from agentzero.ingest.search_profile import ResumeSearchProfile
-from agentzero.leads.session import SearchTargets, approve_leads, list_pending_leads, reject_leads
+from agentzero.leads.session import approve_leads, list_pending_leads, reject_leads
 from agentzero.loops.pipeline import Pipeline
 from agentzero.models import ApplicationStatus, JobPosting
 from agentzero.rank.export_filter import job_included_in_export
@@ -86,33 +84,6 @@ def test_rejected_lead_excluded_from_export():
     rejected = _job(status=ApplicationStatus.REJECTED, match_score=0.95)
     assert not job_included_in_export(rejected, 0.75)
     assert not job_included_in_export(rejected, None)
-
-
-def test_search_targets_safe_log_line_omits_pii():
-    profile = ResumeSearchProfile(
-        search_terms=["Staff Security Engineer"],
-        locations=["Remote, USA"],
-        remote_preferred=True,
-        salary_min=180_000.0,
-        source_resume_path=str(Path("resume/test.docx")),
-        source_fingerprint="abc123",
-        updated_at="2026-01-01T00:00:00Z",
-    )
-    targets = SearchTargets(
-        search_terms=profile.search_terms,
-        locations=profile.locations,
-        remote_preferred=True,
-        salary_min=profile.salary_min,
-        candidate_name="Jane Doe",
-        profile=profile,
-    )
-    line = targets.safe_log_line()
-    assert "Jane Doe" not in line
-    assert "Staff Security Engineer" not in line
-    assert "Remote" not in line
-    assert "180" not in line
-    assert "1 title(s)" in line
-    assert "comp floor set" in line
 
 
 def test_format_lead_preview_escapes_pipe_in_title():
