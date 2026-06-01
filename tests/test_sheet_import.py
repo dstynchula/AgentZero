@@ -201,7 +201,6 @@ def test_sheets_read_job_ids_and_rows(tmp_path):
     by_id = sync.read_rows_by_job_id()
     assert "job-1" in by_id
     assert sync.read_tracker_rows()[0]["job_id"] == "job-1"
-    db.close() if False else None
 
 
 def test_sheets_read_job_ids_empty_and_missing_column():
@@ -228,7 +227,6 @@ def test_sheets_read_job_ids_empty_and_missing_column():
 
 
 def test_sheets_import_user_fields_delegates(tmp_path, monkeypatch):
-    from agentzero.google.sheet_import import SheetImportResult
     from agentzero.google.sheets import SheetsSync
 
     db = Database(tmp_path / "jobs.db")

@@ -274,7 +274,6 @@ def test_load_credentials_runs_local_server_when_no_token(tmp_path, monkeypatch)
 def test_load_credentials_import_error(monkeypatch):
     import sys
 
-    saved = {k: sys.modules[k] for k in list(sys.modules) if k == "google" or k.startswith("google.") or k.startswith("google_")}
     for k in list(sys.modules):
         if k == "google" or k.startswith("google.") or k.startswith("google_"):
             monkeypatch.delitem(sys.modules, k, raising=False)
