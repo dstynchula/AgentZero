@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from agentzero.config import Settings
 from agentzero.enrich.company_research import (
     CompanyFactsCache,
@@ -20,8 +18,7 @@ from agentzero.enrich.company_research import (
 from agentzero.enrich.detail_fetch import (
     _browser_site_for_job,
     fetch_and_merge_detail,
-    fetch_and_merge_detail_http,
- fetch_details_batch,
+    fetch_details_batch,
     fetch_job_detail_html,
     merge_detail_fields,
 )
