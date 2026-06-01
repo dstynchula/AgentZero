@@ -282,3 +282,54 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     Added test_apply_sheet_fields; extended application_tracking and export_filter tests.
     files: tests/test_apply_sheet_fields.py, tests/test_application_tracking.py, tests/test_export_filter.py
     accept: pytest tests/test_application_tracking.py tests/test_export_filter.py tests/test_apply_sheet_fields.py --cov=agentzero.apply --cov=agentzero.rank.export_filter --cov-branch --cov-fail-under=90; PR #15 merged (4427fe7)
+
+[2026-06-01T05:35:00Z] P26e DONE - enrich I/O branch coverage ≥75%.
+    Mocked HTTP, file I/O, and enrichment paths in new test_enrich_io module.
+    files: tests/test_enrich_io.py
+    accept: pytest tests/test_enrich_io.py --cov=agentzero.enrich --cov-branch --cov-fail-under=75; PR #17 merged (cf8e0f4)
+
+[2026-06-01T05:40:00Z] P26f DONE - pipeline orchestration branch coverage → 93%.
+    Extended test_loops with mocked scrape/enrich/rank stages and error branches.
+    files: tests/test_loops.py
+    accept: pytest tests/test_loops.py --cov=agentzero.loops --cov-branch --cov-fail-under=75; PR #18 merged (7c278af)
+
+[2026-06-01T05:45:00Z] P26g DONE - google import/sync branch coverage ≥75%.
+    Sheet import, prune_sync, and sync script tests with mocked credentials and API clients;
+    CI fix: patch builtins.__import__ for credential ImportError path; ruff cleanup on test_sync_scripts.
+    files: tests/test_sheet_import.py, tests/test_prune_sync.py, tests/test_sync_scripts.py
+    accept: pytest tests/test_sheet_import.py tests/test_prune_sync.py tests/test_sync_scripts.py --cov=agentzero.google --cov-branch --cov-fail-under=75; PR #19 merged (ea8f4bb)
+
+[2026-06-01T05:50:00Z] P26h DONE - scrape factory + session branch coverage ≥70%.
+    Expanded browser_session, session_probe, session_health, and factory/multi tests in scrape suite;
+    CI fix: move mid-file imports to top (ruff E402) in test_browser_scrape.py, test_browser_session.py, test_session_probe.py.
+    files: tests/scrape/test_browser_scrape.py, tests/scrape/test_browser_session.py, tests/scrape/test_session_probe.py, tests/scrape/test_session_health.py
+    accept: pytest tests/scrape/test_browser_scrape.py tests/scrape/test_browser_session.py tests/scrape/test_session_probe.py --cov=agentzero.scrape --cov-branch; PR #20 merged (db01e75)
+
+[2026-06-01T06:00:00Z] P26 open PRs - CI unblocked on browser_linkedin (#21), browser_board/indeed (#22), mcp_server (#23).
+    Same ruff E402/I001 pattern as P26h: module-level imports moved to file tops; merged main into #21/#22
+    (kept tier-specific tests + P26h factory coverage); #23 import sort via ruff --fix. All three PRs CI green.
+    files: tests/scrape/test_browser_scrape.py, tests/scrape/test_browser_boards.py, tests/scrape/test_indeed_block_detection.py, tests/test_mcp.py
+    accept: gh pr checks 21/22/23 -> test + CodeQL pass (pending squash merge)
+
+[2026-06-01T06:15:00Z] P26l DONE - browser_linkedin branch coverage ≥70%.
+    TestLinkedInBrowserParse in test_browser_scrape (fixtures + inline HTML); merged main after P26h;
+    ruff E402 import reorder; CI retrigger via empty commit.
+    files: tests/scrape/test_browser_scrape.py
+    accept: pytest tests/scrape/test_browser_scrape.py --cov=agentzero.scrape.browser_linkedin --cov-branch --cov-fail-under=70; PR #21 merged (734a0e6)
+
+[2026-06-01T06:20:00Z] P26m DONE - mcp_server tool handlers branch coverage ≥60%.
+    Mocked FastMCP tool registration and handler paths in test_mcp; ruff I001 import sort.
+    files: tests/test_mcp.py
+    accept: pytest tests/test_mcp.py --cov=agentzero.mcp_server --cov-branch --cov-fail-under=60; PR #23 merged (438dbed)
+
+[2026-06-01T06:30:00Z] P26k - merge conflict resolved on PR #22 (browser_board + browser_indeed).
+    After #21/#23 landed on main, test_browser_scrape.py conflicted: kept P26k Indeed tests and main's
+    TestLinkedInBrowserParse; consolidated linkedin imports at file top. PR mergeable; CI green (0122cb6).
+    files: tests/scrape/test_browser_boards.py, tests/scrape/test_browser_scrape.py, tests/scrape/test_indeed_block_detection.py
+    accept: gh pr checks 22 -> test + CodeQL pass; squash merge pending
+
+[2026-06-01T06:45:00Z] P26k DONE - browser_board + browser_indeed branch coverage ≥70%.
+    Mocked BrowserJobBoardSource fetch; Indeed mosaic/DOM/consent/session tests; block-detection in test_indeed_block_detection;
+    merged main twice (LinkedIn + mcp_server) with conflict resolution in test_browser_scrape.
+    files: tests/scrape/test_browser_boards.py, tests/scrape/test_browser_scrape.py, tests/scrape/test_indeed_block_detection.py
+    accept: pytest tests/scrape/test_browser_boards.py tests/scrape/test_browser_scrape.py tests/scrape/test_indeed_block_detection.py --cov=agentzero.scrape.browser_board --cov=agentzero.scrape.browser_indeed --cov-branch --cov-fail-under=70; PR #22 merged (629f059)
