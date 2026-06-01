@@ -39,15 +39,6 @@ class SearchTargets:
     def summary(self) -> str:
         return format_search_summary(self.profile)
 
-    def safe_log_line(self) -> str:
-        """Single-line CLI status without résumé-derived PII (names, titles, locations, comp)."""
-        comp = "set" if self.salary_min is not None else "not set"
-        return (
-            f"Résumé targets ready: {len(self.search_terms)} title(s), "
-            f"{len(self.locations)} location(s), "
-            f"remote={'yes' if self.remote_preferred else 'no'}, comp floor {comp}."
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class LeadRunResult:
