@@ -4,15 +4,23 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from agentzero.config import Settings
 from agentzero.scrape.browser_session import (
+    SESSION_EXIT_CODES,
+    SessionState,
+    _site_page_helpers,
+    apply_storage_state,
+    classify_session,
     import_cookies_file,
     load_storage_state,
     normalize_cookies,
     parse_cookie_import,
+    save_storage_state,
+    session_status_message,
     storage_state_path,
 )
 
@@ -71,18 +79,6 @@ def test_import_cookies_file_roundtrip(tmp_path):
     loaded = load_storage_state(dest)
     assert loaded is not None
     assert loaded["cookies"][0]["domain"] == ".linkedin.com"
-
-from unittest.mock import MagicMock
-
-from agentzero.scrape.browser_session import (
-    SESSION_EXIT_CODES,
-    SessionState,
-    _site_page_helpers,
-    apply_storage_state,
-    classify_session,
-    save_storage_state,
-    session_status_message,
-)
 
 
 def test_site_page_helpers_indeed_and_unsupported():

@@ -1,6 +1,13 @@
+from __future__ import annotations
+
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from agentzero.config import Settings
+from agentzero.models import RawRecord
+from agentzero.scrape.browser_board import BrowserJobBoardSource
 from agentzero.scrape.browser_indeed import (
     extract_mosaic_payload,
     mosaic_results_to_records,
@@ -9,7 +16,12 @@ from agentzero.scrape.browser_indeed import (
     parse_indeed_mosaic_html,
     parse_indeed_search_html,
 )
-from agentzero.scrape.factory import build_scrape_source
+from agentzero.scrape.factory import (
+    build_scrape_source,
+    describe_scrape_stack,
+    list_source_names,
+    resolve_core_jobspy_sites,
+)
 from agentzero.scrape.jobspy_source import JobSpySource
 from agentzero.scrape.multi import MultiSource
 
@@ -141,7 +153,6 @@ def test_build_scrape_source_jobspy_only():
         locations=["Remote"],
     )
     source = build_scrape_source(settings)
-    from agentzero.scrape.jobspy_source import JobSpySource
 
     assert isinstance(source, JobSpySource)
 
@@ -168,13 +179,8 @@ def test_build_scrape_source_raises_when_empty():
         search_terms=["x"],
         locations=["Remote"],
     )
-    import pytest
-
     with pytest.raises(ValueError, match="No scrape sources configured"):
         build_scrape_source(settings)
-
-from agentzero.models import RawRecord
-from agentzero.scrape.factory import describe_scrape_stack, list_source_names, resolve_core_jobspy_sites
 
 
 def test_resolve_core_jobspy_sites_filters():
@@ -190,8 +196,6 @@ def test_build_scrape_source_single_browser_returns_direct():
         search_terms=["x"],
         locations=["Remote"],
     )
-    from agentzero.scrape.browser_board import BrowserJobBoardSource
-
     source = build_scrape_source(settings)
     assert isinstance(source, BrowserJobBoardSource)
     assert list_source_names(source) == ["indeed_browser"]
@@ -215,8 +219,6 @@ def test_describe_scrape_stack_jobspy_only():
 
 
 def test_build_scrape_source_with_llm_mock():
-    from unittest.mock import MagicMock, patch
-
     settings = Settings(
         _env_file=None,
         scrape_sites=["google"],
@@ -232,8 +234,6 @@ def test_build_scrape_source_with_llm_mock():
 
 
 def test_multi_source_requires_sources():
-    import pytest
-
     with pytest.raises(ValueError, match="at least one"):
         MultiSource([])
 

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from agentzero.config import Settings
 from agentzero.scrape.browser_session import SessionState
-from agentzero.scrape.session_probe import probe_browser_session
+from agentzero.scrape.session_probe import SessionProbeResult, probe_browser_session
 
 
 def test_probe_browser_session_blocks_unsafe_post_navigation_url():
@@ -34,8 +34,6 @@ def test_probe_browser_session_blocks_unsafe_post_navigation_url():
     assert result.state is SessionState.UNKNOWN
     assert result.error == "blocked URL after navigation"
     assert result.url == "http://127.0.0.1/internal"
-
-from agentzero.scrape.session_probe import SessionProbeResult
 
 
 def test_session_probe_result_exit_codes():
