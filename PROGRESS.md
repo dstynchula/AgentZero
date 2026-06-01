@@ -136,15 +136,15 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P26b mcp core (≥85%)
 - [x] P26c leads (≥75%)
 - [x] P26d apply + export_filter (≥90%)
-- [ ] P26e enrich I/O (≥75%)
-- [ ] P26f pipeline (≥75%)
-- [ ] P26g google import/sync (≥75%)
-- [ ] P26h scrape factory + session (≥70%)
+- [x] P26e enrich I/O (≥75%) — PR #17
+- [x] P26f pipeline (≥75%) — PR #18
+- [x] P26g google import/sync (≥75%) — PR #19
+- [x] P26h scrape factory + session (≥70%) — PR #20
 - [ ] P26i glassdoor scrape (≥70%)
 - [ ] P26j browser common + auth (≥70%)
-- [ ] P26k browser board + indeed (≥70%)
-- [ ] P26l browser linkedin (≥70%)
-- [ ] P26m mcp_server contracts (≥60%)
+- [x] P26k browser board + indeed (≥70%) — PR #22
+- [x] P26l browser linkedin (≥70%) — PR #21
+- [x] P26m mcp_server contracts (≥60%) — PR #23
 - [ ] P26 done — total coverage ≥75%, all Accept gates green, CodeQL clean on main
 
 ## Reference docs
@@ -162,5 +162,5 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 
 - [ ] Rotate OpenAI key and Google OAuth tokens before first public push
 - [ ] `python tools/fix_encoding.py` then verify `git status` (no `.env`, `token.json`, profiles)
-- [ ] `pytest -q` and `ruff check agentzero tests scripts tools` (309 tests as of P23)
+- [ ] `pytest -q` and `ruff check agentzero tests scripts tools` (513 tests as of P26k on main)
 - [ ] `python scripts/sync_sheets.py --dry-run` then `--yes` on correct sheet ID
