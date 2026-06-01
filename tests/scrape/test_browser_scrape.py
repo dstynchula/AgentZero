@@ -1,10 +1,13 @@
 ﻿from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from agentzero.config import Settings
+from agentzero.models import RawRecord
+from agentzero.scrape.browser_board import BrowserJobBoardSource
 from agentzero.scrape.browser_indeed import (
     extract_mosaic_payload,
     mosaic_results_to_records,
@@ -37,7 +40,12 @@ from agentzero.scrape.browser_linkedin import (
 from agentzero.scrape.browser_linkedin import (
     page_session_ready as linkedin_session_ready,
 )
-from agentzero.scrape.factory import build_scrape_source
+from agentzero.scrape.factory import (
+    build_scrape_source,
+    describe_scrape_stack,
+    list_source_names,
+    resolve_core_jobspy_sites,
+)
 from agentzero.scrape.jobspy_source import JobSpySource
 from agentzero.scrape.location import parse_search_location
 from agentzero.scrape.multi import MultiSource
@@ -170,7 +178,6 @@ def test_build_scrape_source_jobspy_only():
         locations=["Remote"],
     )
     source = build_scrape_source(settings)
-    from agentzero.scrape.jobspy_source import JobSpySource
 
     assert isinstance(source, JobSpySource)
 
@@ -355,4 +362,79 @@ class TestLinkedInBrowserParse:
         records = parse_linkedin_search_html(html)
         gap = next(r for r in records if r["title"] == "Gap Role")
         assert gap["company"] in {"Gap Co", "Unknown"}
+
+
+def test_resolve_core_jobspy_sites_filters():
+    assert resolve_core_jobspy_sites(["indeed", "google"]) == ["google"]
+    assert resolve_core_jobspy_sites(["  ZIP_RECRUITER "]) == ["zip_recruiter"]
+
+
+def test_build_scrape_source_single_browser_returns_direct():
+    settings = Settings(
+        _env_file=None,
+        scrape_sites=[],
+        scrape_browser_sites=["indeed"],
+        search_terms=["x"],
+        locations=["Remote"],
+    )
+    source = build_scrape_source(settings)
+    assert isinstance(source, BrowserJobBoardSource)
+    assert list_source_names(source) == ["indeed_browser"]
+
+
+def test_describe_scrape_stack_jobspy_only():
+    settings = Settings(
+        _env_file=None,
+        scrape_sites=["google", "zip_recruiter"],
+        scrape_browser_sites=[],
+        search_terms=["Security Engineer"],
+        locations=["remote - usa"],
+        remote_preferred=True,
+        scrape_delay_seconds=2.5,
+    )
+    source = build_scrape_source(settings)
+    info = describe_scrape_stack(source, settings)
+    assert info["sources"] == ["jobspy"]
+    assert set(info["jobspy_sites"]) == {"google", "zip_recruiter"}
+    assert info["delay_seconds"] == 2.5
+
+
+def test_build_scrape_source_with_llm_mock():
+    settings = Settings(
+        _env_file=None,
+        scrape_sites=["google"],
+        scrape_browser_sites=["indeed"],
+        search_terms=["x"],
+        locations=["Remote"],
+    )
+    llm = MagicMock()
+    effective = settings.model_copy(update={"search_terms": ["from-llm"]})
+    with patch("agentzero.ingest.search_profile.get_effective_settings", return_value=effective):
+        source = build_scrape_source(settings, llm=llm)
+    assert isinstance(source, MultiSource)
+
+
+def test_multi_source_requires_sources():
+    with pytest.raises(ValueError, match="at least one"):
+        MultiSource([])
+
+
+def test_multi_source_fetch_merges_batches(capsys):
+    class StubSource:
+        def __init__(self, name: str, n: int):
+            self.name = name
+            self._n = n
+
+        def fetch(self):
+            return [
+                RawRecord(title=f"{self.name}-{i}", company="Co", url=f"https://x/{i}", source=self.name)
+                for i in range(self._n)
+            ]
+
+    multi = MultiSource([StubSource("a", 1), StubSource("b", 2)])
+    records = list(multi.fetch())
+    assert len(records) == 3
+    out = capsys.readouterr().out
+    assert "Scrape [1/2] a" in out
+    assert "Scrape [2/2] b" in out
 

@@ -41,3 +41,8 @@ def test_linkedin_login_required():
         classify_session("linkedin", "<html>Sign in</html>", "https://www.linkedin.com/login")
         == SessionState.LOGIN_REQUIRED
     )
+
+def test_indeed_results_ready():
+    html = _read("indeed_search.html")
+    assert classify_session("indeed", html, "https://www.indeed.com/jobs") == SessionState.READY
+
