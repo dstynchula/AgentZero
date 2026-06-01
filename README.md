@@ -11,8 +11,11 @@ daily pipeline, and it will:
 - Mirror everything to **SQLite** and an optional **Google Sheet** tracker
 - Track applications you mark in the sheet — it never auto-submits
 
-Built as a working tool and an open-book example of agentic co-programming in Cursor (Ralph
-loop, TDD gates, human-in-the-loop where it matters).
+Built as a working tool, AgentZero further serves as a working demonstration of agentic
+development techniques that produce reliable, well-tested code, alongside a secure and
+operator-controlled workflow for ingesting, validating, enriching, and distilling complex
+external data into actionable intelligence — an open-book example of agentic co-programming in
+Cursor (Ralph loop, TDD gates, human-in-the-loop where it matters).
 
 ---
 
