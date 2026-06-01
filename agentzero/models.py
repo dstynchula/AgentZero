@@ -23,6 +23,7 @@ class ApplicationStatus(StrEnum):
     QUEUED = "queued"
     CONTACTED = "contacted"
     APPLIED = "applied"
+    INTERVIEWING = "interviewing"
     REJECTED = "rejected"
     OFFER = "offer"
 

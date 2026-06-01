@@ -138,6 +138,12 @@ def test_is_applied_by_status_only():
     assert not is_applied(_job(status=ApplicationStatus.NEW))
 
 
+def test_interviewing_status_is_applied_and_locked():
+    job = _job(status=ApplicationStatus.INTERVIEWING)
+    assert is_applied(job)
+    assert is_application_locked(job)
+
+
 def test_offer_status_is_application_locked():
     assert is_application_locked(_job(status=ApplicationStatus.OFFER))
 
@@ -277,7 +283,8 @@ def test_tracker_rows_with_applications():
         [
             {"company": "A", "date_applied": "2026-05-01"},
             {"company": "B", "status": "offer"},
-            {"company": "C", "status": "new"},
+            {"company": "C", "status": "interviewing"},
+            {"company": "D", "status": "new"},
         ]
     )
-    assert len(rows) == 2
+    assert len(rows) == 3

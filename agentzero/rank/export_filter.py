@@ -16,6 +16,7 @@ _SHEET_EXCLUDED_STATUSES = frozenset(
 _ALWAYS_EXPORT_STATUSES = frozenset(
     {
         ApplicationStatus.APPLIED,
+        ApplicationStatus.INTERVIEWING,
         ApplicationStatus.OFFER,
     }
 )

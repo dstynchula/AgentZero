@@ -24,13 +24,14 @@ def is_applied(job: JobPosting) -> bool:
     """True when the operator has marked this role as applied."""
     if job.date_applied is not None:
         return True
-    return job.status == ApplicationStatus.APPLIED
+    return job.status in {ApplicationStatus.APPLIED, ApplicationStatus.INTERVIEWING}
 
 
 def is_application_locked(job: JobPosting) -> bool:
     """True when prune/sync scripts must not delete this row (not sheet export policy)."""
     return job.status in {
         ApplicationStatus.APPLIED,
+        ApplicationStatus.INTERVIEWING,
         ApplicationStatus.REJECTED,
         ApplicationStatus.OFFER,
     } or job.date_applied is not None
@@ -265,6 +266,11 @@ def tracker_rows_with_applications(rows: list[dict[str, str]]) -> list[dict[str,
             applied.append(row)
             continue
         status = parse_sheet_status(row.get("status"))
-        if status in {ApplicationStatus.APPLIED, ApplicationStatus.OFFER, ApplicationStatus.REJECTED}:
+        if status in {
+            ApplicationStatus.APPLIED,
+            ApplicationStatus.INTERVIEWING,
+            ApplicationStatus.OFFER,
+            ApplicationStatus.REJECTED,
+        }:
             applied.append(row)
     return applied

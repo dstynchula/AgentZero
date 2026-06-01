@@ -85,3 +85,10 @@ def test_offer_status_always_exports():
 
     job = _job(match_score=0.1, status=ApplicationStatus.OFFER)
     assert job_included_in_export(job, 0.75)
+
+
+def test_interviewing_status_always_exports():
+    from agentzero.models import ApplicationStatus
+
+    job = _job(match_score=0.1, status=ApplicationStatus.INTERVIEWING)
+    assert job_included_in_export(job, 0.75)
