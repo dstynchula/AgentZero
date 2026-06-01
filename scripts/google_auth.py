@@ -59,16 +59,16 @@ def main() -> int:
 
     if not client_secret.is_file():
         print(
-            f"ERROR: OAuth client secret not found: {client_secret}\n"
-            "Download a Desktop OAuth client JSON from Google Cloud Console and save it "
-            "as client_secret.json (see docs/SECURITY.md / README).",
+            "ERROR: OAuth client secret file not found. Set AGENTZERO_GOOGLE_CLIENT_SECRET "
+            "or save the Desktop OAuth client JSON as client_secret.json "
+            "(see docs/SECURITY.md / README).",
             file=sys.stderr,
         )
         return 1
 
     scopes = FULL_SCOPES if args.full_scopes else SHEETS_SCOPES
     print("AgentZero Google OAuth")
-    print(f"  client secret: {client_secret}")
+    print("  client secret: found")
     print(f"  token path:    {token_path}")
     print(f"  scopes:        {scopes}")
     if settings.sheet_id:
