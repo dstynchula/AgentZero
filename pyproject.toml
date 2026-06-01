@@ -56,6 +56,7 @@ include = ["agentzero*"]
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
     "external: tests that touch live external services (skipped by default in the loop)",
