@@ -131,7 +131,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 
 ## P26 — Meaningful coverage wave (tiered, package-per-PR)
 
-- [ ] P26-0 CI coverage report (optional)
+- [x] P26-0 CI coverage report (optional)
 - [ ] P26a net (≥90%)
 - [ ] P26b mcp core (≥85%)
 - [ ] P26c leads (≥75%)
