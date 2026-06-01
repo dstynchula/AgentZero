@@ -72,3 +72,16 @@ def test_filter_excludes_lead_when_min_score_disabled():
     kept, rejected = filter_jobs_for_export([lead], 0)
     assert kept == []
     assert rejected == [lead]
+
+def test_applied_status_always_exports():
+    from agentzero.models import ApplicationStatus
+
+    job = _job(match_score=0.1, status=ApplicationStatus.APPLIED)
+    assert job_included_in_export(job, 0.75)
+
+
+def test_offer_status_always_exports():
+    from agentzero.models import ApplicationStatus
+
+    job = _job(match_score=0.1, status=ApplicationStatus.OFFER)
+    assert job_included_in_export(job, 0.75)
