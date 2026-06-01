@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from agentzero.scrape.browser_indeed import page_has_job_results, page_needs_human
+from agentzero.scrape.browser_indeed import (
+    page_has_job_results,
+    page_needs_human,
+    page_needs_login,
+)
 
 
 def test_page_needs_human_ray_id_stale_page():
@@ -15,7 +19,6 @@ def test_page_needs_human_false_when_mosaic_present():
     html = 'x' * 100 + 'mosaic-provider-jobcards' + 'y' * 100
     assert page_has_job_results(html)
     assert not page_needs_human(html, "https://www.indeed.com/jobs")
-from agentzero.scrape.browser_indeed import page_needs_login
 
 
 def test_page_needs_human_sorry_short_page():

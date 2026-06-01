@@ -1,16 +1,29 @@
-﻿from pathlib import Path
+﻿from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 
 from agentzero.config import Settings
 from agentzero.scrape.browser_indeed import (
+    _default_input,
+    _dismiss_indeed_consent,
+    _parse_indeed_dom_html,
+    build_indeed_search_url,
     extract_mosaic_payload,
     mosaic_results_to_records,
     page_has_job_results,
     page_needs_human,
+    page_needs_login,
+    page_session_ready,
     parse_indeed_mosaic_html,
     parse_indeed_search_html,
+    prompt_for_browser_verification,
 )
 from agentzero.scrape.factory import build_scrape_source
 from agentzero.scrape.jobspy_source import JobSpySource
+from agentzero.scrape.location import parse_search_location
 from agentzero.scrape.multi import MultiSource
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -141,7 +154,6 @@ def test_build_scrape_source_jobspy_only():
         locations=["Remote"],
     )
     source = build_scrape_source(settings)
-    from agentzero.scrape.jobspy_source import JobSpySource
 
     assert isinstance(source, JobSpySource)
 
@@ -168,26 +180,9 @@ def test_build_scrape_source_raises_when_empty():
         search_terms=["x"],
         locations=["Remote"],
     )
-    import pytest
 
     with pytest.raises(ValueError, match="No scrape sources configured"):
         build_scrape_source(settings)
-from unittest.mock import MagicMock
-
-import pytest
-
-from agentzero.scrape.browser_indeed import (
-    _default_input,
-    _dismiss_indeed_consent,
-    _parse_indeed_dom_html,
-    build_indeed_search_url,
-    extract_mosaic_payload,
-    mosaic_results_to_records,
-    page_needs_login,
-    page_session_ready,
-    prompt_for_browser_verification,
-)
-from agentzero.scrape.location import parse_search_location
 
 
 def test_build_indeed_search_url_remote_flag():

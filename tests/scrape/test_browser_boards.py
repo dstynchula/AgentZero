@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from agentzero.config import Settings
+from agentzero.scrape.browser_board import SITE_CONFIGS, BrowserJobBoardSource, _default_input
 from agentzero.scrape.browser_linkedin import (
     build_linkedin_search_url,
+    page_has_job_results,
     parse_linkedin_search_html,
 )
 from agentzero.scrape.factory import (
@@ -18,6 +23,7 @@ from agentzero.scrape.factory import (
 )
 from agentzero.scrape.location import parse_search_location
 from agentzero.scrape.multi import MultiSource
+from agentzero.scrape.validate import validate_raw
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
@@ -32,8 +38,6 @@ def test_parse_linkedin_search_html():
 
 
 def test_parse_linkedin_search_spa_html():
-    from agentzero.scrape.browser_linkedin import page_has_job_results
-
     html = (FIXTURES / "linkedin_search_spa.html").read_text(encoding="utf-8")
     assert page_has_job_results(html)
     records = parse_linkedin_search_html(html)
@@ -56,7 +60,6 @@ def test_parse_linkedin_search_embedded_only_html():
     by_company = {r["company"]: r for r in records}
     assert by_company["Rippling"]["title"] == "Lead Security Engineer"
     assert by_company["Rippling"]["location"] == "United States (Remote)"
-    from agentzero.scrape.validate import validate_raw
 
     rippling_raw = by_company["Rippling"]
     assert rippling_raw.get("comp_raw") == "$200K/yr - $240K/yr"
@@ -121,11 +124,6 @@ def test_describe_scrape_stack():
     assert info["primary_term"] == "Security Engineer"
     assert info["remote"] is True
     assert "indeed_browser" in info["sources"]
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-from agentzero.scrape.browser_board import BrowserJobBoardSource, SITE_CONFIGS, _default_input
 
 
 def test_site_configs_include_core_boards():
