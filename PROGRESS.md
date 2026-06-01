@@ -135,7 +135,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P26a net (≥90%)
 - [x] P26b mcp core (≥85%)
 - [x] P26c leads (≥75%)
-- [ ] P26d apply + export_filter (≥90%)
+- [x] P26d apply + export_filter (≥90%)
 - [ ] P26e enrich I/O (≥75%)
 - [ ] P26f pipeline (≥75%)
 - [ ] P26g google import/sync (≥75%)

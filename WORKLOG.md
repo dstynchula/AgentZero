@@ -277,3 +277,8 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     Mocked suggest_targets, build_run_settings, check_board_sessions, run_lead_scrape, commit_leads, preview helpers.
     files: tests/test_leads_session.py
     accept: pytest tests/test_leads_session.py --cov=agentzero.leads --cov-branch --cov-fail-under=75; PR #13 merged (c49df1e)
+
+[2026-06-01T05:30:00Z] P26d DONE - agentzero.apply + export_filter branch coverage 70% → 95%.
+    Added test_apply_sheet_fields; extended application_tracking and export_filter tests.
+    files: tests/test_apply_sheet_fields.py, tests/test_application_tracking.py, tests/test_export_filter.py
+    accept: pytest tests/test_application_tracking.py tests/test_export_filter.py tests/test_apply_sheet_fields.py --cov=agentzero.apply --cov=agentzero.rank.export_filter --cov-branch --cov-fail-under=90; PR #15 merged (4427fe7)
