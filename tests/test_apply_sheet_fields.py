@@ -43,6 +43,7 @@ def test_parse_sheet_date_invalid_returns_none():
 
 def test_parse_sheet_status_valid_and_invalid():
     assert parse_sheet_status("applied") == ApplicationStatus.APPLIED
+    assert parse_sheet_status("interviewing") == ApplicationStatus.INTERVIEWING
     assert parse_sheet_status("  OFFER  ") == ApplicationStatus.OFFER
     assert parse_sheet_status("") is None
     assert parse_sheet_status("not-a-status") is None
