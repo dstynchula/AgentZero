@@ -31,9 +31,7 @@ def main() -> int:
 
     print("Reading résumé and inferring search targets…", flush=True)
     targets = suggest_targets(llm)
-    if targets.candidate_name:
-        print(f"Candidate: {targets.candidate_name}", flush=True)
-    print(targets.summary(), flush=True)
+    print(targets.safe_log_line(), flush=True)
     print(flush=True)
 
     search_terms = [
