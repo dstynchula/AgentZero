@@ -1,4 +1,8 @@
+﻿from __future__ import annotations
+
 from pathlib import Path
+
+import pytest
 
 from agentzero.config import Settings
 from agentzero.scrape.browser_indeed import (
@@ -9,8 +13,33 @@ from agentzero.scrape.browser_indeed import (
     parse_indeed_mosaic_html,
     parse_indeed_search_html,
 )
+from agentzero.scrape.browser_linkedin import (
+    _closest_job_posting_id,
+    _closest_job_view_url,
+    _embedded_job_fields,
+    _job_object_chunk,
+    _merge_record,
+    _normalize_job_url,
+    _record_dedupe_key,
+    _unescape_json,
+    build_linkedin_search_url,
+    parse_linkedin_search_html,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_has_job_results as linkedin_page_has_job_results,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_needs_human as linkedin_needs_human,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_needs_login as linkedin_needs_login,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_session_ready as linkedin_session_ready,
+)
 from agentzero.scrape.factory import build_scrape_source
 from agentzero.scrape.jobspy_source import JobSpySource
+from agentzero.scrape.location import parse_search_location
 from agentzero.scrape.multi import MultiSource
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -168,30 +197,12 @@ def test_build_scrape_source_raises_when_empty():
         search_terms=["x"],
         locations=["Remote"],
     )
-    import pytest
 
     with pytest.raises(ValueError, match="No scrape sources configured"):
         build_scrape_source(settings)
 
-# --- LinkedIn browser parser (fixtures + inline HTML; mocks only) ---
 
-from agentzero.scrape.browser_linkedin import (
-    _closest_job_posting_id,
-    _closest_job_view_url,
-    _embedded_job_fields,
-    _job_object_chunk,
-    _merge_record,
-    _normalize_job_url,
-    _record_dedupe_key,
-    _unescape_json,
-    build_linkedin_search_url,
-    page_has_job_results as linkedin_page_has_job_results,
-    page_needs_human as linkedin_needs_human,
-    page_needs_login as linkedin_needs_login,
-    page_session_ready as linkedin_session_ready,
-    parse_linkedin_search_html,
-)
-from agentzero.scrape.location import parse_search_location
+# --- LinkedIn browser parser (fixtures + inline HTML; mocks only) ---
 
 
 class TestLinkedInBrowserParse:
