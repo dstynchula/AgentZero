@@ -272,3 +272,8 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     Expanded validation edge cases; added workflow text tests for lead_session_workflow_text().
     files: tests/test_mcp_validation.py, tests/test_mcp_workflow.py
     accept: pytest tests/test_mcp_validation.py tests/test_mcp_workflow.py --cov=agentzero.mcp --cov-branch --cov-fail-under=85; PR #10 merged (4a5a29b)
+
+[2026-06-01T05:15:00Z] P26c DONE - agentzero.leads.session branch coverage 54% → 98%.
+    Mocked suggest_targets, build_run_settings, check_board_sessions, run_lead_scrape, commit_leads, preview helpers.
+    files: tests/test_leads_session.py
+    accept: pytest tests/test_leads_session.py --cov=agentzero.leads --cov-branch --cov-fail-under=75; PR #13 merged (c49df1e)
