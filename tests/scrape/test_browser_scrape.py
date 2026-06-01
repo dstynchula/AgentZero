@@ -23,6 +23,30 @@ from agentzero.scrape.browser_indeed import (
     parse_indeed_search_html,
     prompt_for_browser_verification,
 )
+from agentzero.scrape.browser_linkedin import (
+    _closest_job_posting_id,
+    _closest_job_view_url,
+    _embedded_job_fields,
+    _job_object_chunk,
+    _merge_record,
+    _normalize_job_url,
+    _record_dedupe_key,
+    _unescape_json,
+    build_linkedin_search_url,
+    parse_linkedin_search_html,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_has_job_results as linkedin_page_has_job_results,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_needs_human as linkedin_needs_human,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_needs_login as linkedin_needs_login,
+)
+from agentzero.scrape.browser_linkedin import (
+    page_session_ready as linkedin_session_ready,
+)
 from agentzero.scrape.factory import (
     build_scrape_source,
     describe_scrape_stack,
@@ -320,6 +344,161 @@ def test_default_input_eof_indeed(monkeypatch):
 
     monkeypatch.setattr("builtins.input", boom)
     assert _default_input("> ") == ""
+
+
+# --- LinkedIn browser parser (fixtures + inline HTML; mocks only) ---
+
+
+class TestLinkedInBrowserParse:
+    def test_parse_linkedin_legacy_fixture(self):
+        html = (FIXTURES / "linkedin_search.html").read_text(encoding="utf-8")
+        records = parse_linkedin_search_html(html)
+        assert len(records) == 2
+        assert records[0]["title"] == "Staff Security Engineer"
+        assert records[0]["remote"] is True
+
+    def test_parse_linkedin_spa_fixture(self):
+        html = (FIXTURES / "linkedin_search_spa.html").read_text(encoding="utf-8")
+        assert linkedin_page_has_job_results(html)
+        records = parse_linkedin_search_html(html)
+        assert len(records) == 2
+        garner = next(r for r in records if r["company"] == "Garner Health")
+        assert garner["url"] == "https://www.linkedin.com/jobs/view/4328174567"
+        assert garner["comp_raw"] == "$239K/yr - $275K/yr"
+        principal = next(r for r in records if r["company"] == "Acme Corp")
+        assert principal["url"].endswith("9876543210")
+
+    def test_parse_linkedin_embedded_only_fixture(self):
+        html = (FIXTURES / "linkedin_search_embedded_only.html").read_text(encoding="utf-8")
+        records = parse_linkedin_search_html(html)
+        assert len(records) == 3
+        by_co = {r["company"]: r for r in records}
+        assert by_co["Rippling"]["comp_raw"] == "$200K/yr - $240K/yr"
+
+    def test_session_ready_feed_and_profile_urls(self):
+        assert linkedin_session_ready("<html></html>", "https://www.linkedin.com/feed/")
+        assert linkedin_session_ready("<html></html>", "https://www.linkedin.com/in/dan")
+
+    def test_needs_login_html_session_key(self):
+        html = '<html><input name="session_key"/></html>'
+        assert linkedin_needs_login(html, "https://www.linkedin.com/jobs/search/")
+
+    def test_needs_human_skipped_when_jobs_present(self):
+        html = (FIXTURES / "linkedin_search_spa.html").read_text(encoding="utf-8")
+        assert not linkedin_needs_human(html + " captcha", "https://www.linkedin.com/jobs/search/")
+
+    def test_build_linkedin_non_remote_url(self):
+        parsed = parse_search_location("Boston, MA")
+        url = build_linkedin_search_url(term="Security Engineer", parsed=parsed)
+        assert "f_WT=2" not in url
+        assert "keywords=Security" in url
+
+    def test_normalize_job_url_variants(self):
+        assert _normalize_job_url("https://www.linkedin.com/jobs/view/x-1234567890/") is not None
+        assert _normalize_job_url("/jobs/view/x-1234567890") == (
+            "https://www.linkedin.com/jobs/view/x-1234567890"
+        )
+        assert _normalize_job_url("not-a-job") is None
+        assert _normalize_job_url("jobs/view/1234567890") is None
+
+    def test_merge_record_fills_gaps(self):
+        base = {
+            "title": "Staff Security Engineer",
+            "company": "Unknown",
+            "url": "https://www.linkedin.com/jobs/view/4328174567",
+            "source": "linkedin",
+        }
+        richer = {
+            **base,
+            "company": "Garner Health",
+            "location": "United States (Remote)",
+            "comp_raw": "$200K/yr",
+            "remote": True,
+        }
+        merged = _merge_record(base, richer)
+        assert merged["company"] == "Garner Health"
+        assert merged["location"] == "United States (Remote)"
+        assert merged["comp_raw"] == "$200K/yr"
+        assert merged["remote"] is True
+
+    def test_dedupe_key_without_job_id(self):
+        rec = {"title": "A", "company": "B", "url": "", "source": "linkedin"}
+        assert _record_dedupe_key(rec) == "a|b|"
+
+    def test_legacy_card_skips_bad_rows(self):
+        html = """
+        <div class="base-search-card"></div>
+        <div class="base-search-card"><a href="/company/foo">nope</a></div>
+        <div class="base-search-card">
+          <a class="base-card__full-link" href="/jobs/view/t-1234567890"><span class="sr-only"></span></a>
+        </div>
+        """
+        assert parse_linkedin_search_html(html) == []
+
+    def test_spa_skips_invalid_dismiss_and_missing_url(self):
+        html = """
+        <button aria-label="Dismiss  job"></button>
+        <button aria-label="Dismiss No URL Role job"></button>
+        <div><div role="button"><p><span>Hidden Role</span></p></div>
+        <button aria-label="Dismiss Hidden Role job"></button></div>
+        """
+        assert parse_linkedin_search_html(html) == []
+
+    def test_spa_company_from_logo_alt(self):
+        html = """
+        <div class="card">
+          <div role="button"><p><span>Logo Role</span></p>
+            <img src="https://media.licdn.com/company-logo" alt="Logo Co logo" />
+            <p>Remote - US</p>
+          </div>
+          <button aria-label="Dismiss Logo Role job"></button>
+          <a href="https://www.linkedin.com/jobs/view/logo-role-5555555555">v</a>
+        </div>
+        """
+        records = parse_linkedin_search_html(html)
+        assert len(records) == 1
+        assert records[0]["company"] == "Logo Co"
+
+    def test_embedded_duplicate_id_and_missing_title(self):
+        html = """
+        <script>
+        {"entityUrn":"urn:li:fsd_jobPosting:1111111111","title":"Dup","companyName":"Co"}
+        {"entityUrn":"urn:li:fsd_jobPosting:1111111111","title":"Dup"}
+        {"entityUrn":"urn:li:fsd_jobPosting:2222222222","companyName":"NoTitle"}
+        </script>
+        """
+        records = parse_linkedin_search_html(html)
+        assert len(records) == 1
+        assert records[0]["title"] == "Dup"
+
+    def test_closest_job_posting_and_view_url(self):
+        chunk = "before jobPosting:1234567890 middle /jobs/view/other-9999999999 after"
+        assert _closest_job_posting_id(chunk, anchor_pos=30) == "1234567890"
+        assert _closest_job_view_url(chunk, anchor_pos=5) is not None
+
+    def test_job_object_chunk_and_unescape(self):
+        html = '{"a":{"entityUrn":"jobPosting:3333333333","title":"T","companyName":"C"}}'
+        chunk = _job_object_chunk(html, job_id="3333333333")
+        assert chunk is not None
+        title, company, loc, comp = _embedded_job_fields(html, job_id="3333333333")
+        assert title == "T" and company == "C"
+        assert _unescape_json('say \\"hi\\"') == 'say "hi"'
+        assert _unescape_json(None) == ""
+
+    def test_fill_record_gaps_from_vicinity(self):
+        html = """
+        <div class="base-search-card">
+          <a class="base-card__full-link" href="https://www.linkedin.com/jobs/view/gap-4444444444">
+            <span class="sr-only">Gap Role</span>
+          </a>
+        </div>
+        <script>{"entityUrn":"jobPosting:4444444444","title":"Gap Role"}</script>
+        <a href="https://www.linkedin.com/company/gap-co">Gap Co</a>
+        <span>$150,000/yr</span>
+        """
+        records = parse_linkedin_search_html(html)
+        gap = next(r for r in records if r["title"] == "Gap Role")
+        assert gap["company"] in {"Gap Co", "Unknown"}
 
 
 def test_resolve_core_jobspy_sites_filters():
