@@ -1,6 +1,7 @@
 """Tests for web-search enrichment parsers and HTML parsing."""
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 from agentzero.enrich.snippet_parse import (
     parse_company_size_from_text,
@@ -61,7 +62,9 @@ def test_extract_careers_urls_prefers_company_boards():
         ),
     ]
     urls = extract_careers_urls(hits, company="Acme")
-    assert urls[0].startswith("https://boards.greenhouse.io")
+    parsed = urlparse(urls[0])
+    assert parsed.scheme == "https"
+    assert parsed.hostname == "boards.greenhouse.io"
 
 
 def test_title_keywords_filters_noise():

@@ -6,9 +6,10 @@ import json
 import logging
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 from agentzero.models import RawRecord
+from agentzero.net.url_safety import url_host_matches
 
 log = logging.getLogger(__name__)
 
@@ -62,8 +63,9 @@ def _default_input(prompt: str) -> str:
 def page_session_ready(html: str, url: str = "") -> bool:
     if page_has_job_results(html):
         return True
+    host = (urlparse(url).hostname or "").lower()
     url_lower = url.lower()
-    if "www.indeed.com" not in url_lower or "secure.indeed.com" in url_lower:
+    if host != "www.indeed.com":
         return False
     if "/account/login" in url_lower or "/auth" in url_lower:
         return False
@@ -76,12 +78,13 @@ def page_needs_login(html: str, url: str = "") -> bool:
     """Return True on Indeed account sign-in pages (not CAPTCHA blocks)."""
     if page_session_ready(html, url):
         return False
+    host = (urlparse(url).hostname or "").lower()
     url_lower = url.lower()
-    if "secure.indeed.com" in url_lower:
+    if host == "secure.indeed.com":
         return True
     if "/account/login" in url_lower:
         return True
-    if "/auth" in url_lower and "indeed.com" in url_lower:
+    if "/auth" in url_lower and url_host_matches(url, "indeed.com"):
         return True
     if page_has_job_results(html):
         return False
