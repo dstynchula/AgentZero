@@ -257,3 +257,8 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     test_worklog_append_only now reads git bytes and decodes UTF-8 explicitly (no locale mismatch).
     files: tests/test_worklog_append_only.py, PROGRESS.md, WORKLOG.md
     accept: pytest -q -> 309 passed; ruff check agentzero tests scripts tools -> clean
+
+[2026-06-01T04:24:00Z] P26-0 DONE - CI reports branch coverage; P26 ledger seeded in PROGRESS.md.
+    Pytest step now runs --cov=agentzero --cov-branch --cov-report=term-missing:skip-covered (report-only).
+    files: .github/workflows/ci.yml, PROGRESS.md
+    accept: PR #6 merged; CI green on main (77d97fe)
