@@ -271,17 +271,25 @@ def test_load_credentials_runs_local_server_when_no_token(tmp_path, monkeypatch)
     flow.run_local_server.assert_called_once()
 
 
-def test_load_credentials_import_error(monkeypatch):
-    import sys
+def test_load_credentials_import_error(monkeypatch, tmp_path):
+    """Missing google-auth must fail before touching credential paths (CI has google installed)."""
+    import builtins
 
-    for k in list(sys.modules):
-        if k == "google" or k.startswith("google.") or k.startswith("google_"):
-            monkeypatch.delitem(sys.modules, k, raising=False)
+    real_import = builtins.__import__
+    secret = tmp_path / "client_secret.json"
+    token = tmp_path / "token.json"
+    secret.write_text("{}", encoding="utf-8")
 
+    def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name in ("google.auth.transport.requests", "google_auth_oauthlib.flow"):
+            raise ImportError("google-auth not installed")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
     from agentzero.google.auth import load_credentials
 
     with pytest.raises(ImportError, match="google-auth"):
-        load_credentials(client_secret_path=Path("x"), token_path=Path("y"))
+        load_credentials(client_secret_path=secret, token_path=token)
 
 def test_authorize_gspread_and_open_spreadsheet(monkeypatch):
     from agentzero.google.client import authorize_gspread, build_sheets_service, open_spreadsheet
