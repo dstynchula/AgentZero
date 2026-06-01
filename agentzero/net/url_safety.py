@@ -63,6 +63,17 @@ def _resolve_host_ips(host: str) -> list[ipaddress.IPv4Address | ipaddress.IPv6A
     return ips
 
 
+def url_host_matches(url: str, domain: str) -> bool:
+    """Return True when ``url``'s host equals ``domain`` or is a subdomain of it.
+
+    Uses the parsed hostname rather than a substring check so hostile values
+    like ``indeed.com.evil.example`` (or ``notindeed.com``) do not match.
+    """
+    host = (urlparse(url).hostname or "").lower().rstrip(".")
+    domain = domain.lower().rstrip(".")
+    return host == domain or host.endswith("." + domain)
+
+
 def is_safe_public_url(url: str) -> bool:
     """Return True when ``url`` is an http(s) URL targeting a public host."""
     try:

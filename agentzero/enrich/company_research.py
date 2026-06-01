@@ -21,6 +21,7 @@ from agentzero.enrich.snippet_parse import (
 from agentzero.enrich.web_search import SearchHit, search_web
 from agentzero.models import JobPosting
 from agentzero.net.http_client import safe_get_text
+from agentzero.net.url_safety import url_host_matches
 from agentzero.scrape.glassdoor import parse_glassdoor_company_html
 from agentzero.scrape.resilience import DEFAULT_USER_AGENT
 
@@ -85,7 +86,7 @@ def _parse_hits_for_facts(
     _merge_glassdoor(facts, rating, reviews)
 
     for hit in hits:
-        if "glassdoor.com" in hit.url.lower():
+        if url_host_matches(hit.url, "glassdoor.com"):
             rating, reviews = parse_glassdoor_from_text(f"{hit.title}\n{hit.snippet}")
             _merge_glassdoor(facts, rating, reviews)
             if facts.glassdoor_rating is None or facts.glassdoor_reviews is None:

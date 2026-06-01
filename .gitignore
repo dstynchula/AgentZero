@@ -35,6 +35,9 @@ data/browser_storage_state/
 resume/**
 !resume/.gitkeep
 
+# Generated output artifacts (local only)
+output/
+
 # Editor / OS
 .DS_Store
 .idea/

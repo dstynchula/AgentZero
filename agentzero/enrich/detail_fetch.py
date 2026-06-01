@@ -5,12 +5,11 @@ from __future__ import annotations
 import logging
 import time
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlparse
 
 from agentzero.enrich.detail_parse import parse_job_detail_html
 from agentzero.models import JobPosting
 from agentzero.net.http_client import safe_get_text
-from agentzero.net.url_safety import UnsafeURLError, validate_fetch_url
+from agentzero.net.url_safety import UnsafeURLError, url_host_matches, validate_fetch_url
 from agentzero.scrape.resilience import DEFAULT_USER_AGENT
 
 if TYPE_CHECKING:
@@ -24,12 +23,11 @@ def _fetch_html_http(url: str, *, user_agent: str, timeout: float) -> str | None
 
 
 def _browser_site_for_job(job: JobPosting) -> str | None:
-    host = urlparse(job.url).netloc.lower()
-    if "linkedin.com" in host:
+    if url_host_matches(job.url, "linkedin.com"):
         return "linkedin"
-    if "indeed.com" in host:
+    if url_host_matches(job.url, "indeed.com"):
         return "indeed"
-    if "glassdoor.com" in host:
+    if url_host_matches(job.url, "glassdoor.com"):
         return "glassdoor"
     return None
 

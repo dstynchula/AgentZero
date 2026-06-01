@@ -1,0 +1,16 @@
+---
+description: Interactive AgentZero MCP lead session — always confirm with user before scrape/commit
+alwaysApply: true
+---
+
+# AgentZero MCP (interactive chat)
+
+When AgentZero MCP tools are available, run the **lead session in chat**:
+
+1. `lead_session_workflow` or `suggest_targets` → confirm titles/comp with the user
+2. `check_sessions` → fix login/CAPTCHA if needed (Chrome CDP auto-starts)
+3. `run_scrape` → only after explicit user OK
+4. Present leads → user picks job_ids
+5. `commit_leads` → only selected ids
+
+Never batch-scrape or commit to the sheet without user confirmation in the conversation.
