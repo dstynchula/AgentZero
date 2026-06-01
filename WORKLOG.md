@@ -262,3 +262,8 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     Pytest step now runs --cov=agentzero --cov-branch --cov-report=term-missing:skip-covered (report-only).
     files: .github/workflows/ci.yml, PROGRESS.md
     accept: PR #6 merged; CI green on main (77d97fe)
+
+[2026-06-01T04:30:00Z] P26a DONE - agentzero.net branch coverage 77% → 98%.
+    Expanded url_safety (DNS mocks, url_host_matches), http_client edge paths, cdp_safety validation.
+    files: tests/test_url_safety.py, tests/test_http_client.py, tests/test_cdp_safety.py
+    accept: pytest tests/test_url_safety.py tests/test_http_client.py tests/test_cdp_safety.py --cov=agentzero.net --cov-branch --cov-fail-under=90; PR #7 merged (c470203)
