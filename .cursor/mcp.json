@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agentzero": {
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": ["-m", "agentzero.mcp_server", "--stdio"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
