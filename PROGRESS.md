@@ -129,6 +129,24 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] Prevent false failures on Windows locale decoding differences
 - [x] Full checks green (309 tests + ruff)
 
+## P26 — Meaningful coverage wave (tiered, package-per-PR)
+
+- [ ] P26-0 CI coverage report (optional)
+- [ ] P26a net (≥90%)
+- [ ] P26b mcp core (≥85%)
+- [ ] P26c leads (≥75%)
+- [ ] P26d apply + export_filter (≥90%)
+- [ ] P26e enrich I/O (≥75%)
+- [ ] P26f pipeline (≥75%)
+- [ ] P26g google import/sync (≥75%)
+- [ ] P26h scrape factory + session (≥70%)
+- [ ] P26i glassdoor scrape (≥70%)
+- [ ] P26j browser common + auth (≥70%)
+- [ ] P26k browser board + indeed (≥70%)
+- [ ] P26l browser linkedin (≥70%)
+- [ ] P26m mcp_server contracts (≥60%)
+- [ ] P26 done — total coverage ≥75%, all Accept gates green, CodeQL clean on main
+
 ## Reference docs
 
 | Doc | Contents |

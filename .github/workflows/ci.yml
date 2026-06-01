@@ -26,7 +26,7 @@ jobs:
         run: ruff check agentzero tests scripts tools
 
       - name: Pytest
-        run: pytest -q
+        run: pytest --cov=agentzero --cov-branch --cov-report=term-missing:skip-covered -q
 
       - name: Encoding check (UTF-8, no UTF-16 text files)
         run: python tools/encoding_check.py
