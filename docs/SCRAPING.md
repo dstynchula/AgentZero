@@ -343,7 +343,12 @@ AGENTZERO_SCRAPE_CDP_URL=http://127.0.0.1:9222
 AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=true
 ```
 
-CDP URLs must be **localhost only** (security guard). Profile: `data/browser_profiles/cdp`.
+By default the launcher starts Chrome on **`127.0.0.1:9223`** and a host proxy on **`0.0.0.0:9222`**
+so Docker (`host.docker.internal:9222`) can reach CDP; the proxy rewrites `Host` to localhost.
+Disable with `python scripts/launch_chrome_cdp.py --no-docker-expose`.
+
+CDP URLs in settings must be **localhost** (or `host.docker.internal` when
+`AGENTZERO_CDP_ALLOW_DOCKER_HOST=true`). Profile: `data/browser_profiles/cdp`.
 
 Legacy manual attach to your daily Chrome profile (not recommended on Chrome 136+):
 
@@ -351,7 +356,9 @@ Legacy manual attach to your daily Chrome profile (not recommended on Chrome 136
 python scripts/cdp_browser_spike.py --site glassdoor --compare
 ```
 
-**Security:** CDP exposes your browser to localhost — never bind `0.0.0.0`. AgentZero disconnects without closing your Chrome window when CDP mode is active.
+**Security:** CDP exposes your browser — the proxy listens on all interfaces only to forward to
+loopback-bound Chrome; do not expose port 9222 on untrusted networks. AgentZero disconnects without
+closing your Chrome window when CDP mode is active.
 
 ### Cursor IDE browser
 

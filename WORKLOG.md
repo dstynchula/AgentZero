@@ -403,3 +403,10 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     browser_common.launch_cdp_chrome uses shared module; cdp_status launch_commands + config.html Step 1/2
     docs: GETTING_STARTED, SCRAPING, DOCKER, .env.example; tests/test_cdp_launch.py, test_docs_web, test_web_cdp_status
     accept: pytest tests/test_cdp_launch.py tests/test_web_cdp_status.py tests/test_docs_web.py tests/test_web_app_config.py -q; ruff clean
+
+[2026-06-02T22:45:00Z] P32h DONE - Docker CDP Connect: host proxy, Host rewrite, web compose env.
+    agentzero/scrape/cdp_host_proxy.py forwards 0.0.0.0:9222 -> Chrome 127.0.0.1:9223; rewrites Host/Origin
+    for host.docker.internal; stop stale proxies on relaunch; web service CDP env + Connect probe-only in Docker.
+    files: cdp_host_proxy.py, cdp_launch.py, cdp_status.py, docker-compose.yml, docs/DOCKER.md, GETTING_STARTED.md,
+           README.md, .env.example, tests/test_cdp_host_proxy.py, tests/test_cdp_launch.py, tests/test_web_cdp_status.py
+    accept: pytest tests/test_cdp_host_proxy.py tests/test_cdp_launch.py tests/test_web_cdp_status.py -q; ruff clean

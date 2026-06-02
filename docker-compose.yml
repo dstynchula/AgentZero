@@ -20,12 +20,18 @@ services:
   web:
     build: .
     env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8080:8080"
     environment:
       AGENTZERO_WEB_ENABLED: "true"
       AGENTZERO_WEB_HOST: "0.0.0.0"
       AGENTZERO_WEB_PORT: "8080"
+      # Host Chrome CDP — same as agentzero service (Connect probes; no in-container launch)
+      AGENTZERO_SCRAPE_CDP_URL: http://host.docker.internal:9222
+      AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH: "false"
+      AGENTZERO_CDP_ALLOW_DOCKER_HOST: "true"
     volumes:
       - ./data:/app/data
       - ./resume:/app/resume:ro

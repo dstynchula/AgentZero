@@ -75,6 +75,10 @@ chmod +x scripts/launch_chrome_cdp.sh   # once
 ./scripts/launch_chrome_cdp.sh
 ```
 
+The launcher starts Chrome on `127.0.0.1:9223` and a small host proxy on port **9222**
+(so Docker can use `host.docker.internal:9222`; Chrome only accepts loopback). Set
+`--no-docker-expose` on the launch script to skip the proxy.
+
 Log into Indeed and Glassdoor in that Chrome window. Uncomment in `.env`:
 
 ```env

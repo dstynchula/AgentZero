@@ -207,6 +207,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P32e Search title selection, dark default, CDP Connect, source-aware host hints
 - [x] P32f Load résumé button (LLM search profile + title selection)
 - [x] P32g Cross-platform CDP launch (py/sh/ps1) + GETTING_STARTED + Settings UI instructions
+- [x] P32h Docker CDP Connect — host proxy (9222→9223), Host header rewrite, compose `web` CDP env, stale-proxy cleanup
 
 ## Reference docs
 

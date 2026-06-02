@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from agentzero.config import Settings
 from agentzero.scrape.browser_common import (
@@ -96,6 +98,26 @@ def _docker_host_allowed() -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _running_in_container() -> bool:
+    return Path("/.dockerenv").is_file()
+
+
+def _cdp_uses_loopback_host(cdp_url: str) -> bool:
+    host = (urlparse(cdp_url).hostname or "").lower()
+    return host in ("127.0.0.1", "localhost", "::1")
+
+
+def _docker_cdp_unreachable_message(url: str) -> str:
+    port = cdp_port(url)
+    return (
+        f"CDP at {url} is not reachable from inside Docker. "
+        "Launch Chrome on the host (Step 1), then use "
+        f"AGENTZERO_SCRAPE_CDP_URL=http://host.docker.internal:{port} "
+        "with AGENTZERO_CDP_ALLOW_DOCKER_HOST=true. "
+        "docker compose up web sets both; rebuild/restart the web container after changing .env."
+    )
+
+
 def retry_cdp_connection(
     settings: Settings,
     operator: OperatorScrapeConfig | None,
@@ -107,6 +129,16 @@ def retry_cdp_connection(
 
     if cdp_endpoint_reachable(url):
         return True, f"Connected to Chrome at {url}."
+
+    if _running_in_container():
+        if _cdp_uses_loopback_host(url):
+            return False, _docker_cdp_unreachable_message(url)
+        return False, (
+            f"CDP not reachable at {url}. Close any old Chrome debug session, then restart "
+            "with scripts/launch_chrome_cdp.ps1 (or .py / .sh) — that starts Chrome on "
+            "localhost and a host proxy so Docker can reach port "
+            f"{cdp_port(url)}. Auto-launch does not run inside Docker."
+        )
 
     cdp_sites = enabled_cdp_browser_sites(settings, operator)
     if not cdp_sites:

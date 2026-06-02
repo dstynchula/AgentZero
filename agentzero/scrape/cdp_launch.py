@@ -20,6 +20,11 @@ def default_cdp_profile_dir(root: Path | None = None) -> Path:
 
 def find_chrome_executable() -> Path | None:
     """Return Chrome/Chromium binary path for the current OS."""
+    override = os.environ.get("CHROME_EXECUTABLE", "").strip()
+    if override:
+        path = Path(override)
+        if path.is_file():
+            return path
     if sys.platform == "win32":
         candidates = (
             Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
@@ -50,8 +55,15 @@ def launch_cdp_chrome_process(
     port: int = 9222,
     user_data_dir: Path | None = None,
     quiet: bool = False,
+    expose_for_docker: bool | None = None,
 ) -> Path:
     """Start Chrome with CDP; returns path to the Chrome executable used."""
+    from agentzero.scrape.cdp_host_proxy import (
+        chrome_debug_port,
+        expose_for_docker_enabled,
+        start_cdp_host_proxy_process,
+    )
+
     profile = user_data_dir or default_cdp_profile_dir()
     profile.mkdir(parents=True, exist_ok=True)
     chrome = find_chrome_executable()
@@ -62,24 +74,51 @@ def launch_cdp_chrome_process(
             "  Windows:  .\\scripts\\launch_chrome_cdp.ps1\n"
             "  macOS/Linux: python scripts/launch_chrome_cdp.py"
         )
+    docker_expose = expose_for_docker_enabled(expose_for_docker)
+    chrome_port = chrome_debug_port(port, expose_for_docker=docker_expose)
     subprocess.Popen(  # noqa: S603
         [
             str(chrome),
-            f"--remote-debugging-port={port}",
+            f"--remote-debugging-port={chrome_port}",
             f"--user-data-dir={profile}",
+            "--remote-allow-origins=*",
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         close_fds=True,
     )
+    if docker_expose:
+        from agentzero.scrape.cdp_host_proxy import stop_cdp_host_proxy
+
+        stopped = stop_cdp_host_proxy(listen_port=port)
+        start_cdp_host_proxy_process(listen_port=port, target_port=chrome_port)
+        if not quiet and stopped:
+            print(f"Stopped {stopped} previous CDP proxy listener(s) on port {port}.")
     if not quiet:
-        _print_launch_hints(port=port, profile_dir=profile)
+        _print_launch_hints(
+            port=port,
+            profile_dir=profile,
+            chrome_port=chrome_port,
+            docker_expose=docker_expose,
+        )
     return chrome
 
 
-def _print_launch_hints(*, port: int, profile_dir: Path) -> None:
+def _print_launch_hints(
+    *,
+    port: int,
+    profile_dir: Path,
+    chrome_port: int,
+    docker_expose: bool,
+) -> None:
     print()
-    print(f"Starting Chrome with CDP on port {port} ...")
+    if docker_expose:
+        print(
+            f"Chrome CDP on 127.0.0.1:{chrome_port}; "
+            f"host proxy on 0.0.0.0:{port} (Docker uses host.docker.internal:{port})."
+        )
+    else:
+        print(f"Starting Chrome with CDP on port {port} ...")
     print(f"Dedicated profile: {profile_dir}")
     print()
     print("Add to .env:")
@@ -125,12 +164,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Do not print .env hints (for programmatic auto-launch)",
     )
+    parser.add_argument(
+        "--no-docker-expose",
+        action="store_true",
+        help="Bind CDP on localhost only (no host proxy for Docker)",
+    )
     args = parser.parse_args(argv)
     try:
         launch_cdp_chrome_process(
             port=args.port,
             user_data_dir=args.user_data_dir,
             quiet=args.quiet,
+            expose_for_docker=not args.no_docker_expose,
         )
     except RuntimeError as exc:
         print(exc, file=sys.stderr)

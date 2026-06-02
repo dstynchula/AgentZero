@@ -77,3 +77,34 @@ def test_retry_cdp_without_url():
     ok, msg = retry_cdp_connection(settings, None)
     assert ok is False
     assert "AGENTZERO_SCRAPE_CDP_URL" in msg
+
+
+def test_retry_cdp_in_container_loopback_url():
+    settings = Settings(
+        _env_file=None,
+        scrape_cdp_url="http://127.0.0.1:9222",
+        scrape_cdp_auto_launch=True,
+    )
+    with patch("agentzero.web.cdp_status._running_in_container", return_value=True):
+        with patch("agentzero.web.cdp_status.cdp_endpoint_reachable", return_value=False):
+            with patch("agentzero.web.cdp_status.ensure_cdp_ready") as launch:
+                ok, msg = retry_cdp_connection(settings, None)
+    assert ok is False
+    assert "host.docker.internal" in msg
+    launch.assert_not_called()
+
+
+def test_retry_cdp_in_container_skips_auto_launch():
+    settings = Settings(
+        _env_file=None,
+        scrape_cdp_url="http://host.docker.internal:9222",
+        cdp_allow_docker_host=True,
+        scrape_cdp_auto_launch=True,
+    )
+    with patch("agentzero.web.cdp_status._running_in_container", return_value=True):
+        with patch("agentzero.web.cdp_status.cdp_endpoint_reachable", return_value=False):
+            with patch("agentzero.web.cdp_status.ensure_cdp_ready") as launch:
+                ok, msg = retry_cdp_connection(settings, None)
+    assert ok is False
+    assert "Auto-launch does not run inside Docker" in msg
+    launch.assert_not_called()
