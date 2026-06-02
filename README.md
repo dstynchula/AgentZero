@@ -21,15 +21,57 @@ Cursor (Ralph loop, TDD gates, human-in-the-loop where it matters).
 
 ## Architecture at a glance
 
+Vertical pipeline (data flows top → bottom). Operator tools and build stack on the right.
+
 ```mermaid
-flowchart LR
-    A[Scrape: 5 sources] --> B[Validate + quarantine]
-    B --> C[Enrich: comp, company, ratings]
-    C --> D[Rank against resume]
-    D --> E[Lead status in SQLite]
-    E --> F[Operator approves]
-    F --> G[Web UI + SQLite tracker]
+flowchart TB
+    subgraph IN["Ingest"]
+        R["resume/ · python-docx · pypdf"]
+        P["Search profile · LLM + Pydantic models"]
+    end
+
+    subgraph SC["① Scrape — Playwright · JobSpy · httpx"]
+        CDP["Host Chrome · CDP :9222"]
+        BR["Indeed · LinkedIn · Glassdoor"]
+        JS["Google Jobs · ZipRecruiter"]
+    end
+
+    V["② Validate — schema gate · quarantine table"]
+    E["③ Enrich — detail fetch · Glassdoor · DuckDuckGo"]
+    RK["④ Rank — OpenAI / Anthropic · pydantic-settings"]
+    DB[("⑤ SQLite — data/agentzero.db · stable job_id")]
+    LD["⑥ Lead — status=lead in DB"]
+    OP["⑦ Review — Cursor MCP · run_lead_session.py"]
+    AP["⑧ Promote — LEAD → NEW"]
+    UI["⑨ Tracker — Docker · FastAPI · Jinja2 · :8080"]
+
+    R --> P --> SC
+    CDP --> BR
+    BR --> V
+    JS --> V
+    V --> E --> RK --> DB --> LD --> OP --> AP --> UI
+
+    subgraph BUILD["Built with — agentic loop"]
+        direction TB
+        CUR["Cursor · Ralph · TDD · prep-pr"]
+        PYT["Python 3.12 · pytest · ruff"]
+        GHA["GitHub Actions · CodeQL · docker-build"]
+        PDY["Pydantic v2 · FastMCP stdio"]
+    end
+
+    OP -.-> CUR
+    RK -.-> OAI["OpenAI gpt-5-nano default"]
+    UI -.-> PDY
 ```
+
+| Layer | Tools |
+|-------|--------|
+| Config | **Pydantic Settings**, `.env`, typed `Settings` |
+| Scrape | **Playwright**, host **Chrome CDP**, **JobSpy**, BeautifulSoup |
+| Intelligence | **OpenAI** / Anthropic APIs, résumé-driven rank prompts |
+| Storage | **SQLite**, idempotent upsert, pipeline status columns |
+| Operator | **Cursor** + **FastMCP** lead session, **Docker** web service |
+| Quality | **pytest**, **ruff**, CI, Ralph `PROGRESS.md` / `WORKLOG.md` |
 
 ---
 
@@ -210,7 +252,7 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 | **[Getting started](docs/GETTING_STARTED.md)** | Install, Chrome/CAPTCHA setup, daily pipeline, troubleshooting |
 | **[Docker](docs/DOCKER.md)** | Optional container runs; host Chrome CDP; build progress + secrets |
 | [Scraping](docs/SCRAPING.md) | Boards, scripts, rate limits, browser sessions, filters |
-| [Security](docs/SECURITY.md) | Secrets, OAuth scopes, SSRF, LLM data |
+| [Security](docs/SECURITY.md) | Secrets, SSRF, LLM data, web UI exposure |
 | [Cost & models](docs/COST_AND_MODELS.md) | LLM pricing, model selection, knobs |
 
 ### Build and architecture (contributors / curious readers)
@@ -228,6 +270,8 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 
 ## Cost
 
+### Runtime (scrape + rank)
+
 **Pricing estimates as of 2026-05-29.** A full scrape-and-rank run usually costs **~$0.01–0.10**
 depending on model and how many unique jobs are ranked.
 
@@ -243,6 +287,21 @@ python scripts/estimate_cost.py   # estimate from your .env
 See **[Cost and model selection](docs/COST_AND_MODELS.md)** for criteria, truncation knobs, and
 monthly ballparks.
 
+### Building AgentZero (Cursor)
+
+This repo was built in a few focused days with **Cursor** (Ralph loop, TDD, MCP lead session) —
+not a months-long contractor engagement.
+
+| Item | Ballpark |
+|------|----------|
+| Cursor Pro | **~$20/month** |
+| Effective daily | **~$20 ÷ 30 ≈ $0.67/day** |
+| ~4 build days | **($20 ÷ 30) × 4 ≈ $2.70** in subscription time |
+
+That is the IDE/co-pilot line item only — add negligible **OpenAI** usage during development
+(smoke tests, rank tuning) on top. The payoff is a maintained, tested pipeline you run locally
+for pennies per scrape instead of paying for a hosted job-search SaaS.
+
 ---
 
 ## Disclaimer
@@ -251,7 +310,6 @@ Scraping job boards may violate site Terms of Service. Use at your own risk; res
 AgentZero queues applications for human review and does not auto-submit.
 
 **Privacy:** Résumé and job text are sent to your configured LLM provider when ingest/rank
-features run. See **[docs/SECURITY.md](docs/SECURITY.md)** for secrets, OAuth scopes, and network
-egress.
+features run. See **[docs/SECURITY.md](docs/SECURITY.md)** for secrets and network egress.
 
 **Windows:** If markdown or TOML won't render, run `python tools/fix_encoding.py` before committing.
