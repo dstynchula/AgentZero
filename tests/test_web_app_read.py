@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from agentzero.config import Settings
 from agentzero.web.app import create_app
+from agentzero.web.jobs import LIST_VIEW_DEFAULT_COLUMNS
 
 
 @pytest.fixture
@@ -30,6 +31,23 @@ def test_jobs_table_has_column_picker(jobs_client):
     assert "column-picker-reset" in r.text
     assert 'data-columns=' in r.text
     assert "col-resizer" in r.text
+
+
+def test_jobs_list_default_columns(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert tuple(LIST_VIEW_DEFAULT_COLUMNS) == (
+        "source",
+        "company",
+        "title",
+        "comp_max",
+        "match_score",
+        "status",
+    )
+    for col in LIST_VIEW_DEFAULT_COLUMNS:
+        assert f'data-column="{col}"' in r.text
+    assert 'data-col="location" hidden' in r.text
+    assert 'data-default-columns=' in r.text
 
 
 def test_jobs_table_readable_title_styles(jobs_client):

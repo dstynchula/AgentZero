@@ -8,6 +8,8 @@
   var table = document.querySelector("table.data-table");
   if (!table) return;
   var allCols = JSON.parse(table.getAttribute("data-columns") || "[]");
+  var defaultCols = JSON.parse(table.getAttribute("data-default-columns") || "[]");
+  if (!defaultCols.length) defaultCols = allCols.slice();
 
   function readVisible() {
     try {
@@ -62,7 +64,7 @@
     localStorage.setItem(STORAGE_WIDTHS, JSON.stringify(widths));
   }
 
-  var visible = readVisible() || allCols.slice();
+  var visible = readVisible() || defaultCols.slice();
   var widths = readWidths();
   applyVisibility(visible);
   applyWidths(widths);
@@ -91,10 +93,11 @@
       resetBtn.addEventListener("click", function () {
         localStorage.removeItem(STORAGE_COLS);
         localStorage.removeItem(STORAGE_WIDTHS);
-        visible = allCols.slice();
+        visible = defaultCols.slice();
         widths = {};
         picker.querySelectorAll('input[type="checkbox"][data-column]').forEach(function (box) {
-          box.checked = true;
+          var col = box.getAttribute("data-column");
+          box.checked = defaultCols.indexOf(col) >= 0;
         });
         allCols.forEach(function (col) {
           cellsForCol(col).forEach(function (el) {
@@ -162,7 +165,7 @@
   <summary>Columns — show, hide, or drag header edges to resize</summary>
   <div class="column-picker-grid">
     {% for col in columns %}
-    <label><input type="checkbox" data-column="{{ col }}" checked /> {{ col }}</label>
+    <label><input type="checkbox" data-column="{{ col }}" {% if col in default_columns %}checked{% endif %} /> {{ col }}</label>
     {% endfor %}
   </div>
   <div class="column-picker-actions">
@@ -171,11 +174,11 @@
 </details>
 
 <div class="tracker-table-wrap">
-<table class="data-table" data-columns="{{ columns_json }}">
+<table class="data-table" data-columns="{{ columns_json }}" data-default-columns="{{ default_columns_json }}">
   <thead>
     <tr>
       {% for col in columns %}
-      <th class="{% if col == sort %}sorted{% endif %}" data-col="{{ col }}">
+      <th class="{% if col == sort %}sorted{% endif %}" data-col="{{ col }}"{% if col not in default_columns %} hidden{% endif %}>
         <a href="{{ sort_links[col] }}">{{ col }}{% if col == sort %}{% if sort_descending %} ▼{% else %} ▲{% endif %}{% endif %}</a>
         <span class="col-resizer" aria-hidden="true"></span>
       </th>
@@ -187,7 +190,7 @@
     {% for job in jobs %}
     <tr class="job-row" data-href="/jobs/{{ job.job_id }}{{ list_query }}">
       {% for col in columns %}
-      <td class="data-cell" data-col="{{ col }}">
+      <td class="data-cell" data-col="{{ col }}"{% if col not in default_columns %} hidden{% endif %}>
         {% set cell = job.cells[col] %}
         {% if col == "url" and job.data[col] %}
         <a class="cell-truncated" href="{{ job.data[col] }}" target="_blank" rel="noopener" title="{{ cell.full }}" onclick="event.stopPropagation()">{{ cell.text }}</a>
