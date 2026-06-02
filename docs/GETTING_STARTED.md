@@ -100,8 +100,8 @@ The same launch commands appear on the tracker **Settings → Chrome CDP** page 
 
 | Site | Browser mode |
 |------|----------------|
-| LinkedIn | Playwright profile (`data/browser_profiles/linkedin`) |
-| Indeed, Glassdoor | CDP — real Chrome (`AGENTZERO_SCRAPE_CDP_URL`) |
+| LinkedIn | Playwright profile (`data/browser_profiles/linkedin`) — **enabled by default** |
+| Indeed, Glassdoor | CDP — real Chrome (`AGENTZERO_SCRAPE_CDP_URL`); opt in via Settings or `AGENTZERO_SCRAPE_BROWSER_SITES` |
 
 | Exit code | Meaning | What to do |
 |-----------|---------|------------|

@@ -161,6 +161,16 @@ docker compose up web                       # browse / edit tracker
 | **Rank** | LLM fit score + rationale vs your résumé |
 | **Tracker** | Web UI on :8080 — edit status, notes, soft-reject; CSV export optional |
 
+### Web tracker and Settings
+
+| URL | Purpose |
+|-----|---------|
+| http://localhost:8080/ | Sortable job table, job card detail, soft-reject |
+| http://localhost:8080/config | **Settings** — scrape sources, load résumé, add/remove search titles, background scrape, Chrome CDP **Connect** |
+
+Settings persists operator choices in `data/web_operator_config.json`; LLM search snapshots go to
+`data/search_profile.json` (see [Docker](docs/DOCKER.md) for host CDP + read-only `resume/` mount).
+
 **Backfill** (repair existing DB rows without a full re-scrape):
 
 ```powershell
@@ -256,6 +266,7 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 |-----|----------|
 | **[Getting started](docs/GETTING_STARTED.md)** | Install, Chrome/CAPTCHA setup, daily pipeline, troubleshooting |
 | **[Docker](docs/DOCKER.md)** | Container runs; host Chrome CDP + proxy for `host.docker.internal`; web Settings **Connect** |
+| [Web UI UX spike plan](docs/web-ui-ux-spike.plan.md) | P34 — compact centered table, CDP-off defaults, hide CDP card |
 | [Scraping](docs/SCRAPING.md) | Boards, scripts, rate limits, browser sessions, filters |
 | [Security](docs/SECURITY.md) | Secrets, SSRF, LLM data, web UI exposure |
 | [Cost & models](docs/COST_AND_MODELS.md) | LLM pricing, model selection, knobs |

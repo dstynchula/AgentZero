@@ -217,6 +217,15 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P33d Settings UI add/remove
 - [x] P33e Ledger + gate
 
+## P34 — Web UI/UX spike (2026-06-02)
+
+Plan: [docs/web-ui-ux-spike.plan.md](docs/web-ui-ux-spike.plan.md)
+
+- [x] P34a Source catalog: CDP boards listed last
+- [x] P34b Defaults: LinkedIn-only browser boards (CDP off by default)
+- [x] P34c Hide Chrome CDP card when no CDP source enabled
+- [x] P34d Job tracker: centered, compact table
+
 ## Reference docs
 
 | Doc | Contents |
@@ -233,6 +242,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/remove-google-sheets.plan.md | P31 drop Sheets; web UI is the tracker |
 | docs/web-ui-settings.plan.md | P32 settings page, dark mode, scrape trigger |
 | docs/web-search-titles.plan.md | P33 résumé load path + add/remove titles |
+| docs/web-ui-ux-spike.plan.md | P34 tracker layout + Settings CDP UX |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

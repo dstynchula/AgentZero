@@ -100,9 +100,9 @@
   </form>
 </section>
 
+{% if cdp.needs_cdp %}
 <section class="card">
   <h2>Chrome CDP</h2>
-  {% if cdp.needs_cdp %}
   {% if cdp.configured %}
   <p>
     <span class="badge {% if cdp.reachable %}badge-ok{% else %}badge-warn{% endif %}">
@@ -135,10 +135,6 @@
   {% if cdp.hint %}
   <pre class="hint">{{ cdp.hint }}</pre>
   {% endif %}
-  {% else %}
-  <p><span class="badge badge-off">Not needed</span> No enabled browser source uses CDP with the current configuration.</p>
-  <p class="muted">Host setup for your enabled sources:</p>
-  <pre class="hint">{{ cdp.host_instructions }}</pre>
-  {% endif %}
 </section>
+{% endif %}
 {% endblock %}
