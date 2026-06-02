@@ -333,3 +333,17 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     merged main twice (LinkedIn + mcp_server) with conflict resolution in test_browser_scrape.
     files: tests/scrape/test_browser_boards.py, tests/scrape/test_browser_scrape.py, tests/scrape/test_indeed_block_detection.py
     accept: pytest tests/scrape/test_browser_boards.py tests/scrape/test_browser_scrape.py tests/scrape/test_indeed_block_detection.py --cov=agentzero.scrape.browser_board --cov=agentzero.scrape.browser_indeed --cov-branch --cov-fail-under=70; PR #22 merged (629f059)
+
+[2026-06-02T12:00:00Z] P27a START - Docker migration: container foundation (Dockerfile, compose, ignore).
+    files: (pending)
+    accept: (pending)
+
+[2026-06-02T18:00:00Z] P27 DONE - Docker migration (host Chrome CDP + env secrets + build ETA + log redaction).
+    files: Dockerfile, .dockerignore, docker-compose.yml, docker/build.manifest.json,
+           scripts/docker_build.py, scripts/docker_build.ps1, agentzero/loops/progress.py (BuildProgress),
+           agentzero/log_redaction.py, agentzero/net/cdp_safety.py, agentzero/config.py, agentzero/__init__.py,
+           scripts/sync_sheets.py, scripts/run_scrape.py, agentzero/scrape/browser_board.py,
+           tests/test_build_progress.py, tests/test_log_redaction.py, tests/test_cdp_safety.py, tests/test_config.py,
+           tests/test_sync_scripts.py, docs/DOCKER.md, docs/SECURITY.md, docs/GETTING_STARTED.md, README.md,
+           .env.example, .gitignore, .github/workflows/ci.yml, PROGRESS.md
+    accept: pytest -q && ruff check agentzero tests scripts tools -> all green (532 tests)

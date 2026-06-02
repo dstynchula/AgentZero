@@ -67,3 +67,20 @@ def test_reload_settings_clears_cache(monkeypatch):
     second = reload_settings()
     assert second is not first
     assert second.results_wanted == 99
+
+
+def test_cdp_docker_host_when_enabled(monkeypatch):
+    monkeypatch.setenv("AGENTZERO_CDP_ALLOW_DOCKER_HOST", "true")
+    monkeypatch.setenv("AGENTZERO_SCRAPE_CDP_URL", "http://host.docker.internal:9222")
+    s = Settings(_env_file=None)
+    assert s.scrape_cdp_url == "http://host.docker.internal:9222"
+
+
+def test_cdp_docker_host_rejected_without_flag(monkeypatch):
+    monkeypatch.delenv("AGENTZERO_CDP_ALLOW_DOCKER_HOST", raising=False)
+    with pytest.raises(ValueError, match="host.docker.internal"):
+        Settings(
+            _env_file=None,
+            scrape_cdp_url="http://host.docker.internal:9222",
+            cdp_allow_docker_host=False,
+        )

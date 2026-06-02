@@ -1,0 +1,20 @@
+# Local operator compose — secrets via gitignored .env and bind mounts (never in the image).
+services:
+  agentzero:
+    build: .
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      AGENTZERO_SCRAPE_CDP_URL: http://host.docker.internal:9222
+      AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH: "false"
+      AGENTZERO_CDP_ALLOW_DOCKER_HOST: "true"
+      AGENTZERO_SEARCH_INTERACTIVE: "false"
+      # Image has Chromium only — override host .env chrome channel
+      AGENTZERO_SCRAPE_BROWSER_CHANNEL: ""
+      AGENTZERO_SCRAPE_BROWSER_HEADLESS: "true"
+    volumes:
+      - ./data:/app/data
+      - ./resume:/app/resume:ro
+      - ./token.json:/app/token.json:ro
+      - ./client_secret.json:/app/client_secret.json:ro

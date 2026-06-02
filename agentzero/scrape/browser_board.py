@@ -231,7 +231,9 @@ class BrowserJobBoardSource(JobSource):
             )
             return records[: self._settings.results_wanted]
         except Exception as exc:
-            log.warning("%s browser fetch failed: %s", display, exc)
+            from agentzero.log_redaction import redact_secrets
+
+            log.warning("%s browser fetch failed: %s", display, redact_secrets(str(exc)))
             return []
         finally:
             close_browser_session(playwright, context, self._settings, site=self._site_key)

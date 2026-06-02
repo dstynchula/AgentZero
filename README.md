@@ -71,6 +71,9 @@ pytest -q
 
 Dependencies are grouped in `pyproject.toml`: `dev`, `scrape`, `llm`, `google`, `mcp`.
 
+**Docker (optional):** run the pipeline in a container with host Chrome via CDP — see
+**[docs/DOCKER.md](docs/DOCKER.md)**. Build with `python scripts/docker_build.py` for elapsed/ETA progress.
+
 ---
 
 ## How to use it
@@ -219,6 +222,7 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 | Doc | Contents |
 |-----|----------|
 | **[Getting started](docs/GETTING_STARTED.md)** | Install, Chrome/CAPTCHA setup, daily pipeline, troubleshooting |
+| **[Docker](docs/DOCKER.md)** | Optional container runs; host Chrome CDP; build progress + secrets |
 | [Scraping & OAuth](docs/SCRAPING.md) | Boards, scripts, rate limits, browser sessions, filters, tracker sync |
 | [Security](docs/SECURITY.md) | Secrets, OAuth scopes, SSRF, LLM data |
 | [Cost & models](docs/COST_AND_MODELS.md) | LLM pricing, model selection, knobs |

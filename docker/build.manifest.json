@@ -1,0 +1,7 @@
+[
+  {"id": "base", "label": "Pull Python base image", "estimated_seconds": 30},
+  {"id": "apt", "label": "Install OS deps", "estimated_seconds": 90},
+  {"id": "pip", "label": "pip install AgentZero extras", "estimated_seconds": 120},
+  {"id": "playwright", "label": "playwright install chromium + deps", "estimated_seconds": 300},
+  {"id": "copy", "label": "Copy source + finalize image", "estimated_seconds": 15}
+]

@@ -26,6 +26,8 @@ client_secret*.json
 data/*.db
 data/*.sqlite*
 data/*.log
+data/.docker-build-status.json
+data/docker-build-benchmarks.json
 data/browser_profiles/
 data/chrome_cdp_profile/
 data/indeed_browser_profile/

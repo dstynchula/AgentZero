@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 LLMProvider = Literal["openai", "anthropic"]
@@ -93,6 +93,8 @@ class Settings(BaseSettings):
     scrape_browser_channel: str | None = None
     # Attach to Chrome started with --remote-debugging-port (interactive only).
     scrape_cdp_url: str | None = None
+    # Allow host.docker.internal when running AgentZero inside Docker (compose sets this).
+    cdp_allow_docker_host: bool = False
     # Launch dedicated CDP Chrome when endpoint is down (Windows/Linux/macOS).
     scrape_cdp_auto_launch: bool = True
     # Browser sites that use CDP when scrape_cdp_url is set (Indeed MFA; default indeed only).
@@ -154,14 +156,17 @@ class Settings(BaseSettings):
             return None
         return value
 
-    @field_validator("scrape_cdp_url")
-    @classmethod
-    def _validate_cdp_localhost(cls, value: str | None) -> str | None:
-        if value is None:
-            return value
-        from agentzero.net.cdp_safety import validate_cdp_url
+    @model_validator(mode="after")
+    def _validate_cdp_url(self) -> Self:
+        if self.scrape_cdp_url is not None:
+            from agentzero.net.cdp_safety import validate_cdp_url
 
-        return validate_cdp_url(value)
+            validated = validate_cdp_url(
+                self.scrape_cdp_url,
+                allow_docker_host=self.cdp_allow_docker_host,
+            )
+            object.__setattr__(self, "scrape_cdp_url", validated)
+        return self
 
     @field_validator("sheet_id", mode="before")
     @classmethod
