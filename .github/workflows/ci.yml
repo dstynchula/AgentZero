@@ -40,4 +40,6 @@ jobs:
         with:
           persist-credentials: false
       - name: Docker build smoke
+        env:
+          DOCKER_BUILDKIT: "1"
         run: docker build -t agentzero:ci .

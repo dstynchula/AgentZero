@@ -180,6 +180,15 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P29e Docs + P29 gate
 - [x] P29 done — sort, truncate, job card on :8080
 
+## P30 — Docker incremental build cache
+
+- [x] P30a Dockerfile layer reorder + pip cache mount
+- [x] P30b `docker_build.py` BuildKit env
+- [x] P30c CI `DOCKER_BUILDKIT=1`
+- [x] P30d `docker-compose.override.yml.example` + gitignore
+- [x] P30e Docs + tests + P30 gate
+- [x] P30 done — code-only edits skip pip/Playwright; optional bind-mount override
+
 ## Reference docs
 
 | Doc | Contents |
@@ -192,6 +201,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/DOCKER.md | Optional Docker runs, host CDP, build progress, web UI |
 | docs/web-ui-docker.plan.md | P28 web tracker plan (TDD ledger) |
 | docs/web-ui-advanced-display.plan.md | P29 sort, truncate, job card plan |
+| docs/docker-build-cache.plan.md | P30 Dockerfile cache layers + dev override |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

@@ -363,3 +363,10 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            tests/test_web_app_read.py, docs/DOCKER.md, docs/web-ui-advanced-display.plan.md, PROGRESS.md
     accept: pytest tests/test_web_*.py -q && ruff check agentzero/web -> green
     branch: feat/web-P29-advanced-display
+
+[2026-06-02T22:00:00Z] P30 DONE - Docker incremental build cache (layer order, BuildKit pip mount, dev override).
+    files: Dockerfile, scripts/docker_build.py, .github/workflows/ci.yml,
+           docker-compose.override.yml.example, .gitignore, docs/DOCKER.md,
+           docs/docker-build-cache.plan.md, tests/test_dockerfile_cache.py, tests/test_docs_web.py, PROGRESS.md
+    accept: pytest tests/test_dockerfile_cache.py tests/test_docs_web.py -q; ruff clean
+    branch: feat/docker-P30-build-cache
