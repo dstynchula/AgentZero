@@ -438,3 +438,4 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            tests/test_web_app_config.py, tests/test_docs_web.py, PROGRESS.md
     accept: pytest -q && ruff check agentzero tests scripts tools -> green
     branch: feat/web-P35-job-card-nav
+    PR: https://github.com/dstynchula/AgentZero/pull/35
