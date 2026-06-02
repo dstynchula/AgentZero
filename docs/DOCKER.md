@@ -33,7 +33,7 @@ starts a host TCP proxy on `0.0.0.0:9222` that forwards to Chrome and rewrites `
 host.docker.internal` → `127.0.0.1` (Chrome rejects the Docker hostname otherwise). Containers use
 `http://host.docker.internal:9222`. Relaunching the script stops stale proxy processes on 9222.
 
-Same commands appear on **Settings → Chrome CDP** at http://localhost:8080/config when the web UI
+Same commands appear on **Scraper → Chrome CDP** at http://localhost:8080/scraper when the web UI
 is running; use **Connect** after Chrome is up.
 
 ---
@@ -128,7 +128,7 @@ The `web` service uses the same host CDP settings as `agentzero`:
 
 Start Chrome on the host first (`launch_chrome_cdp.ps1` / `.py`). The launcher starts Chrome on
 `127.0.0.1:9223` and a small TCP proxy on `0.0.0.0:9222` (Chromium only binds loopback; Docker
-cannot reach `127.0.0.1` on the host). Then use **Connect** on Settings.
+cannot reach `127.0.0.1` on the host). Then use **Connect** on Scraper.
 
 | Action | Effect |
 |--------|--------|
@@ -138,14 +138,14 @@ cannot reach `127.0.0.1` on the host). Then use **Connect** on Settings.
 | **Show rejected** | Lists noped roles |
 | **Column headers** | Sort asc/desc (default: `match_score` desc) |
 | **Row click** | Opens a **job card** with full details (rationale, description, links) |
-| **Settings** (`/config`) | Enable/disable scrape sources, start a background scrape, CDP setup instructions |
+| **Scraper** (`/scraper`) | Enable/disable scrape sources, start a background scrape, CDP setup instructions (`/config` redirects) |
 
-**Settings** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
+**Scraper** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
 scrapes use `data/search_profile.json` (beside the DB; résumé files stay in read-only `resume/`)
 and need an LLM API key; new rows land as `lead`.
-Chrome CDP must run on the **host** — Settings shows PS1, Python, and shell launch commands plus env vars.
+Chrome CDP must run on the **host** — Scraper shows PS1, Python, and shell launch commands plus env vars.
 
-Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/config`.
+Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/scraper`.
 
 Long table cells are truncated; hover for the full value, or open the job card.
 

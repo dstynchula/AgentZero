@@ -44,10 +44,12 @@
 </section>
 {% endif %}
 
-{% if job.description %}
 <section class="card">
   <h2>Description</h2>
+  {% if job.description %}
   <div class="description-block">{{ job.description }}</div>
+  {% else %}
+  <p class="muted">No description stored yet. Re-scrape or run enrich to populate this field.</p>
+  {% endif %}
 </section>
-{% endif %}
 {% endblock %}

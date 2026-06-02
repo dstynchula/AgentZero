@@ -12,15 +12,6 @@
   {% endif %}
 </div>
 
-<div class="sort-toolbar" role="toolbar" aria-label="Sort jobs by column">
-  <span class="sort-toolbar-label">Sort by</span>
-  {% for col in columns %}
-  <a href="{{ sort_links[col] }}" class="sort-chip{% if col == sort %} is-active{% endif %}" title="Sort by {{ col }}">
-    {{ col }}{% if col == sort %}{% if sort_descending %} ↓{% else %} ↑{% endif %}{% endif %}
-  </a>
-  {% endfor %}
-</div>
-
 <details class="column-picker" id="column-picker">
   <summary>Columns — show, hide, or drag header edges to resize</summary>
   <div class="column-picker-grid">
@@ -90,7 +81,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="{{ columns|length + 1 }}">No jobs in database. <a href="/config">Configure sources</a> and run a scrape.</td></tr>
+    <tr><td colspan="{{ columns|length + 1 }}">No jobs in database. <a href="/scraper">Configure sources</a> and run a scrape.</td></tr>
     {% endfor %}
   </tbody>
 </table>

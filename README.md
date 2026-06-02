@@ -118,7 +118,7 @@ Dependencies are grouped in `pyproject.toml`: `dev`, `scrape`, `llm`, `mcp`, `we
 Use `docker compose up web` for a local job tracker on port 8080 (edit status/notes, soft-reject).
 
 **Docker + Indeed/Glassdoor:** on the host run `.\scripts\launch_chrome_cdp.ps1` (Chrome on
-`127.0.0.1:9223` plus a proxy on **9222** for `host.docker.internal`). Open Settings → **Connect**
+`127.0.0.1:9223` plus a proxy on **9222** for `host.docker.internal`). Open Scraper → **Connect**
 after `docker compose up web`.
 
 ---
@@ -131,7 +131,7 @@ after `docker compose up web`.
 2. Copy `.env.example` → `.env` and set `OPENAI_API_KEY` (or `ANTHROPIC_API_KEY`).
 3. Set **`AGENTZERO_SCRAPE_BROWSER_CHANNEL=chrome`** — use full Chrome, not bundled Chromium, for CAPTCHA.
 4. For Indeed/Glassdoor CDP: `.\scripts\launch_chrome_cdp.ps1` on the host (see [Getting started](docs/GETTING_STARTED.md)).
-5. Run `docker compose up web` (or use host `.venv` + MCP) to review jobs at http://localhost:8080; in Docker, use Settings → **Connect** to verify CDP.
+5. Run `docker compose up web` (or use host `.venv` + MCP) to review jobs at http://localhost:8080; in Docker, use Scraper → **Connect** to verify CDP.
 6. On Windows, dot-source `scripts/dev-env.ps1` to avoid UTF-16 file corruption.
 
 ### 2. Daily pipeline
@@ -161,14 +161,14 @@ docker compose up web                       # browse / edit tracker
 | **Rank** | LLM fit score + rationale vs your résumé |
 | **Tracker** | Web UI on :8080 — edit status, notes, soft-reject; CSV export optional |
 
-### Web tracker and Settings
+### Web tracker and Scraper
 
 | URL | Purpose |
 |-----|---------|
 | http://localhost:8080/ | Sortable job table, job card detail, soft-reject |
-| http://localhost:8080/config | **Settings** — scrape sources, load résumé, add/remove search titles, background scrape, Chrome CDP **Connect** |
+| http://localhost:8080/scraper | **Scraper** — scrape sources, load résumé, add/remove search titles, background scrape, Chrome CDP **Connect** (`/config` redirects here) |
 
-Settings persists operator choices in `data/web_operator_config.json`; LLM search snapshots go to
+Scraper persists operator choices in `data/web_operator_config.json`; LLM search snapshots go to
 `data/search_profile.json` (see [Docker](docs/DOCKER.md) for host CDP + read-only `resume/` mount).
 
 **Backfill** (repair existing DB rows without a full re-scrape):
@@ -265,7 +265,7 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 | Doc | Contents |
 |-----|----------|
 | **[Getting started](docs/GETTING_STARTED.md)** | Install, Chrome/CAPTCHA setup, daily pipeline, troubleshooting |
-| **[Docker](docs/DOCKER.md)** | Container runs; host Chrome CDP + proxy for `host.docker.internal`; web Settings **Connect** |
+| **[Docker](docs/DOCKER.md)** | Container runs; host Chrome CDP + proxy for `host.docker.internal`; web Scraper **Connect** |
 | [Web UI UX spike plan](docs/web-ui-ux-spike.plan.md) | P34 — compact centered table, CDP-off defaults, hide CDP card |
 | [Scraping](docs/SCRAPING.md) | Boards, scripts, rate limits, browser sessions, filters |
 | [Security](docs/SECURITY.md) | Secrets, SSRF, LLM data, web UI exposure |

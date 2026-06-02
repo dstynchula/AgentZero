@@ -163,38 +163,6 @@
     }
     table.data-table th.sorted .sort-indicator { color: var(--accent); }
     table.data-table th.sorted .th-label { color: var(--accent); }
-    .sort-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.35rem;
-      margin: 0.5rem 0 0.75rem;
-    }
-    .sort-toolbar-label {
-      font-size: 0.8125rem;
-      color: var(--muted);
-      font-weight: 600;
-      margin-right: 0.15rem;
-    }
-    a.sort-chip {
-      font-size: 0.75rem;
-      padding: 0.2rem 0.55rem;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--muted);
-      text-decoration: none;
-    }
-    a.sort-chip:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-    a.sort-chip.is-active {
-      background: color-mix(in srgb, var(--accent) 18%, var(--surface));
-      border-color: var(--accent);
-      color: var(--accent);
-      font-weight: 600;
-    }
     table.data-table th.col-hidden,
     table.data-table td.col-hidden {
       display: none;
@@ -375,7 +343,7 @@
       <a class="brand" href="/">AgentZero</a>
       <nav class="main-nav">
         <a href="/" class="{% if nav_active == 'jobs' %}active{% endif %}">Jobs</a>
-        <a href="/config" class="{% if nav_active == 'config' %}active{% endif %}">Settings</a>
+        <a href="/scraper" class="{% if nav_active == 'scraper' %}active{% endif %}">Scraper</a>
       </nav>
       <div class="header-actions">
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">Dark mode</button>

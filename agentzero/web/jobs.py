@@ -77,11 +77,13 @@ def jobs_for_table(
 
 
 def job_detail_for_ui(db: Database, job_id: str) -> dict[str, object] | None:
-    """Full job payload for the detail card (``job_to_row`` schema)."""
+    """Full job payload for the detail card (``job_to_row`` plus description)."""
     job = db.get_job(job_id)
     if job is None:
         return None
-    return job_to_row(job)
+    row = job_to_row(job)
+    row["description"] = job.description or ""
+    return row
 
 
 def list_context(

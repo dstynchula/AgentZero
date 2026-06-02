@@ -430,3 +430,11 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     accept: pytest -q && ruff check agentzero tests scripts tools -> green
     branch: feat/web-P34-ui-ux-spike
     PR: https://github.com/dstynchula/AgentZero/pull/34
+
+[2026-06-03T18:00:00Z] P35 DONE - Job card description from DB; remove sort toolbar; Settings → Scraper (/scraper + /config redirects).
+    files: agentzero/storage/csv_export.py, agentzero/web/app.py, agentzero/web/templates/{job_card,config,jobs,base}.html,
+           README.md, docs/DOCKER.md, docs/GETTING_STARTED.md, docs/web-job-card-nav.plan.md,
+           tests/test_web_job_card.py, tests/test_web_jobs.py, tests/test_web_app_read.py,
+           tests/test_web_app_config.py, tests/test_docs_web.py, PROGRESS.md
+    accept: pytest -q && ruff check agentzero tests scripts tools -> green
+    branch: feat/web-P35-job-card-nav

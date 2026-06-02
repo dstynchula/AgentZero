@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Settings — AgentZero{% endblock %}
+{% block title %}Scraper — AgentZero{% endblock %}
 {% block body %}
-<h1>Settings</h1>
+<h1>Scraper</h1>
 <p class="muted">Scrape sources, search titles, background scans, and Chrome CDP. Operator overrides are saved beside the database.</p>
 
 {% if flash %}
@@ -11,7 +11,7 @@
 <section class="card">
   <h2>Scrape sources</h2>
   <p class="muted">Active stack: <strong>{{ active_sources|join(', ') or 'none' }}</strong></p>
-  <form method="post" action="/config/sources">
+  <form method="post" action="/scraper/sources">
     <div class="source-grid">
       {% for row in sources %}
       <div class="source-row">
@@ -46,7 +46,7 @@
     {{ resume_load.message }}
   </p>
   {% endif %}
-  <form method="post" action="/config/resume/load" class="toolbar">
+  <form method="post" action="/scraper/resume/load" class="toolbar">
     <button type="submit" class="btn" {% if resume_load.running or not resume.available %}disabled{% endif %}>Load résumé</button>
     <span class="muted">LLM extracts titles and locations (may take a minute).{% if not resume.available %} Add a file first.{% endif %}</span>
   </form>
@@ -62,17 +62,17 @@
     <div class="source-row" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
       <input type="checkbox" name="search_terms" value="{{ row.term }}" id="title-{{ loop.index }}" form="search-titles-save" {% if row.selected %}checked{% endif %} />
       <label for="title-{{ loop.index }}" style="flex:1;"><strong>{{ row.term }}</strong></label>
-      <form method="post" action="/config/search-titles/remove" style="margin:0;">
+      <form method="post" action="/scraper/search-titles/remove" style="margin:0;">
         <input type="hidden" name="term" value="{{ row.term }}" />
         <button type="submit" class="btn btn-secondary" style="font-size:0.85rem;">Remove</button>
       </form>
     </div>
     {% endfor %}
   </div>
-  <form id="search-titles-save" method="post" action="/config/search-titles" class="toolbar">
+  <form id="search-titles-save" method="post" action="/scraper/search-titles" class="toolbar">
     <button type="submit" class="btn">Save titles</button>
   </form>
-  <form method="post" action="/config/search-titles/add" class="toolbar" style="margin-top:0.75rem;">
+  <form method="post" action="/scraper/search-titles/add" class="toolbar" style="margin-top:0.75rem;">
     <input type="text" name="term" placeholder="Add a custom title" required style="min-width:16rem;padding:0.35rem 0.5rem;" />
     <button type="submit" class="btn">Add title</button>
   </form>
@@ -95,7 +95,7 @@
   <pre class="hint">{{ scrape.errors|join('\n') }}</pre>
   {% endif %}
   {% endif %}
-  <form method="post" action="/config/scrape" class="toolbar">
+  <form method="post" action="/scraper/scrape" class="toolbar">
     <button type="submit" class="btn" {% if scrape.running %}disabled{% endif %}>Start background scrape</button>
   </form>
 </section>
@@ -126,7 +126,7 @@
     {% endfor %}
   </ul>
   <h3 class="muted" style="margin:0.75rem 0 0.35rem;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.03em;">Step 2 — Connect</h3>
-  <form method="post" action="/config/cdp/connect" class="toolbar">
+  <form method="post" action="/scraper/cdp/connect" class="toolbar">
     <button type="submit" class="btn">Connect</button>
     <span class="muted">Probe the endpoint{% if cdp.auto_launch %} and auto-launch Chrome on the host if down{% endif %}.</span>
   </form>
