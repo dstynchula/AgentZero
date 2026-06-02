@@ -429,3 +429,4 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            tests/test_web_app_config.py, tests/test_web_app_read.py, PROGRESS.md
     accept: pytest -q && ruff check agentzero tests scripts tools -> green
     branch: feat/web-P34-ui-ux-spike
+    PR: https://github.com/dstynchula/AgentZero/pull/34
