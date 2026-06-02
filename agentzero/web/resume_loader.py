@@ -12,7 +12,7 @@ from agentzero.ingest.search_profile import (
     clear_search_profile_session_cache,
     resolve_search_from_resume,
 )
-from agentzero.web.operator_config import load_operator_config, patch_operator_config
+from agentzero.web.search_titles import sync_operator_titles_after_resume_load
 
 
 @dataclass
@@ -105,9 +105,7 @@ class ResumeLoader:
         try:
             ok, message, terms = load_resume_search_profile(force_refresh=force_refresh)
             if ok and terms:
-                existing = load_operator_config(operator_config_path)
-                if existing is None or not existing.search_terms:
-                    patch_operator_config(operator_config_path, search_terms=terms)
+                sync_operator_titles_after_resume_load(operator_config_path, terms)
             with self._lock:
                 self.state.last_message = message
                 self.state.last_ok = ok

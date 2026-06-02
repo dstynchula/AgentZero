@@ -16,8 +16,10 @@ class OperatorScrapeConfig(BaseModel):
 
     scrape_browser_sites: list[str] = Field(default_factory=list)
     scrape_sites: list[str] = Field(default_factory=list)
-    # Non-empty: subset of résumé search_profile titles to use when scraping.
+    # Active scrape titles (résumé + custom). Empty with no config file → use full profile.
     search_terms: list[str] = Field(default_factory=list)
+    # Profile titles the operator removed (hidden until re-added manually).
+    excluded_search_terms: list[str] = Field(default_factory=list)
 
 
 def operator_config_path(db_path: Path) -> Path:
