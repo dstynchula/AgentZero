@@ -37,7 +37,9 @@ from agentzero.web.operator_config import (
 from agentzero.web.resume_loader import ResumeLoader, latest_resume_info
 from agentzero.web.scrape_runner import ScrapeRunner
 from agentzero.web.search_titles import (
-    normalize_title_selection,
+    add_operator_title,
+    merge_title_selection,
+    remove_operator_title,
     search_profile_summary,
     title_rows,
 )
@@ -176,6 +178,10 @@ def create_app(
             flash = "Sources saved."
         elif params.get("titles_saved") == "1":
             flash = "Search titles saved."
+        elif params.get("title_added") == "1":
+            flash = "Search title added."
+        elif params.get("title_removed") == "1":
+            flash = "Search title removed."
         elif params.get("cdp_ok") == "1":
             flash = params.get("msg") or "Chrome CDP connected."
         elif params.get("cdp_fail") == "1":
@@ -267,9 +273,12 @@ def create_app(
                 ),
                 status_code=400,
             )
-        terms = normalize_title_selection(
+        profile_terms = list(snapshot.search_terms)
+        operator = _operator(request)
+        terms = merge_title_selection(
             search_terms or [],
-            list(snapshot.search_terms),
+            profile_terms,
+            operator,
         )
         if not terms:
             return _TEMPLATES.TemplateResponse(
@@ -284,6 +293,84 @@ def create_app(
             )
         patch_operator_config(cfg_path, search_terms=terms)
         return RedirectResponse(url="/config?titles_saved=1", status_code=303)
+
+    @app.post("/config/search-titles/add", response_model=None)
+    def post_config_search_titles_add(
+        request: Request,
+        term: Annotated[str, Form()] = "",
+    ) -> RedirectResponse | HTMLResponse:
+        from agentzero.ingest.search_profile import load_search_profile
+
+        cfg_path = request.app.state.operator_config_path
+        snapshot = load_search_profile()
+        if snapshot is None:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(
+                    request,
+                    flash="Load a résumé first (Search titles → Load résumé).",
+                    flash_ok=False,
+                ),
+                status_code=400,
+            )
+        try:
+            add_operator_title(
+                cfg_path,
+                term,
+                profile_terms=list(snapshot.search_terms),
+            )
+        except ValueError:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(
+                    request,
+                    flash="Enter a title to add.",
+                    flash_ok=False,
+                ),
+                status_code=400,
+            )
+        return RedirectResponse(url="/config?title_added=1", status_code=303)
+
+    @app.post("/config/search-titles/remove", response_model=None)
+    def post_config_search_titles_remove(
+        request: Request,
+        term: Annotated[str, Form()] = "",
+    ) -> RedirectResponse | HTMLResponse:
+        from agentzero.ingest.search_profile import load_search_profile
+
+        cfg_path = request.app.state.operator_config_path
+        snapshot = load_search_profile()
+        if snapshot is None:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(
+                    request,
+                    flash="Load a résumé first.",
+                    flash_ok=False,
+                ),
+                status_code=400,
+            )
+        try:
+            remove_operator_title(
+                cfg_path,
+                term,
+                profile_terms=list(snapshot.search_terms),
+            )
+        except ValueError:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(
+                    request,
+                    flash="Missing title to remove.",
+                    flash_ok=False,
+                ),
+                status_code=400,
+            )
+        return RedirectResponse(url="/config?title_removed=1", status_code=303)
 
     @app.post("/config/cdp/connect", response_model=None)
     def post_config_cdp_connect(request: Request) -> RedirectResponse:

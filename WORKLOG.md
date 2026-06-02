@@ -410,3 +410,12 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     files: cdp_host_proxy.py, cdp_launch.py, cdp_status.py, docker-compose.yml, docs/DOCKER.md, GETTING_STARTED.md,
            README.md, .env.example, tests/test_cdp_host_proxy.py, tests/test_cdp_launch.py, tests/test_web_cdp_status.py
     accept: pytest tests/test_cdp_host_proxy.py tests/test_cdp_launch.py tests/test_web_cdp_status.py -q; ruff clean
+
+[2026-06-02T23:30:00Z] P33 DONE - Search titles: résumé load fix + add/remove in Settings.
+    data/search_profile.json beside DB (Docker resume/ stays ro); legacy resume/ snapshot fallback.
+    Settings: Add title, Remove per row, Save titles preserves custom; POST add/remove routes.
+    files: agentzero/ingest/search_profile.py, agentzero/web/search_titles.py, app.py, config.html,
+           docs/DOCKER.md, GETTING_STARTED.md, SCRAPING.md, README.md, tests/test_search_profile.py,
+           tests/test_web_search_titles.py, tests/test_web_app_config.py, tests/test_docs_web.py, PROGRESS.md
+    accept: pytest -q && ruff check agentzero tests scripts tools -> green
+    branch: feat/web-P33-search-titles

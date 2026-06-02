@@ -209,6 +209,14 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P32g Cross-platform CDP launch (py/sh/ps1) + GETTING_STARTED + Settings UI instructions
 - [x] P32h Docker CDP Connect — host proxy (9222→9223), Host header rewrite, compose `web` CDP env, stale-proxy cleanup
 
+## P33 — Search titles: résumé load fix + add/remove (2026-06-02)
+
+- [x] P33a Writable `data/search_profile.json` (+ legacy resume fallback)
+- [x] P33b Docker/docs for profile path
+- [x] P33c Add/remove title API + operator merge logic
+- [x] P33d Settings UI add/remove
+- [x] P33e Ledger + gate
+
 ## Reference docs
 
 | Doc | Contents |
@@ -224,6 +232,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/docker-build-cache.plan.md | P30 Dockerfile cache layers + dev override |
 | docs/remove-google-sheets.plan.md | P31 drop Sheets; web UI is the tracker |
 | docs/web-ui-settings.plan.md | P32 settings page, dark mode, scrape trigger |
+| docs/web-search-titles.plan.md | P33 résumé load path + add/remove titles |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

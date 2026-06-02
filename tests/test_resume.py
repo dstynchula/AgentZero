@@ -64,7 +64,15 @@ def test_extract_resume_profile_coerces_string_experience():
     assert profile.experience[0].title == "Engineer at ExampleCorp"
 
 
-def test_ingest_resume_from_directory(tmp_path):
+def test_ingest_resume_from_directory(tmp_path, monkeypatch):
+    from agentzero.config import Settings
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(
+        "agentzero.config.get_settings",
+        lambda: Settings(_env_file=None, db_path=data_dir / "agentzero.db"),
+    )
     sample = FIXTURES / "sample_resume.txt"
     dest = tmp_path / "resume" / "mine.txt"
     dest.parent.mkdir(parents=True)
@@ -81,7 +89,7 @@ def test_ingest_resume_from_directory(tmp_path):
     profile = ingest_resume(llm=llm, resume_dir=tmp_path / "resume")
     assert isinstance(profile, ResumeProfile)
     assert profile.source_path.endswith("mine.txt")
-    assert (tmp_path / "resume" / "search_profile.json").is_file()
+    assert (data_dir / "search_profile.json").is_file()
 
 
 def test_ingest_resume_missing_dir_raises(tmp_path):

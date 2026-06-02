@@ -81,7 +81,7 @@ def run(
         snapshot = load_search_profile()
         if snapshot is None:
             print(
-                "ERROR: --skip-resume-ingest requires resume/search_profile.json.\n"
+                "ERROR: --skip-resume-ingest requires data/search_profile.json.\n"
                 "Run once without that flag, or run scripts/smoke_test.py first.",
                 file=sys.stderr,
             )

@@ -83,6 +83,9 @@ Log into Indeed and Glassdoor in that Chrome window. Uncomment in `.env`:
 
 ```env
 AGENTZERO_SCRAPE_CDP_URL=http://127.0.0.1:9222
+
+Search snapshots are written to `data/search_profile.json` (not `resume/`), so Docker can keep
+`resume/` read-only.
 AGENTZERO_SCRAPE_CDP_SITES=indeed,glassdoor
 ```
 

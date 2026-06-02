@@ -24,6 +24,11 @@ def test_docker_doc_mentions_config_page():
     assert "/config" in text or "settings" in text.lower()
 
 
+def test_docker_doc_mentions_data_search_profile():
+    text = Path("docs/DOCKER.md").read_text(encoding="utf-8")
+    assert "data/search_profile.json" in text
+
+
 def test_docker_doc_mentions_build_cache():
     text = Path("docs/DOCKER.md").read_text(encoding="utf-8")
     assert "DOCKER_BUILDKIT" in text

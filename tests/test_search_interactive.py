@@ -19,6 +19,15 @@ from agentzero.ingest.search_profile import (
 )
 
 
+@pytest.fixture
+def isolated_data_settings(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    data.mkdir()
+    settings = Settings(_env_file=None, db_path=data / "agentzero.db")
+    monkeypatch.setattr("agentzero.config.get_settings", lambda: settings)
+    return settings
+
+
 def _sample_profile(resume_path: Path) -> ResumeSearchProfile:
     return ResumeSearchProfile(
         search_terms=["Staff Security Engineer", "Principal Security Engineer"],
@@ -40,7 +49,7 @@ def test_format_search_summary_includes_salary():
     assert "Comp floor" in text
 
 
-def test_interactive_refine_keeps_remote_on_empty_input(tmp_path):
+def test_interactive_refine_keeps_remote_on_empty_input(tmp_path, isolated_data_settings):
     resume = tmp_path / "resume" / "r.docx"
     resume.parent.mkdir(parents=True)
     resume.write_bytes(b"x")
@@ -61,10 +70,12 @@ def test_interactive_refine_keeps_remote_on_empty_input(tmp_path):
     assert refined.locations == ["remote - usa"]
     assert refined.remote_preferred is True
     assert refined.salary_min == profile.salary_min
-    assert load_search_profile(tmp_path / "resume") is not None
+    assert (
+        load_search_profile(tmp_path / "resume", settings=isolated_data_settings) is not None
+    )
 
 
-def test_interactive_refine_applies_user_edits(tmp_path):
+def test_interactive_refine_applies_user_edits(tmp_path, isolated_data_settings):
     resume = tmp_path / "resume" / "r.docx"
     resume.parent.mkdir(parents=True)
     resume.write_bytes(b"x")

@@ -42,7 +42,7 @@ def latest_resume_info(resume_dir: Path = RESUME_DIR) -> dict[str, Any]:
 
 
 def load_resume_search_profile(*, force_refresh: bool = True) -> tuple[bool, str, list[str]]:
-    """Parse latest résumé and write ``resume/search_profile.json`` via LLM."""
+    """Parse latest résumé and write ``data/search_profile.json`` via LLM."""
     from agentzero.llm.provider import build_llm_provider
 
     try:
