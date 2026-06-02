@@ -113,9 +113,14 @@ def run_build(*, use_compose: bool, no_cache: bool) -> int:
     heartbeat = threading.Thread(target=_heartbeat_loop, args=(progress, stop), daemon=True)
     heartbeat.start()
 
+    env = os.environ.copy()
+    env.setdefault("DOCKER_BUILDKIT", "1")
+    env.setdefault("COMPOSE_DOCKER_CLI_BUILD", "1")
+
     proc = subprocess.Popen(  # noqa: S603
         cmd,
         cwd=REPO_ROOT,
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

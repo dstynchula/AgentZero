@@ -1,0 +1,9 @@
+# Copy to docker-compose.override.yml (gitignored) for faster local iteration.
+# Bind-mounts agentzero/ into running containers so web/pipeline picks up edits without rebuild.
+services:
+  web:
+    volumes:
+      - ./agentzero:/app/agentzero:ro
+  agentzero:
+    volumes:
+      - ./agentzero:/app/agentzero:ro

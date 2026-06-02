@@ -17,6 +17,9 @@ htmlcov/
 coverage.xml
 .mutmut-cache
 
+# Local compose overrides (bind-mount dev)
+docker-compose.override.yml
+
 # Secrets & local state
 .env
 *.token.json
