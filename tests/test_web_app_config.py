@@ -108,6 +108,83 @@ def test_save_search_titles_requires_profile(client):
     assert r.status_code == 400
 
 
+def test_config_page_add_title_form(client, tmp_path: Path):
+    c, root = client
+    from agentzero.ingest.search_profile import ResumeSearchProfile, save_search_profile
+
+    save_search_profile(
+        ResumeSearchProfile(
+            search_terms=["Engineer"],
+            locations=["Remote"],
+            source_resume_path="resume/x.txt",
+            source_fingerprint="fp",
+            updated_at="2026-01-01T00:00:00Z",
+        ),
+        settings=Settings(_env_file=None, db_path=root / "t.db"),
+    )
+    r = c.get("/config")
+    assert "Add title" in r.text
+    assert 'action="/config/search-titles/add"' in r.text
+
+
+def test_add_search_title_redirect(client, tmp_path: Path):
+    c, root = client
+    from agentzero.ingest.search_profile import ResumeSearchProfile, save_search_profile
+
+    save_search_profile(
+        ResumeSearchProfile(
+            search_terms=["Engineer"],
+            locations=["Remote"],
+            source_resume_path="resume/x.txt",
+            source_fingerprint="fp",
+            updated_at="2026-01-01T00:00:00Z",
+        ),
+        settings=Settings(_env_file=None, db_path=root / "t.db"),
+    )
+    r = c.post(
+        "/config/search-titles/add",
+        data={"term": "Staff Engineer"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "title_added=1" in r.headers["location"]
+    saved = load_operator_config(root / "web_operator_config.json")
+    assert saved is not None
+    assert "Staff Engineer" in saved.search_terms
+
+
+def test_remove_search_title_updates_list(client, tmp_path: Path):
+    c, root = client
+    from agentzero.ingest.search_profile import ResumeSearchProfile, save_search_profile
+    from agentzero.web.operator_config import patch_operator_config
+
+    cfg = root / "web_operator_config.json"
+    settings = Settings(_env_file=None, db_path=root / "t.db")
+    save_search_profile(
+        ResumeSearchProfile(
+            search_terms=["Engineer", "Architect"],
+            locations=["Remote"],
+            source_resume_path="resume/x.txt",
+            source_fingerprint="fp",
+            updated_at="2026-01-01T00:00:00Z",
+        ),
+        settings=settings,
+    )
+    patch_operator_config(cfg, search_terms=["Engineer", "Architect"])
+    r = c.post(
+        "/config/search-titles/remove",
+        data={"term": "Engineer"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    saved = load_operator_config(cfg)
+    assert saved is not None
+    assert saved.search_terms == ["Architect"]
+    page = c.get("/config")
+    assert 'value="Engineer"' not in page.text
+    assert 'value="Architect"' in page.text
+
+
 def test_scrape_endpoint_returns_redirect(client, monkeypatch):
     c, _ = client
 

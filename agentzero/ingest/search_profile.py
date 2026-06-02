@@ -50,29 +50,60 @@ def clear_search_profile_session_cache() -> None:
     _session_profile = None
 
 
-def search_profile_path(resume_dir: Path = RESUME_DIR) -> Path:
+def search_profile_storage_dir(*, settings: Settings | None = None) -> Path:
+    """Writable directory for the snapshot (beside SQLite; safe in Docker)."""
+    if settings is None:
+        from agentzero.config import get_settings
+
+        settings = get_settings()
+    return settings.db_path.parent
+
+
+def legacy_search_profile_path(resume_dir: Path = RESUME_DIR) -> Path:
+    """Pre-P33 path kept for one-time fallback reads."""
     return resume_dir / SEARCH_PROFILE_FILENAME
+
+
+def search_profile_path(
+    resume_dir: Path = RESUME_DIR,
+    *,
+    settings: Settings | None = None,
+) -> Path:
+    """Canonical snapshot path under ``data/`` (not ``resume/``)."""
+    _ = resume_dir  # résumé files stay under resume_dir; snapshot is separate
+    return search_profile_storage_dir(settings=settings) / SEARCH_PROFILE_FILENAME
 
 
 def resume_fingerprint(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
 
-def load_search_profile(resume_dir: Path = RESUME_DIR) -> ResumeSearchProfile | None:
-    """Read the last saved snapshot from ``resume/search_profile.json``."""
-    path = search_profile_path(resume_dir)
-    if not path.is_file():
-        return None
-    return ResumeSearchProfile.model_validate_json(path.read_text(encoding="utf-8"))
+def load_search_profile(
+    resume_dir: Path = RESUME_DIR,
+    *,
+    settings: Settings | None = None,
+) -> ResumeSearchProfile | None:
+    """Read snapshot from ``data/search_profile.json``, else legacy ``resume/`` path."""
+    for path in (
+        search_profile_path(resume_dir, settings=settings),
+        legacy_search_profile_path(resume_dir),
+    ):
+        if path.is_file():
+            return ResumeSearchProfile.model_validate_json(path.read_text(encoding="utf-8"))
+    return None
 
 
-def load_matching_search_profile(resume_dir: Path = RESUME_DIR) -> ResumeSearchProfile | None:
+def load_matching_search_profile(
+    resume_dir: Path = RESUME_DIR,
+    *,
+    settings: Settings | None = None,
+) -> ResumeSearchProfile | None:
     """Return the on-disk snapshot when it matches the latest résumé file."""
     try:
         resume_path = find_latest_resume(resume_dir)
     except FileNotFoundError:
         return None
-    snapshot = load_search_profile(resume_dir)
+    snapshot = load_search_profile(resume_dir, settings=settings)
     if snapshot is None:
         return None
     if snapshot.source_fingerprint != resume_fingerprint(resume_path):
@@ -80,8 +111,14 @@ def load_matching_search_profile(resume_dir: Path = RESUME_DIR) -> ResumeSearchP
     return snapshot
 
 
-def save_search_profile(profile: ResumeSearchProfile, resume_dir: Path = RESUME_DIR) -> Path:
-    path = search_profile_path(resume_dir)
+def save_search_profile(
+    profile: ResumeSearchProfile,
+    resume_dir: Path = RESUME_DIR,
+    *,
+    settings: Settings | None = None,
+) -> Path:
+    path = search_profile_path(resume_dir, settings=settings)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(profile.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return path
 
@@ -179,7 +216,7 @@ def resolve_search_from_resume(
     """Read the latest résumé and extract search terms via the LLM.
 
     Reuses the in-process result when the résumé file is unchanged. When
-    ``prefer_snapshot`` is true, also reuses ``resume/search_profile.json`` if
+    ``prefer_snapshot`` is true, also reuses ``data/search_profile.json`` if
     its fingerprint matches (fast path before the interactive prompt).
     """
     global _session_profile

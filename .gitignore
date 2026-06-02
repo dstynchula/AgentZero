@@ -35,6 +35,7 @@ data/browser_profiles/
 data/chrome_cdp_profile/
 data/indeed_browser_profile/
 data/browser_storage_state/
+data/search_profile.json
 
 # Personal résumé (never commit; folder kept via .gitkeep only)
 resume/**

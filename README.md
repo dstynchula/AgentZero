@@ -231,7 +231,7 @@ Same core as `scripts/run_lead_session.py`. See also `AGENTS.md`.
 
 ### 8. Scraping notes
 
-Snapshot saved to `resume/search_profile.json` (gitignored). Skip the prompt only for CI:
+Snapshot saved to `data/search_profile.json` (gitignored; beside the DB). Skip the prompt only for CI:
 `run_scrape.py --no-search-prompt`.
 
 Defaults: **Indeed, LinkedIn, Glassdoor** via Playwright + **Chrome**; **Google Jobs, ZipRecruiter** via JobSpy HTTP.

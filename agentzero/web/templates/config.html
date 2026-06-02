@@ -31,7 +31,7 @@
   <h2>Search titles</h2>
   <p class="muted">
     Put a résumé in <code>resume/</code> (.pdf, .docx, .txt, .md), load it to build
-    <code>search_profile.json</code>, then choose which titles to scrape.
+    <code>data/search_profile.json</code>, then choose which titles to scrape.
   </p>
   {% if resume.available %}
   <p class="muted">Latest file: <code>{{ resume.filename }}</code></p>
@@ -57,16 +57,24 @@
     Locations: {{ search_profile.locations|join(', ') }}{% if search_profile.salary_min %}; comp floor ${{ '{:,.0f}'.format(search_profile.salary_min) }}{% endif %}
     {% endif %}
   </p>
-  <form method="post" action="/config/search-titles">
-    <div class="source-grid">
-      {% for row in title_rows %}
-      <div class="source-row">
-        <input type="checkbox" name="search_terms" value="{{ row.term }}" id="title-{{ loop.index }}" {% if row.selected %}checked{% endif %} />
-        <label for="title-{{ loop.index }}"><strong>{{ row.term }}</strong></label>
-      </div>
-      {% endfor %}
+  <div class="source-grid">
+    {% for row in title_rows %}
+    <div class="source-row" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+      <input type="checkbox" name="search_terms" value="{{ row.term }}" id="title-{{ loop.index }}" form="search-titles-save" {% if row.selected %}checked{% endif %} />
+      <label for="title-{{ loop.index }}" style="flex:1;"><strong>{{ row.term }}</strong></label>
+      <form method="post" action="/config/search-titles/remove" style="margin:0;">
+        <input type="hidden" name="term" value="{{ row.term }}" />
+        <button type="submit" class="btn btn-secondary" style="font-size:0.85rem;">Remove</button>
+      </form>
     </div>
-    <p class="toolbar"><button type="submit" class="btn">Save titles</button></p>
+    {% endfor %}
+  </div>
+  <form id="search-titles-save" method="post" action="/config/search-titles" class="toolbar">
+    <button type="submit" class="btn">Save titles</button>
+  </form>
+  <form method="post" action="/config/search-titles/add" class="toolbar" style="margin-top:0.75rem;">
+    <input type="text" name="term" placeholder="Add a custom title" required style="min-width:16rem;padding:0.35rem 0.5rem;" />
+    <button type="submit" class="btn">Add title</button>
   </form>
   {% elif not resume_load.running %}
   <p class="muted">Load a résumé above to enable title selection.</p>

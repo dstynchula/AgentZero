@@ -72,7 +72,7 @@ a browser session; prefer `enrich_jobs.py` over ad-hoc HTTP scripts.
 |---------|-----|
 | Default (on) | `AGENTZERO_SEARCH_INTERACTIVE=true` |
 | Skip prompt | `AGENTZERO_SEARCH_INTERACTIVE=false` or `python scripts/smoke_test.py --scrape --no-search-prompt` |
-| Snapshot | Saved to `resume/search_profile.json` after you confirm |
+| Snapshot | Saved to `data/search_profile.json` after you confirm (legacy `resume/` path read if present) |
 
 ## Remote-only mode (default)
 
@@ -370,7 +370,7 @@ On each scrape run with an LLM configured:
 
 1. Latest file in `resume/` is read
 2. LLM extracts search terms (recent job titles first) and locations
-3. Snapshot saved to `resume/search_profile.json` (git-ignored)
+3. Snapshot saved to `data/search_profile.json` (git-ignored)
 4. `build_scrape_source()` merges terms into settings once per run
 
 Smoke test limits to **1 term × Remote** on first scrape to avoid rate limits.

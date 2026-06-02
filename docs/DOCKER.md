@@ -141,7 +141,8 @@ cannot reach `127.0.0.1` on the host). Then use **Connect** on Settings.
 | **Settings** (`/config`) | Enable/disable scrape sources, start a background scrape, CDP setup instructions |
 
 **Settings** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
-scrapes use `resume/search_profile.json` and need an LLM API key; new rows land as `lead`.
+scrapes use `data/search_profile.json` (beside the DB; résumé files stay in read-only `resume/`)
+and need an LLM API key; new rows land as `lead`.
 Chrome CDP must run on the **host** — Settings shows PS1, Python, and shell launch commands plus env vars.
 
 Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/config`.
