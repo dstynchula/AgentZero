@@ -12,6 +12,15 @@
   {% endif %}
 </div>
 
+<div class="sort-toolbar" role="toolbar" aria-label="Sort jobs by column">
+  <span class="sort-toolbar-label">Sort by</span>
+  {% for col in columns %}
+  <a href="{{ sort_links[col] }}" class="sort-chip{% if col == sort %} is-active{% endif %}" title="Sort by {{ col }}">
+    {{ col }}{% if col == sort %}{% if sort_descending %} ↓{% else %} ↑{% endif %}{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
 <details class="column-picker" id="column-picker">
   <summary>Columns — show, hide, or drag header edges to resize</summary>
   <div class="column-picker-grid">
@@ -30,7 +39,10 @@
     <tr>
       {% for col in columns %}
       <th class="{% if col == sort %}sorted{% endif %}{% if col not in default_columns %} col-hidden{% endif %}" data-col="{{ col }}">
-        <a href="{{ sort_links[col] }}">{{ col }}{% if col == sort %}{% if sort_descending %} ▼{% else %} ▲{% endif %}{% endif %}</a>
+        <a class="th-sort-link" href="{{ sort_links[col] }}" title="Sort by {{ col }}">
+          <span class="th-label">{{ col }}</span>
+          <span class="sort-indicator" aria-hidden="true">{% if col == sort %}{% if sort_descending %}▼{% else %}▲{% endif %}{% else %}⇅{% endif %}</span>
+        </a>
         <span class="col-resizer" aria-hidden="true"></span>
       </th>
       {% endfor %}

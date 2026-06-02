@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from agentzero.config import Settings
 from agentzero.web.app import create_app
-from agentzero.web.jobs import LIST_VIEW_DEFAULT_COLUMNS
+from agentzero.web.jobs import LIST_VIEW_DEFAULT_COLUMNS, UI_COLUMNS
 
 
 @pytest.fixture
@@ -33,6 +33,22 @@ def test_jobs_table_has_column_picker(jobs_client):
     assert "initTrackerColumns" in r.text
     assert r.text.find('id="jobs-table"') < r.text.find("initTrackerColumns")
     assert "col-resizer" in r.text
+
+
+def test_jobs_page_sort_chips_for_all_columns(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'class="sort-toolbar"' in r.text
+    for col in UI_COLUMNS:
+        assert f'href="?sort={col}' in r.text or f"sort={col}&" in r.text
+        assert f'class="sort-chip' in r.text
+
+
+def test_jobs_page_header_sort_links(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'class="th-sort-link"' in r.text
+    assert "sort-indicator" in r.text
 
 
 def test_jobs_list_default_columns(jobs_client):
