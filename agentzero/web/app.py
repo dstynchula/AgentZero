@@ -141,9 +141,13 @@ def create_app(
                 "nav_active": "jobs",
                 "jobs": jobs,
                 "columns": UI_COLUMNS,
-                "columns_json": json.dumps(list(UI_COLUMNS)),
                 "default_columns": LIST_VIEW_DEFAULT_COLUMNS,
-                "default_columns_json": json.dumps(list(LIST_VIEW_DEFAULT_COLUMNS)),
+                "tracker_column_config_json": json.dumps(
+                    {
+                        "all": list(UI_COLUMNS),
+                        "default": list(LIST_VIEW_DEFAULT_COLUMNS),
+                    }
+                ),
                 "status_choices": _STATUS_CHOICES,
                 "show_rejected": show_rejected,
                 **ctx,

@@ -29,7 +29,9 @@ def test_jobs_table_has_column_picker(jobs_client):
     assert 'id="column-picker"' in r.text
     assert 'data-column="title"' in r.text
     assert "column-picker-reset" in r.text
-    assert 'data-columns=' in r.text
+    assert 'id="tracker-column-config"' in r.text
+    assert "initTrackerColumns" in r.text
+    assert r.text.find('id="jobs-table"') < r.text.find("initTrackerColumns")
     assert "col-resizer" in r.text
 
 
@@ -46,8 +48,9 @@ def test_jobs_list_default_columns(jobs_client):
     )
     for col in LIST_VIEW_DEFAULT_COLUMNS:
         assert f'data-column="{col}"' in r.text
-    assert 'data-col="location" hidden' in r.text
-    assert 'data-default-columns=' in r.text
+    assert 'data-col="location"' in r.text
+    assert 'data-col="location" col-hidden' in r.text or 'col-hidden' in r.text
+    assert '"comp_max"' in r.text
 
 
 def test_jobs_table_readable_title_styles(jobs_client):

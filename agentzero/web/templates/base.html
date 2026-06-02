@@ -149,6 +149,10 @@
     table.data-table th a { color: inherit; text-decoration: none; }
     table.data-table th a:hover { text-decoration: underline; }
     table.data-table th.sorted { color: var(--accent); }
+    table.data-table th.col-hidden,
+    table.data-table td.col-hidden {
+      display: none;
+    }
     tr.job-row { cursor: pointer; }
     tr.job-row:hover td:not(.actions) { background: var(--surface-2); }
     .actions form { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; margin: 0.1rem 0; }
@@ -333,5 +337,6 @@
     </header>
     {% block body %}{% endblock %}
   </div>
+  {% block page_scripts %}{% endblock %}
 </body>
 </html>

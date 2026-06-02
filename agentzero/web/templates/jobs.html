@@ -1,14 +1,107 @@
 {% extends "base.html" %}
 {% block title %}Jobs — AgentZero{% endblock %}
-{% block head %}
+{% block body %}
+<h1>Job tracker</h1>
+<p class="muted">{{ jobs|length }} row(s){% if not show_rejected %} — rejected hidden{% endif %} — sorted by {{ sort }} ({{ order }})</p>
+
+<div class="toolbar">
+  {% if show_rejected %}
+  <a href="/?sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Hide rejected</a>
+  {% else %}
+  <a href="/?show_rejected=1&sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Show rejected</a>
+  {% endif %}
+</div>
+
+<details class="column-picker" id="column-picker">
+  <summary>Columns — show, hide, or drag header edges to resize</summary>
+  <div class="column-picker-grid">
+    {% for col in columns %}
+    <label><input type="checkbox" data-column="{{ col }}" {% if col in default_columns %}checked{% endif %} /> {{ col }}</label>
+    {% endfor %}
+  </div>
+  <div class="column-picker-actions">
+    <button type="button" class="btn btn-secondary" id="column-picker-reset">Reset columns</button>
+  </div>
+</details>
+
+<div class="tracker-table-wrap">
+<table class="data-table" id="jobs-table">
+  <thead>
+    <tr>
+      {% for col in columns %}
+      <th class="{% if col == sort %}sorted{% endif %}{% if col not in default_columns %} col-hidden{% endif %}" data-col="{{ col }}">
+        <a href="{{ sort_links[col] }}">{{ col }}{% if col == sort %}{% if sort_descending %} ▼{% else %} ▲{% endif %}{% endif %}</a>
+        <span class="col-resizer" aria-hidden="true"></span>
+      </th>
+      {% endfor %}
+      <th class="actions-col">actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for job in jobs %}
+    <tr class="job-row" data-href="/jobs/{{ job.job_id }}{{ list_query }}">
+      {% for col in columns %}
+      <td class="data-cell{% if col not in default_columns %} col-hidden{% endif %}" data-col="{{ col }}">
+        {% set cell = job.cells[col] %}
+        {% if col == "url" and job.data[col] %}
+        <a class="cell-truncated" href="{{ job.data[col] }}" target="_blank" rel="noopener" title="{{ cell.full }}" onclick="event.stopPropagation()">{{ cell.text }}</a>
+        {% else %}
+        <span class="cell-text {% if cell.truncated %}cell-truncated{% endif %}" title="{{ cell.full }}">{{ cell.text }}</span>
+        {% endif %}
+      </td>
+      {% endfor %}
+      <td class="actions" onclick="event.stopPropagation()">
+        <form method="post" action="/jobs/{{ job.job_id }}/status">
+          {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+          <input type="hidden" name="sort" value="{{ sort }}" />
+          <input type="hidden" name="order" value="{{ order }}" />
+          <select name="status">
+            {% for s in status_choices %}
+            <option value="{{ s }}" {% if s == job.data.status %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Save status</button>
+        </form>
+        <form method="post" action="/jobs/{{ job.job_id }}/notes">
+          {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+          <input type="hidden" name="sort" value="{{ sort }}" />
+          <input type="hidden" name="order" value="{{ order }}" />
+          <input type="text" name="notes" value="{{ job.data.notes or '' }}" />
+          <button type="submit">Save notes</button>
+        </form>
+        <form method="post" action="/jobs/{{ job.job_id }}/reject" onsubmit="return confirm('Mark this role as rejected (nope)?');">
+          {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+          <input type="hidden" name="sort" value="{{ sort }}" />
+          <input type="hidden" name="order" value="{{ order }}" />
+          <button type="submit" class="btn-danger">Nope</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="{{ columns|length + 1 }}">No jobs in database. <a href="/config">Configure sources</a> and run a scrape.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<script type="application/json" id="tracker-column-config">{{ tracker_column_config_json|safe }}</script>
+{% endblock %}
+{% block page_scripts %}
 <script>
-(function () {
+function initTrackerColumns() {
   var STORAGE_COLS = "agentzero_tracker_visible_columns";
   var STORAGE_WIDTHS = "agentzero_tracker_column_widths";
-  var table = document.querySelector("table.data-table");
-  if (!table) return;
-  var allCols = JSON.parse(table.getAttribute("data-columns") || "[]");
-  var defaultCols = JSON.parse(table.getAttribute("data-default-columns") || "[]");
+  var table = document.getElementById("jobs-table");
+  var cfgNode = document.getElementById("tracker-column-config");
+  if (!table || !cfgNode) return;
+
+  var cfg;
+  try {
+    cfg = JSON.parse(cfgNode.textContent);
+  } catch (e) {
+    return;
+  }
+  var allCols = cfg.all || [];
+  var defaultCols = cfg.default || allCols.slice();
   if (!defaultCols.length) defaultCols = allCols.slice();
 
   function readVisible() {
@@ -18,7 +111,7 @@
       var parsed = JSON.parse(raw);
       if (!Array.isArray(parsed) || !parsed.length) return null;
       return parsed.filter(function (c) { return allCols.indexOf(c) >= 0; });
-    } catch (e) {
+    } catch (err) {
       return null;
     }
   }
@@ -27,7 +120,7 @@
     try {
       var raw = localStorage.getItem(STORAGE_WIDTHS);
       return raw ? JSON.parse(raw) : {};
-    } catch (e) {
+    } catch (err) {
       return {};
     }
   }
@@ -40,7 +133,7 @@
     allCols.forEach(function (col) {
       var show = visible.indexOf(col) >= 0;
       cellsForCol(col).forEach(function (el) {
-        el.hidden = !show;
+        el.classList.toggle("col-hidden", !show);
       });
     });
   }
@@ -72,8 +165,7 @@
   var picker = document.getElementById("column-picker");
   if (picker) {
     picker.querySelectorAll('input[type="checkbox"][data-column]').forEach(function (cb) {
-      var col = cb.getAttribute("data-column");
-      cb.checked = visible.indexOf(col) >= 0;
+      cb.checked = visible.indexOf(cb.getAttribute("data-column")) >= 0;
       cb.addEventListener("change", function () {
         var next = [];
         picker.querySelectorAll('input[type="checkbox"][data-column]').forEach(function (box) {
@@ -146,90 +238,11 @@
       document.addEventListener("mouseup", onUp);
     });
   });
-})();
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initTrackerColumns);
+} else {
+  initTrackerColumns();
+}
 </script>
-{% endblock %}
-{% block body %}
-<h1>Job tracker</h1>
-<p class="muted">{{ jobs|length }} row(s){% if not show_rejected %} — rejected hidden{% endif %} — sorted by {{ sort }} ({{ order }})</p>
-
-<div class="toolbar">
-  {% if show_rejected %}
-  <a href="/?sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Hide rejected</a>
-  {% else %}
-  <a href="/?show_rejected=1&sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Show rejected</a>
-  {% endif %}
-</div>
-
-<details class="column-picker" id="column-picker">
-  <summary>Columns — show, hide, or drag header edges to resize</summary>
-  <div class="column-picker-grid">
-    {% for col in columns %}
-    <label><input type="checkbox" data-column="{{ col }}" {% if col in default_columns %}checked{% endif %} /> {{ col }}</label>
-    {% endfor %}
-  </div>
-  <div class="column-picker-actions">
-    <button type="button" class="btn btn-secondary" id="column-picker-reset">Reset columns</button>
-  </div>
-</details>
-
-<div class="tracker-table-wrap">
-<table class="data-table" data-columns="{{ columns_json }}" data-default-columns="{{ default_columns_json }}">
-  <thead>
-    <tr>
-      {% for col in columns %}
-      <th class="{% if col == sort %}sorted{% endif %}" data-col="{{ col }}"{% if col not in default_columns %} hidden{% endif %}>
-        <a href="{{ sort_links[col] }}">{{ col }}{% if col == sort %}{% if sort_descending %} ▼{% else %} ▲{% endif %}{% endif %}</a>
-        <span class="col-resizer" aria-hidden="true"></span>
-      </th>
-      {% endfor %}
-      <th class="actions-col">actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for job in jobs %}
-    <tr class="job-row" data-href="/jobs/{{ job.job_id }}{{ list_query }}">
-      {% for col in columns %}
-      <td class="data-cell" data-col="{{ col }}"{% if col not in default_columns %} hidden{% endif %}>
-        {% set cell = job.cells[col] %}
-        {% if col == "url" and job.data[col] %}
-        <a class="cell-truncated" href="{{ job.data[col] }}" target="_blank" rel="noopener" title="{{ cell.full }}" onclick="event.stopPropagation()">{{ cell.text }}</a>
-        {% else %}
-        <span class="cell-text {% if cell.truncated %}cell-truncated{% endif %}" title="{{ cell.full }}">{{ cell.text }}</span>
-        {% endif %}
-      </td>
-      {% endfor %}
-      <td class="actions" onclick="event.stopPropagation()">
-        <form method="post" action="/jobs/{{ job.job_id }}/status">
-          {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
-          <input type="hidden" name="sort" value="{{ sort }}" />
-          <input type="hidden" name="order" value="{{ order }}" />
-          <select name="status">
-            {% for s in status_choices %}
-            <option value="{{ s }}" {% if s == job.data.status %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit">Save status</button>
-        </form>
-        <form method="post" action="/jobs/{{ job.job_id }}/notes">
-          {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
-          <input type="hidden" name="sort" value="{{ sort }}" />
-          <input type="hidden" name="order" value="{{ order }}" />
-          <input type="text" name="notes" value="{{ job.data.notes or '' }}" />
-          <button type="submit">Save notes</button>
-        </form>
-        <form method="post" action="/jobs/{{ job.job_id }}/reject" onsubmit="return confirm('Mark this role as rejected (nope)?');">
-          {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
-          <input type="hidden" name="sort" value="{{ sort }}" />
-          <input type="hidden" name="order" value="{{ order }}" />
-          <button type="submit" class="btn-danger">Nope</button>
-        </form>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="{{ columns|length + 1 }}">No jobs in database. <a href="/config">Configure sources</a> and run a scrape.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
 {% endblock %}
