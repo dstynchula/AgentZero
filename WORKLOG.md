@@ -347,3 +347,11 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            tests/test_sync_scripts.py, docs/DOCKER.md, docs/SECURITY.md, docs/GETTING_STARTED.md, README.md,
            .env.example, .gitignore, .github/workflows/ci.yml, PROGRESS.md
     accept: pytest -q && ruff check agentzero tests scripts tools -> all green (532 tests)
+
+[2026-06-02T20:00:00Z] P28 DONE - Docker web job tracker (list, status/notes edit, soft-reject).
+    files: agentzero/web/, tests/test_web_*.py, tests/test_docker_compose_web.py, tests/test_docs_web.py,
+           docker-compose.yml (web service), Dockerfile ([web] extra), pyproject.toml, agentzero/config.py,
+           docs/DOCKER.md, docs/SECURITY.md, docs/web-ui-docker.plan.md, .github/workflows/ci.yml, PROGRESS.md
+    accept: pytest tests/test_web_*.py tests/test_docker_compose_web.py tests/test_docs_web.py -q -> 26 passed;
+            ruff check agentzero/web tests/test_web*.py -> clean
+    branch: feat/web-P28-docker-ui

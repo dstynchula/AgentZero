@@ -5,6 +5,18 @@ import pytest
 from agentzero.config import Settings, get_settings, reload_settings
 
 
+def test_web_settings_defaults():
+    s = Settings(_env_file=None)
+    assert s.web_enabled is False
+    assert s.web_host == "0.0.0.0"
+    assert s.web_port == 8080
+
+
+def test_web_port_in_range_rejects_invalid():
+    with pytest.raises(ValueError, match="web_port"):
+        Settings(_env_file=None, web_port=0)
+
+
 def test_defaults_without_env():
     s = Settings(_env_file=None)
     assert s.llm_provider == "openai"

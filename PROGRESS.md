@@ -180,7 +180,8 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/COST_AND_MODELS.md | LLM cost estimates (2026-05-29) |
 | docs/SCRAPING.md | Scraping, rate limits, OAuth, scripts |
 | docs/SECURITY.md | Secrets, OAuth scopes, SSRF, LLM data, Docker, log redaction |
-| docs/DOCKER.md | Optional Docker runs, host CDP, build progress |
+| docs/DOCKER.md | Optional Docker runs, host CDP, build progress, web UI |
+| docs/web-ui-docker.plan.md | P28 web tracker plan (TDD ledger) |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist
