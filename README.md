@@ -73,6 +73,7 @@ Dependencies are grouped in `pyproject.toml`: `dev`, `scrape`, `llm`, `google`, 
 
 **Docker (optional):** run the pipeline in a container with host Chrome via CDP — see
 **[docs/DOCKER.md](docs/DOCKER.md)**. Build with `python scripts/docker_build.py` for elapsed/ETA progress.
+Use `docker compose up web` for a local job tracker on port 8080 (edit status/notes, soft-reject).
 
 ---
 

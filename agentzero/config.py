@@ -120,6 +120,11 @@ class Settings(BaseSettings):
     # --- Storage ---
     db_path: Path = Path("data/agentzero.db")
 
+    # --- Web UI (Docker operator dashboard) ---
+    web_enabled: bool = False
+    web_host: str = "0.0.0.0"
+    web_port: int = 8080
+
     # --- Google ---
     google_client_secret: Path = Path("client_secret.json")
     google_token_path: Path = Path("token.json")
@@ -167,6 +172,13 @@ class Settings(BaseSettings):
             )
             object.__setattr__(self, "scrape_cdp_url", validated)
         return self
+
+    @field_validator("web_port")
+    @classmethod
+    def _web_port_in_range(cls, value: int) -> int:
+        if not 1 <= value <= 65_535:
+            raise ValueError("web_port must be between 1 and 65535")
+        return value
 
     @field_validator("sheet_id", mode="before")
     @classmethod
