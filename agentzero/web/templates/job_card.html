@@ -37,13 +37,6 @@
   </dl>
 </section>
 
-{% if job.match_rationale %}
-<section class="card">
-  <h2>Match rationale</h2>
-  <div class="rationale">{{ job.match_rationale }}</div>
-</section>
-{% endif %}
-
 <section class="card">
   <h2>Description</h2>
   {% if job.description %}
@@ -52,4 +45,11 @@
   <p class="muted">No description stored yet. Re-scrape or run enrich to populate this field.</p>
   {% endif %}
 </section>
+
+{% if job.match_rationale %}
+<section class="card">
+  <h2>Match rationale</h2>
+  <div class="rationale">{{ job.match_rationale }}</div>
+</section>
+{% endif %}
 {% endblock %}

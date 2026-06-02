@@ -57,6 +57,26 @@ def test_job_detail_page_renders_description(card_client):
     assert "Build APIs and lead the platform team." in r.text
 
 
+def test_job_card_description_before_match_rationale(card_client):
+    client, db_path = card_client
+    from agentzero.storage.db import Database
+
+    db = Database(db_path)
+    job = _job(
+        description="Role details here.",
+        match_rationale="Strong fit for platform work.",
+    )
+    db.upsert_job(job)
+    db.close()
+
+    r = client.get(f"/jobs/{job.job_id}")
+    assert r.status_code == 200
+    desc_pos = r.text.find("<h2>Description</h2>")
+    rationale_pos = r.text.find("<h2>Match rationale</h2>")
+    assert desc_pos >= 0 and rationale_pos >= 0
+    assert desc_pos < rationale_pos
+
+
 def test_job_detail_page_shows_empty_description_placeholder(card_client):
     client, db_path = card_client
     from agentzero.storage.db import Database
