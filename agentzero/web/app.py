@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
@@ -139,6 +140,7 @@ def create_app(
                 "nav_active": "jobs",
                 "jobs": jobs,
                 "columns": UI_COLUMNS,
+                "columns_json": json.dumps(list(UI_COLUMNS)),
                 "status_choices": _STATUS_CHOICES,
                 "show_rejected": show_rejected,
                 **ctx,

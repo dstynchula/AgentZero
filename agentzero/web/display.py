@@ -12,9 +12,9 @@ DEFAULT_SORT_ORDER = "desc"
 TABLE_TRUNCATE_LIMITS: dict[str, int] = {
     "notes": 80,
     "url": 80,
-    "title": 48,
-    "company": 48,
-    "location": 48,
+    "title": 120,
+    "company": 80,
+    "location": 64,
 }
 DEFAULT_TRUNCATE_LIMIT = 32
 

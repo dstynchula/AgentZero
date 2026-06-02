@@ -22,9 +22,18 @@ def test_jobs_page_has_centered_table_wrapper(jobs_client):
     assert 'class="tracker-table-wrap"' in r.text
 
 
-def test_jobs_table_compact_styles_present(jobs_client):
+def test_jobs_table_has_column_picker(jobs_client):
     r = jobs_client.get("/")
     assert r.status_code == 200
-    assert ".tracker-table-wrap" in r.text
-    assert "width: max-content" in r.text
-    assert "0.28rem 0.45rem" in r.text
+    assert 'id="column-picker"' in r.text
+    assert 'data-column="title"' in r.text
+    assert "column-picker-reset" in r.text
+    assert 'data-columns=' in r.text
+    assert "col-resizer" in r.text
+
+
+def test_jobs_table_readable_title_styles(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'data-col="title"' in r.text
+    assert "cell-text" in r.text
