@@ -12,6 +12,18 @@ def test_docker_doc_mentions_sort_or_card():
     assert "job card" in text.lower() or "sort" in text.lower()
 
 
+def test_getting_started_mentions_cdp_launch_scripts():
+    text = Path("docs/GETTING_STARTED.md").read_text(encoding="utf-8")
+    assert "launch_chrome_cdp.ps1" in text
+    assert "launch_chrome_cdp.py" in text
+    assert "launch_chrome_cdp.sh" in text
+
+
+def test_docker_doc_mentions_config_page():
+    text = Path("docs/DOCKER.md").read_text(encoding="utf-8")
+    assert "/config" in text or "settings" in text.lower()
+
+
 def test_docker_doc_mentions_build_cache():
     text = Path("docs/DOCKER.md").read_text(encoding="utf-8")
     assert "DOCKER_BUILDKIT" in text

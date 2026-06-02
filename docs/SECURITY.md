@@ -83,7 +83,7 @@ Remote CDP endpoints are rejected at config load time to prevent attaching Playw
 an attacker-controlled browser. Auto-launch starts a dedicated profile under
 `data/browser_profiles/cdp` on the host — not your daily Chrome profile. Inside Docker,
 set `AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=false` and start Chrome on the host with
-`scripts/launch_chrome_cdp.ps1`.
+`scripts/launch_chrome_cdp.ps1`, `scripts/launch_chrome_cdp.py`, or `scripts/launch_chrome_cdp.sh`.
 
 ### Log redaction
 

@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
-import shutil
-import subprocess
 import sys
 import time
 from collections.abc import Callable, Sequence
@@ -57,25 +54,24 @@ def cdp_endpoint_reachable(cdp_url: str, *, timeout_sec: float = 2.0) -> bool:
 
 
 def cdp_setup_hint(settings: Settings) -> str:
-    port = 9222
-    if settings.scrape_cdp_url:
-        tail = settings.scrape_cdp_url.rsplit(":", 1)[-1]
-        if tail.isdigit():
-            port = int(tail)
+    from agentzero.scrape.cdp_launch import build_launch_commands
+
+    port = cdp_port(settings.scrape_cdp_url) if settings.scrape_cdp_url else 9222
     auto = (
         "CDP Chrome auto-launches when AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=true (default).\n"
         if settings.scrape_cdp_auto_launch
         else "Set AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=true or start Chrome manually.\n"
     )
-    return (
-        "Indeed and Glassdoor need your real Chrome profile (MFA / Cloudflare).\n"
-        + auto
-        + "  Manual: .\\scripts\\launch_chrome_cdp.ps1 -Port "
-        + str(port)
-        + "\n"
-        f"  Set AGENTZERO_SCRAPE_CDP_URL=http://127.0.0.1:{port} in .env\n"
-        "LinkedIn continues to use the Playwright profile (no CDP required)."
-    )
+    lines = [
+        "Indeed and Glassdoor need your real Chrome profile (MFA / Cloudflare).",
+        auto.rstrip(),
+        "Start Chrome on the host:",
+    ]
+    for entry in build_launch_commands(port=port):
+        lines.append(f"  {entry['platform']}: {entry['command']}")
+    lines.append(f"  Set AGENTZERO_SCRAPE_CDP_URL=http://127.0.0.1:{port} in .env")
+    lines.append("LinkedIn continues to use the Playwright profile (no CDP required).")
+    return "\n".join(lines) + "\n"
 
 
 _CDP_LAUNCH_WAIT_SEC = 30.0
@@ -93,76 +89,20 @@ def cdp_port(cdp_url: str) -> int:
     return 443 if parsed.scheme == "https" else 9222
 
 
-def _find_chrome_executable() -> Path | None:
-    if sys.platform == "win32":
-        candidates = (
-            Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
-            / "Google/Chrome/Application/chrome.exe",
-            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
-            / "Google/Chrome/Application/chrome.exe",
-        )
-        return next((path for path in candidates if path.is_file()), None)
-    for name in (
-        "google-chrome",
-        "google-chrome-stable",
-        "chromium",
-        "chromium-browser",
-        "chrome",
-    ):
-        found = shutil.which(name)
-        if found:
-            return Path(found)
-    return None
-
-
 def launch_cdp_chrome(settings: Settings) -> None:
     """Start dedicated Chrome with remote debugging (non-blocking)."""
+    from agentzero.scrape.cdp_launch import default_cdp_profile_dir, launch_cdp_chrome_process
+
     cdp_url = settings.scrape_cdp_url
     if not cdp_url:
         raise ValueError("scrape_cdp_url is required to launch CDP Chrome")
     from agentzero.net.cdp_safety import validate_cdp_url
 
     validate_cdp_url(cdp_url)
-    port = cdp_port(cdp_url)
-    profile_dir = _repo_root() / "data" / "browser_profiles" / "cdp"
-    profile_dir.mkdir(parents=True, exist_ok=True)
-
-    if sys.platform == "win32":
-        script = _repo_root() / "scripts" / "launch_chrome_cdp.ps1"
-        if script.is_file():
-            subprocess.Popen(  # noqa: S603
-                [
-                    "powershell",
-                    "-NoProfile",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    str(script),
-                    "-Port",
-                    str(port),
-                    "-UserDataDir",
-                    str(profile_dir),
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-            )
-            return
-
-    chrome = _find_chrome_executable()
-    if chrome is None:
-        raise RuntimeError(
-            "Google Chrome not found. Install Chrome or run scripts/launch_chrome_cdp.ps1 manually."
-        )
-    subprocess.Popen(  # noqa: S603
-        [
-            str(chrome),
-            f"--remote-debugging-port={port}",
-            f"--user-data-dir={profile_dir}",
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
+    launch_cdp_chrome_process(
+        port=cdp_port(cdp_url),
+        user_data_dir=default_cdp_profile_dir(_repo_root()),
+        quiet=True,
     )
 
 
@@ -173,7 +113,7 @@ def ensure_cdp_ready(settings: Settings, *, site: str) -> None:
     cdp_url = settings.scrape_cdp_url
     if not cdp_url:
         raise ValueError(
-            f"{site} requires AGENTZERO_SCRAPE_CDP_URL (see scripts/launch_chrome_cdp.ps1)"
+            f"{site} requires AGENTZERO_SCRAPE_CDP_URL (see scripts/launch_chrome_cdp.py)"
         )
     if cdp_endpoint_reachable(cdp_url):
         return

@@ -328,9 +328,13 @@ Files are saved to `data/browser_storage_state/<site>.json` (gitignored). Every 
 AgentZero **auto-launches** dedicated CDP Chrome when `AGENTZERO_SCRAPE_CDP_URL` is set,
 the endpoint is down, and `AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=true` (default). Manual start:
 
-```powershell
-.\scripts\launch_chrome_cdp.ps1
-```
+Start dedicated CDP Chrome from the repo root:
+
+| Platform | Command |
+|----------|---------|
+| Windows (PowerShell) | `.\scripts\launch_chrome_cdp.ps1` |
+| macOS / Linux | `python scripts/launch_chrome_cdp.py` |
+| macOS / Linux (shell) | `./scripts/launch_chrome_cdp.sh` |
 
 Set in `.env`:
 

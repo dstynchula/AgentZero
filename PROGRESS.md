@@ -189,6 +189,16 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P30e Docs + tests + P30 gate
 - [x] P30 done — code-only edits skip pip/Playwright; optional bind-mount override
 
+## P32 — Web UI settings, dark mode, polish (2026-06-02)
+
+- [x] P32a Operator config (`web_operator_config.json`) + source toggles
+- [x] P32b Settings page (`/config`): sources, background scrape, CDP instructions
+- [x] P32c Shared layout + dark mode (localStorage) + jobs/card restyle
+- [x] P32d Tests + docs mention
+- [x] P32e Search title selection, dark default, CDP Connect, source-aware host hints
+- [x] P32f Load résumé button (LLM search profile + title selection)
+- [x] P32g Cross-platform CDP launch (py/sh/ps1) + GETTING_STARTED + Settings UI instructions
+
 ## P31 — Remove Google Sheets; local web tracker only
 
 - [x] P31a Remove `agentzero/google/`, sheet scripts, config fields
@@ -212,6 +222,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/web-ui-advanced-display.plan.md | P29 sort, truncate, job card plan |
 | docs/docker-build-cache.plan.md | P30 Dockerfile cache layers + dev override |
 | docs/remove-google-sheets.plan.md | P31 drop Sheets; web UI is the tracker |
+| docs/web-ui-settings.plan.md | P32 settings page, dark mode, scrape trigger |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

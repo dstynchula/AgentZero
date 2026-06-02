@@ -18,11 +18,16 @@ MCP/Cursor continues to use a local `.venv` on the host ([`AGENTS.md`](../AGENTS
 
 ## 1. Start host Chrome (CDP)
 
-```powershell
-.\scripts\launch_chrome_cdp.ps1
-```
+From the repo root on the **host** (not inside the container):
+
+| Platform | Command |
+|----------|---------|
+| Windows (PowerShell) | `.\scripts\launch_chrome_cdp.ps1` |
+| macOS / Linux | `python scripts/launch_chrome_cdp.py` |
+| macOS / Linux (shell) | `./scripts/launch_chrome_cdp.sh` |
 
 Log into Indeed/Glassdoor once in that window. The container reaches it via `host.docker.internal:9222`.
+Same commands are on **Settings → Chrome CDP** at http://localhost:8080/config when the web UI is running.
 
 ---
 
@@ -116,10 +121,17 @@ docker compose up web
 | **Show rejected** | Lists noped roles |
 | **Column headers** | Sort asc/desc (default: `match_score` desc) |
 | **Row click** | Opens a **job card** with full details (rationale, description, links) |
+| **Settings** (`/config`) | Enable/disable scrape sources, start a background scrape, CDP setup instructions |
+
+**Settings** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
+scrapes use `resume/search_profile.json` and need an LLM API key; new rows land as `lead`.
+Chrome CDP must run on the **host** — Settings shows PS1, Python, and shell launch commands plus env vars.
+
+Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/config`.
 
 Long table cells are truncated; hover for the full value, or open the job card.
 
-The `web` service mounts `./data` only. Rebuild the image
+The `web` service mounts `./data` and `./resume` (read-only). Rebuild the image
 after pulling web changes (`python scripts/docker_build.py`) so `uvicorn` and FastAPI are installed.
 
 **Security:** the UI has **no login**. Bind to localhost via your firewall or Docker port mapping;
@@ -131,7 +143,7 @@ do not expose port 8080 on untrusted networks. See [SECURITY.md](SECURITY.md).
 
 | Issue | Action |
 |-------|--------|
-| CDP connection refused | Confirm host Chrome is running (`launch_chrome_cdp.ps1`) |
+| CDP connection refused | Start host Chrome (`launch_chrome_cdp.ps1` / `.py` / `.sh`) |
 | `UnsafeCDPURLError` for docker host | Set `AGENTZERO_CDP_ALLOW_DOCKER_HOST=true` in `.env` |
 | `Chromium distribution 'chrome' is not found` | Compose clears `AGENTZERO_SCRAPE_BROWSER_CHANNEL`; do not force `chrome` in container |
 | Playwright "Sync API inside asyncio loop" during full scrape | Known when JobSpy runs before browser boards in one process; use host venv for full scrape or scrape boards only via verify script until fixed |

@@ -13,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 from agentzero.config import Settings, get_settings
 from agentzero.models import ApplicationStatus
 from agentzero.storage.db import Database
+from agentzero.web.cdp_status import cdp_status_payload, retry_cdp_connection
 from agentzero.web.display import build_list_query
 from agentzero.web.jobs import (
     UI_COLUMNS,
@@ -27,6 +28,20 @@ from agentzero.web.mutations import (
     update_job_notes,
     update_job_status,
 )
+from agentzero.web.operator_config import (
+    load_operator_config,
+    normalize_source_selection,
+    operator_config_path,
+    patch_operator_config,
+)
+from agentzero.web.resume_loader import ResumeLoader, latest_resume_info
+from agentzero.web.scrape_runner import ScrapeRunner
+from agentzero.web.search_titles import (
+    normalize_title_selection,
+    search_profile_summary,
+    title_rows,
+)
+from agentzero.web.sources import active_source_names, source_catalog
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 _STATUS_CHOICES = [status.value for status in ApplicationStatus]
@@ -51,9 +66,37 @@ def create_app(
             database.close()
 
     app = FastAPI(title="AgentZero Job Tracker", lifespan=lifespan)
+    app.state.settings = cfg
+    app.state.operator_config_path = operator_config_path(path)
+    app.state.scrape_runner = ScrapeRunner()
+    app.state.resume_loader = ResumeLoader()
 
     def _db(request: Request) -> Database:
         return request.app.state.db
+
+    def _operator(request: Request):
+        return load_operator_config(request.app.state.operator_config_path)
+
+    def _config_context(request: Request, *, flash: str = "", flash_ok: bool = True) -> dict:
+        from agentzero.ingest.search_profile import load_search_profile
+
+        settings: Settings = request.app.state.settings
+        operator = _operator(request)
+        snapshot = load_search_profile()
+        profile_terms = list(snapshot.search_terms) if snapshot else []
+        return {
+            "nav_active": "config",
+            "sources": source_catalog(settings, operator),
+            "active_sources": active_source_names(settings, operator),
+            "cdp": cdp_status_payload(settings, operator),
+            "scrape": request.app.state.scrape_runner.snapshot(),
+            "search_profile": search_profile_summary(snapshot),
+            "title_rows": title_rows(profile_terms, operator),
+            "resume": latest_resume_info(),
+            "resume_load": request.app.state.resume_loader.snapshot(),
+            "flash": flash,
+            "flash_ok": flash_ok,
+        }
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -91,6 +134,7 @@ def create_app(
             request,
             "jobs.html",
             {
+                "nav_active": "jobs",
                 "jobs": jobs,
                 "columns": UI_COLUMNS,
                 "status_choices": _STATUS_CHOICES,
@@ -115,12 +159,153 @@ def create_app(
             request,
             "job_card.html",
             {
+                "nav_active": "jobs",
                 "job": detail,
                 "job_id": job_id,
                 "show_rejected": show_rejected,
                 **ctx,
             },
         )
+
+    @app.get("/config", response_class=HTMLResponse)
+    def config_page(request: Request) -> HTMLResponse:
+        flash = ""
+        flash_ok = True
+        params = request.query_params
+        if params.get("saved") == "1":
+            flash = "Sources saved."
+        elif params.get("titles_saved") == "1":
+            flash = "Search titles saved."
+        elif params.get("cdp_ok") == "1":
+            flash = params.get("msg") or "Chrome CDP connected."
+        elif params.get("cdp_fail") == "1":
+            flash = params.get("msg") or "Could not connect to Chrome CDP."
+            flash_ok = False
+        elif params.get("scrape_started") == "1":
+            flash = "Background scrape started."
+        elif params.get("scrape_busy") == "1":
+            flash = "A scrape is already running."
+            flash_ok = False
+        elif params.get("resume_loading") == "1":
+            flash = "Loading résumé in the background. Refresh when complete."
+        elif params.get("resume_busy") == "1":
+            flash = "A résumé load is already in progress."
+            flash_ok = False
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "config.html",
+            _config_context(request, flash=flash, flash_ok=flash_ok),
+        )
+
+    @app.get("/api/config")
+    def api_config(request: Request) -> dict[str, object]:
+        ctx = _config_context(request)
+        return {
+            "sources": [row.to_dict() for row in ctx["sources"]],
+            "active_sources": ctx["active_sources"],
+            "cdp": ctx["cdp"],
+            "launch_commands": ctx["cdp"]["launch_commands"],
+            "scrape": ctx["scrape"],
+            "search_profile": ctx["search_profile"],
+        }
+
+    @app.post("/config/sources", response_model=None)
+    def post_config_sources(
+        request: Request,
+        browser_sites: Annotated[list[str] | None, Form()] = None,
+        jobspy_sites: Annotated[list[str] | None, Form()] = None,
+    ):
+        cfg_path = request.app.state.operator_config_path
+        normalized = normalize_source_selection(
+            browser_sites or [],
+            jobspy_sites or [],
+        )
+        if not normalized.scrape_browser_sites and not normalized.scrape_sites:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(
+                    request,
+                    flash="Enable at least one source.",
+                    flash_ok=False,
+                ),
+                status_code=400,
+            )
+        patch_operator_config(
+            cfg_path,
+            scrape_browser_sites=normalized.scrape_browser_sites,
+            scrape_sites=normalized.scrape_sites,
+        )
+        return RedirectResponse(url="/config?saved=1", status_code=303)
+
+    @app.post("/config/resume/load", response_model=None)
+    def post_config_resume_load(request: Request) -> RedirectResponse:
+        ok, _message = request.app.state.resume_loader.start(
+            request.app.state.operator_config_path,
+            force_refresh=True,
+        )
+        query = "resume_loading=1" if ok else "resume_busy=1"
+        return RedirectResponse(url=f"/config?{query}", status_code=303)
+
+    @app.post("/config/search-titles", response_model=None)
+    def post_config_search_titles(
+        request: Request,
+        search_terms: Annotated[list[str] | None, Form()] = None,
+    ):
+        from agentzero.ingest.search_profile import load_search_profile
+
+        cfg_path = request.app.state.operator_config_path
+        snapshot = load_search_profile()
+        if snapshot is None:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(
+                    request,
+                    flash="Load a résumé first (Search titles → Load résumé).",
+                    flash_ok=False,
+                ),
+                status_code=400,
+            )
+        terms = normalize_title_selection(
+            search_terms or [],
+            list(snapshot.search_terms),
+        )
+        if not terms:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(
+                    request,
+                    flash="Select at least one search title.",
+                    flash_ok=False,
+                ),
+                status_code=400,
+            )
+        patch_operator_config(cfg_path, search_terms=terms)
+        return RedirectResponse(url="/config?titles_saved=1", status_code=303)
+
+    @app.post("/config/cdp/connect", response_model=None)
+    def post_config_cdp_connect(request: Request) -> RedirectResponse:
+        settings: Settings = request.app.state.settings
+        ok, message = retry_cdp_connection(settings, _operator(request))
+        from urllib.parse import quote
+
+        q = "cdp_ok=1" if ok else "cdp_fail=1"
+        return RedirectResponse(
+            url=f"/config?{q}&msg={quote(message)}",
+            status_code=303,
+        )
+
+    @app.post("/config/scrape", response_model=None)
+    def post_config_scrape(request: Request) -> RedirectResponse:
+        ok, _message = request.app.state.scrape_runner.start(
+            db=_db(request),
+            settings=request.app.state.settings,
+            operator=_operator(request),
+        )
+        query = "scrape_started=1" if ok else "scrape_busy=1"
+        return RedirectResponse(url=f"/config?{query}", status_code=303)
 
     def _redirect_index(
         show_rejected: bool,

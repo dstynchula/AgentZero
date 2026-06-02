@@ -377,3 +377,29 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            agentzero/mcp_server.py, docs/README/GETTING_STARTED/SCRAPING/SECURITY/DOCKER, PROGRESS.md
     accept: pytest -q && ruff check agentzero tests scripts tools -> green
     branch: feat/P31-remove-google-sheets
+
+[2026-06-02T23:45:00Z] P32 DONE - Web UI settings page, dark mode, operator source config.
+    Settings at /config: enable/disable five sources (saved to data/web_operator_config.json),
+    background scrape button (threaded run_lead_scrape), CDP status + launch_chrome_cdp.ps1 hints.
+    Shared base.html layout with dark/light theme toggle; jobs list and job card restyled.
+    files: agentzero/web/operator_config.py, sources.py, cdp_status.py, scrape_runner.py,
+           agentzero/web/app.py, agentzero/web/templates/base.html, config.html, jobs.html, job_card.html,
+           tests/test_web_operator_config.py, tests/test_web_sources.py, tests/test_web_app_config.py,
+           docs/DOCKER.md, docs/web-ui-settings.plan.md, PROGRESS.md
+    accept: pytest tests/test_web_*.py -q; ruff check agentzero/web -> green
+
+[2026-06-02T23:55:00Z] P32e DONE - Settings: search title checkboxes, dark mode default, CDP Connect retry, dynamic host hints.
+    files: agentzero/web/search_titles.py, cdp_status.py, operator_config.py, app.py, templates/config.html, base.html,
+           tests/test_web_search_titles.py, tests/test_web_cdp_status.py, tests/test_web_app_config.py, PROGRESS.md
+    accept: pytest tests/test_web_*.py -q; ruff check agentzero/web -> green
+
+[2026-06-02T24:05:00Z] P32f DONE - Settings Load résumé button; background LLM search profile; web compose mounts resume/.
+    files: agentzero/web/resume_loader.py, app.py, templates/config.html, docker-compose.yml,
+           tests/test_web_resume_loader.py, tests/test_web_app_config.py, docs/DOCKER.md, PROGRESS.md
+    accept: pytest tests/test_web_resume_loader.py tests/test_web_app_config.py -q; ruff clean
+
+[2026-06-02T24:15:00Z] P32g DONE - Cross-platform CDP Chrome launch + operator instructions (GETTING_STARTED + Settings).
+    scripts/launch_chrome_cdp.py, launch_chrome_cdp.sh; PS1 wraps Python; agentzero/scrape/cdp_launch.py
+    browser_common.launch_cdp_chrome uses shared module; cdp_status launch_commands + config.html Step 1/2
+    docs: GETTING_STARTED, SCRAPING, DOCKER, .env.example; tests/test_cdp_launch.py, test_docs_web, test_web_cdp_status
+    accept: pytest tests/test_cdp_launch.py tests/test_web_cdp_status.py tests/test_docs_web.py tests/test_web_app_config.py -q; ruff clean
