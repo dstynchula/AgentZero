@@ -16,8 +16,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./resume:/app/resume:ro
-      - ./token.json:/app/token.json:ro
-      - ./client_secret.json:/app/client_secret.json:ro
 
   web:
     build: .

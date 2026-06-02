@@ -12,8 +12,7 @@ For architecture, build history, and operator deep-dives, see the [documentation
 - Python 3.11+ (3.12+ recommended)
 - **Google Chrome** installed (not just Playwright’s bundled Chromium)
 - OpenAI or Anthropic API key
-- Optional: Google Cloud OAuth client for Sheets sync
-- Optional: [Docker](DOCKER.md) for containerized pipeline runs (host Chrome still required for CDP)
+- Optional: [Docker](DOCKER.md) for containerized pipeline + web tracker on port 8080
 
 ---
 
@@ -23,7 +22,7 @@ For architecture, build history, and operator deep-dives, see the [documentation
 cd AgentZero
 python -m venv .venv
 . .venv\Scripts\Activate.ps1
-pip install -e ".[dev,scrape,llm,google,mcp]"
+pip install -e ".[dev,scrape,llm,mcp,web]"
 playwright install chrome
 copy .env.example .env
 ```
@@ -67,63 +66,48 @@ python scripts/verify_browser_session.py --site linkedin,glassdoor,indeed
 | LinkedIn | Playwright profile (`data/browser_profiles/linkedin`) |
 | Indeed, Glassdoor | CDP — real Chrome (`AGENTZERO_SCRAPE_CDP_URL`) |
 
-**Playwright + system Chrome:** AgentZero no longer passes `--disable-blink-features=AutomationControlled`
-or `--enable-automation` when `AGENTZERO_SCRAPE_BROWSER_CHANNEL=chrome` (those cause yellow flag banners).
-
 | Exit code | Meaning | What to do |
 |-----------|---------|------------|
 | 0 | Ready | Scrape |
 | 1 | Login required | Run `login_job_boards.py` again |
-| 2 | Blocked (CAPTCHA) | Solve in the Chrome window, or import cookies (below) |
-
-**If Glassdoor stays blocked:** log in with your daily Chrome, export cookies with the
-[Cookie-Editor](https://cookie-editor.cgagnier.ca/) extension, then:
-
-```powershell
-python scripts/import_browser_cookies.py --site glassdoor --from cookies.json
-```
-
-Optional: warm up a single board without the full scrape:
-
-```powershell
-python scripts/open_glassdoor_browser.py
-python scripts/open_indeed_browser.py
-```
+| 2 | Blocked (CAPTCHA) | Solve in the Chrome window, or import cookies |
 
 ---
 
-## 3. Google Sheets (optional)
+## 3. Local job tracker (web UI)
+
+Browse and edit jobs in SQLite from the browser — no Google Sheet required.
 
 ```powershell
-# Download Desktop OAuth client → client_secret.json
-python scripts/google_auth.py
-# Set AGENTZERO_SHEET_ID in .env
-python scripts/sync_sheets.py --dry-run
+docker compose up web
+# Open http://localhost:8080
 ```
 
-**Tracker columns** (Google Sheet — 13 columns; full data stays in SQLite/CSV):
+| Action | Effect |
+|--------|--------|
+| Column headers | Sort asc/desc |
+| Row click | Job card with full details |
+| Save status / notes | Updates SQLite |
+| Nope | Soft-reject (`status=rejected`, hidden by default) |
+
+**Tracker columns** (13 in the web table; full schema in CSV/SQLite export):
 
 `source`, `company`, `title`, `location`, `comp_min`, `comp_max`, `glassdoor_rating`,
-`match_score`, `status`, `date_applied`, `notes`, `url`, `job_id` (hide `job_id` in Sheets).
+`match_score`, `status`, `date_applied`, `notes`, `url`, `job_id`.
 
-Edit **`date_applied`**, **`status`**, and **`notes`** — every sync imports them into SQLite first.
-
-Only jobs with **match_score ≥ 0.75** export by default (`AGENTZERO_MIN_MATCH_SCORE`).
-Applied jobs (with `date_applied` set) always appear regardless of score. Unranked jobs
-export until you run rank.
-
-Restore applied companies from the sheet after a DB purge:
+Optional CSV backup from the host venv:
 
 ```powershell
-python scripts/import_sheet_status.py --dry-run
-python scripts/import_sheet_status.py --sync
+python -c "from pathlib import Path; from agentzero.config import get_settings; from agentzero.storage.db import Database; from agentzero.storage.csv_export import export_csv; s=get_settings(); db=Database(s.db_path); print(export_csv(db, Path('output/jobs.csv'), min_match_score=s.min_match_score))"
 ```
+
+See **[DOCKER.md](DOCKER.md)** for container pipeline runs and build caching.
 
 ---
 
 ## 4. Daily pipeline
 
-**Lead session** (recommended — scrape → review → approve → sheet):
+**Lead session** (recommended — scrape → review → approve):
 
 ```powershell
 python scripts/run_lead_session.py
@@ -135,7 +119,8 @@ python scripts/run_lead_session.py --all-titles
 ```powershell
 python scripts/run_scrape.py --limit 10
 python scripts/enrich_jobs.py
-python scripts/rank_and_sync.py --yes
+python scripts/rank_jobs.py
+docker compose up web
 ```
 
 On each scrape you confirm job titles, locations, and comp floor interactively (unless
@@ -162,6 +147,7 @@ python scripts/estimate_cost.py
 | LinkedIn authwall | `login_job_boards.py --site linkedin` then `verify_browser_session --site linkedin` |
 | ZipRecruiter 403 | Expected without proxies; other boards still run |
 | UTF-16 garbled files on Windows | `python tools/fix_encoding.py` before git commit |
+| Empty web UI | Scrape first; ensure `./data/agentzero.db` exists and is mounted in compose |
 
 Full scraping reference: **[SCRAPING.md](SCRAPING.md)**.
 

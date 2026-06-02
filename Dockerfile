@@ -17,7 +17,7 @@ RUN echo "agentzero-build-step: apt" && apt-get update && apt-get install -y --n
 COPY pyproject.toml README.md ./
 RUN mkdir -p agentzero && touch agentzero/__init__.py
 RUN --mount=type=cache,target=/root/.cache/pip \
-    echo "agentzero-build-step: pip" && pip install -e ".[scrape,llm,google,web]"
+    echo "agentzero-build-step: pip" && pip install -e ".[scrape,llm,web]"
 
 # agentzero-build-step: playwright
 RUN echo "agentzero-build-step: playwright" && playwright install --with-deps chromium

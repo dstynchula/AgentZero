@@ -370,3 +370,10 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            docs/docker-build-cache.plan.md, tests/test_dockerfile_cache.py, tests/test_docs_web.py, PROGRESS.md
     accept: pytest tests/test_dockerfile_cache.py tests/test_docs_web.py -q; ruff clean
     branch: feat/docker-P30-build-cache
+
+[2026-06-02T23:00:00Z] P31 DONE - Remove Google Sheets; local web tracker only.
+    files: (removed agentzero/google/, sync_sheets.py, google_auth.py, rank_and_sync.py, …),
+           agentzero/apply/tracker_fields.py, scripts/rank_jobs.py, agentzero/leads/session.py,
+           agentzero/mcp_server.py, docs/README/GETTING_STARTED/SCRAPING/SECURITY/DOCKER, PROGRESS.md
+    accept: pytest -q && ruff check agentzero tests scripts tools -> green
+    branch: feat/P31-remove-google-sheets

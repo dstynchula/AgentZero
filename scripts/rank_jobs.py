@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Rank jobs in SQLite against your résumé, then push to Google Sheets.
+"""Rank jobs in SQLite against your résumé.
 
 Usage:
 
-    python scripts/rank_and_sync.py
-    python scripts/rank_and_sync.py --skip-sync    # rank only
-    python scripts/rank_and_sync.py --sync-only --yes  # sheet export only (no LLM)
+    python scripts/rank_jobs.py
+    python scripts/rank_jobs.py --force
 """
 
 from __future__ import annotations
@@ -139,14 +138,7 @@ def _job_label(db, job_id: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Rank jobs and sync to Google Sheets")
-    parser.add_argument("--skip-sync", action="store_true", help="Rank only; no Sheets write")
-    parser.add_argument("--sync-only", action="store_true", help="Push DB to Sheet without ranking")
-    parser.add_argument(
-        "--yes",
-        action="store_true",
-        help="Confirm destructive worksheet clear+rewrite when syncing",
-    )
+    parser = argparse.ArgumentParser(description="Rank jobs in SQLite against your résumé")
     parser.add_argument(
         "--force",
         action="store_true",
@@ -162,6 +154,8 @@ def main() -> int:
     args = parser.parse_args()
 
     from agentzero.config import get_settings
+    from agentzero.ingest.resume import ingest_resume
+    from agentzero.llm.provider import build_llm_provider
     from agentzero.storage.db import Database
 
     settings = get_settings()
@@ -171,79 +165,23 @@ def main() -> int:
         return 1
 
     db = Database(db_path)
-    errors = 0
-
-    if not args.sync_only:
-        from agentzero.ingest.resume import ingest_resume
-        from agentzero.llm.provider import build_llm_provider
-
-        llm = build_llm_provider()
-        print("Loading résumé (LLM parse, ~15-30s)…", flush=True)
-        profile = ingest_resume(llm=llm, refresh_search=False)
-        print(f"Candidate: {profile.name or '(unknown)'}\n", flush=True)
-        workers = args.workers if args.workers is not None else settings.rank_max_concurrency
-        workers = max(1, workers)
-        count, errors = _rank_all(
-            db=db,
-            llm=llm,
-            profile=profile,
-            max_workers=workers,
-            force=args.force,
-            max_description_chars=settings.rank_description_max_chars,
-        )
-        if count == 0 and not args.force:
-            return 1 if errors else 0
-
-    if args.skip_sync:
-        print("\nSkipping Google Sheets (--skip-sync).")
-        return 1 if errors else 0
-
-    if not args.yes:
-        print(
-            "\nERROR: sync clears the entire worksheet. Pass --yes to confirm, or --skip-sync.",
-            file=sys.stderr,
-        )
-        print("Preview row count: python scripts/sync_sheets.py --dry-run", file=sys.stderr)
-        return 1
-
-    if not settings.sheet_id:
-        print("ERROR: AGENTZERO_SHEET_ID not set in .env", file=sys.stderr)
-        return 1
-    if not settings.google_token_path.is_file():
-        print(
-            f"ERROR: {settings.google_token_path} missing. "
-            "Run: python scripts/google_auth.py",
-            file=sys.stderr,
-        )
-        return 1
-
-    from agentzero.google.sync import sync_jobs_to_sheet
-
-    job_count = db.count_jobs()
-    from agentzero.rank.export_filter import filter_jobs_for_export
-
-    export_jobs, below_floor = filter_jobs_for_export(db.list_jobs(), settings.min_match_score)
-    print(f"\nSyncing {len(export_jobs)} job(s) to Google Sheet", end="", flush=True)
-    if below_floor and settings.min_match_score:
-        print(
-            f" ({job_count} in DB; {len(below_floor)} below "
-            f"min match_score {settings.min_match_score:g})",
-            end="",
-            flush=True,
-        )
-    print("…", flush=True)
-    try:
-        result = sync_jobs_to_sheet(db=db, settings=settings)
-    except Exception as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-
-    if result.imported:
-        print(f"Imported user fields for {result.imported} job(s) from the sheet.", flush=True)
-    print(
-        f"OK - synced {result.row_count} row(s) to {result.spreadsheet_title!r} "
-        "(sorted by match_score, High/Medium/Low tier)"
+    llm = build_llm_provider()
+    print("Loading résumé (LLM parse, ~15-30s)…", flush=True)
+    profile = ingest_resume(llm=llm, refresh_search=False)
+    print(f"Candidate: {profile.name or '(unknown)'}\n", flush=True)
+    workers = args.workers if args.workers is not None else settings.rank_max_concurrency
+    workers = max(1, workers)
+    count, errors = _rank_all(
+        db=db,
+        llm=llm,
+        profile=profile,
+        max_workers=workers,
+        force=args.force,
+        max_description_chars=settings.rank_description_max_chars,
     )
+    if count == 0 and not args.force:
+        return 1 if errors else 0
+    print("\nView and edit jobs: docker compose up web  →  http://localhost:8080")
     return 1 if errors else 0
 
 

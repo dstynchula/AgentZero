@@ -8,8 +8,8 @@ daily pipeline, and it will:
 - Scrape **five job boards** (Indeed, LinkedIn, Glassdoor, Google Jobs, ZipRecruiter)
 - **Enrich** listings (comp, company size, Glassdoor, careers URLs)
 - **Rank** jobs against your résumé with an LLM
-- Mirror everything to **SQLite** and an optional **Google Sheet** tracker
-- Track applications you mark in the sheet — it never auto-submits
+- Mirror everything to **SQLite** and a **local web tracker** (Docker on port 8080)
+- Track applications you mark in the UI — it never auto-submits
 
 Built as a working tool, AgentZero further serves as a working demonstration of agentic
 development techniques that produce reliable, well-tested code, alongside a secure and
@@ -21,23 +21,65 @@ Cursor (Ralph loop, TDD gates, human-in-the-loop where it matters).
 
 ## Architecture at a glance
 
+Vertical pipeline (data flows top → bottom). Operator tools and build stack on the right.
+
 ```mermaid
-flowchart LR
-    A[Scrape: 5 sources] --> B[Validate + quarantine]
-    B --> C[Enrich: comp, company, ratings]
-    C --> D[Rank against resume]
-    D --> E[Lead status in SQLite]
-    E --> F[Operator approves]
-    F --> G[Google Sheet sync]
+flowchart TB
+    subgraph IN["Ingest"]
+        R["resume/ · python-docx · pypdf"]
+        P["Search profile · LLM + Pydantic models"]
+    end
+
+    subgraph SC["① Scrape — Playwright · JobSpy · httpx"]
+        CDP["Host Chrome · CDP :9222"]
+        BR["Indeed · LinkedIn · Glassdoor"]
+        JS["Google Jobs · ZipRecruiter"]
+    end
+
+    V["② Validate — schema gate · quarantine table"]
+    E["③ Enrich — detail fetch · Glassdoor · DuckDuckGo"]
+    RK["④ Rank — OpenAI / Anthropic · pydantic-settings"]
+    DB[("⑤ SQLite — data/agentzero.db · stable job_id")]
+    LD["⑥ Lead — status=lead in DB"]
+    OP["⑦ Review — Cursor MCP · run_lead_session.py"]
+    AP["⑧ Promote — LEAD → NEW"]
+    UI["⑨ Tracker — Docker · FastAPI · Jinja2 · :8080"]
+
+    R --> P --> SC
+    CDP --> BR
+    BR --> V
+    JS --> V
+    V --> E --> RK --> DB --> LD --> OP --> AP --> UI
+
+    subgraph BUILD["Built with — agentic loop"]
+        direction TB
+        CUR["Cursor · Ralph · TDD · prep-pr"]
+        PYT["Python 3.12 · pytest · ruff"]
+        GHA["GitHub Actions · CodeQL · docker-build"]
+        PDY["Pydantic v2 · FastMCP stdio"]
+    end
+
+    OP -.-> CUR
+    RK -.-> OAI["OpenAI gpt-5-nano default"]
+    UI -.-> PDY
 ```
+
+| Layer | Tools |
+|-------|--------|
+| Config | **Pydantic Settings**, `.env`, typed `Settings` |
+| Scrape | **Playwright**, host **Chrome CDP**, **JobSpy**, BeautifulSoup |
+| Intelligence | **OpenAI** / Anthropic APIs, résumé-driven rank prompts |
+| Storage | **SQLite**, idempotent upsert, pipeline status columns |
+| Operator | **Cursor** + **FastMCP** lead session, **Docker** web service |
+| Quality | **pytest**, **ruff**, CI, Ralph `PROGRESS.md` / `WORKLOG.md` |
 
 ---
 
 ## Design tradeoffs
 
 - **Local-first trust boundary**: data and credentials stay on your machine; MCP is stdio-only
-- **Lead-gated workflow**: new jobs land as `lead` in SQLite first; only approved rows reach the sheet
-- **Full-sheet sync model**: sheet sync rewrites the worksheet from SQLite to keep one source of truth
+- **Lead-gated workflow**: new jobs land as `lead` in SQLite first; approve to promote to the web tracker
+- **Local tracker**: browse, edit status/notes, and soft-reject in the web UI — no external spreadsheet
 - **Scrape reliability over elegance**: browser/CDP paths are explicit and operationally opinionated
 - **Security pragmatism**: SSRF defenses are strongest on enrichment HTTP; board scraping intentionally navigates board URLs
 
@@ -60,16 +102,16 @@ for CAPTCHA, daily loop).
 ```powershell
 python -m venv .venv
 . .venv\Scripts\Activate.ps1
-pip install -e ".[dev,scrape,llm,google,mcp]"
+pip install -e ".[dev,scrape,llm,mcp]"
 playwright install chrome
 copy .env.example .env                # set OPENAI_API_KEY + SCRAPE_BROWSER_CHANNEL=chrome
-python scripts/google_auth.py         # Sheets-only OAuth → token.json (optional)
+docker compose up web                 # optional: job tracker at http://localhost:8080
 python scripts/login_job_boards.py --site linkedin,glassdoor
 python scripts/smoke_test.py
 pytest -q
 ```
 
-Dependencies are grouped in `pyproject.toml`: `dev`, `scrape`, `llm`, `google`, `mcp`.
+Dependencies are grouped in `pyproject.toml`: `dev`, `scrape`, `llm`, `mcp`, `web`.
 
 **Docker (optional):** run the pipeline in a container with host Chrome via CDP — see
 **[docs/DOCKER.md](docs/DOCKER.md)**. Build with `python scripts/docker_build.py` for elapsed/ETA progress.
@@ -84,12 +126,12 @@ Use `docker compose up web` for a local job tracker on port 8080 (edit status/no
 1. Put your résumé in `resume/` (gitignored).
 2. Copy `.env.example` → `.env` and set `OPENAI_API_KEY` (or `ANTHROPIC_API_KEY`).
 3. Set **`AGENTZERO_SCRAPE_BROWSER_CHANNEL=chrome`** — use full Chrome, not bundled Chromium, for CAPTCHA.
-4. Optionally set `AGENTZERO_SHEET_ID` and run `python scripts/google_auth.py`.
+4. Run `docker compose up web` (or use host `.venv` + MCP) to review jobs at http://localhost:8080.
 5. On Windows, dot-source `scripts/dev-env.ps1` to avoid UTF-16 file corruption.
 
 ### 2. Daily pipeline
 
-**Recommended — interactive lead session** (scrape → review → approve → sheet):
+**Recommended — interactive lead session** (scrape → review → approve → web tracker):
 
 ```powershell
 python scripts/run_lead_session.py              # prompts for titles/locations/comp
@@ -101,39 +143,24 @@ Or the classic non-gated pipeline:
 ```powershell
 python scripts/run_scrape.py          # scrape → validate → shallow enrich → SQLite
 python scripts/enrich_jobs.py         # deep enrich: detail pages, Glassdoor, web search
-python scripts/rank_and_sync.py --yes       # rank + sync (sync requires --yes)
-python scripts/sync_sheets.py --dry-run
-python scripts/sync_sheets.py --yes   # import sheet edits, then push to Google Sheet
+python scripts/rank_jobs.py                 # LLM rank vs résumé
+docker compose up web                       # browse / edit tracker
 ```
 
 | Stage | What it does |
 |-------|----------------|
 | **Scrape** | Five boards, sequential; prompts for titles, locations, comp floor |
-| **Lead review** | New roles land as `lead` in SQLite; approve before they hit the sheet |
+| **Lead review** | New roles land as `lead` in SQLite; approve before they appear in the web tracker |
 | **Shallow enrich** | Parse comp/size/Glassdoor from fields on the job; filter by comp floor |
 | **Deep enrich** | Fetch posting URLs, Glassdoor lookup, DuckDuckGo company research |
 | **Rank** | LLM fit score + rationale vs your résumé |
-| **Sync** | Import `date_applied`/status from sheet → SQLite, then push rows (≥0.75 match score by default; applied jobs always kept) |
-
-Restore application history from the sheet after a DB purge:
-
-```powershell
-python scripts/import_sheet_status.py --dry-run
-python scripts/import_sheet_status.py --sync
-```
+| **Tracker** | Web UI on :8080 — edit status, notes, soft-reject; CSV export optional |
 
 **Backfill** (repair existing DB rows without a full re-scrape):
 
 ```powershell
 python scripts/backfill_linkedin_comp.py
 python scripts/backfill_glassdoor_companies.py
-```
-
-To drop DB rows you removed from the sheet:
-
-```powershell
-python scripts/prune_db_from_sheet.py --dry-run
-python scripts/prune_db_from_sheet.py --yes
 ```
 
 ### 3. Search targeting
@@ -149,26 +176,26 @@ locations, then **prompts you** to confirm:
 
 ### 4. Quality filters
 
-AgentZero layers filters so the sheet stays actionable:
+AgentZero layers filters so the tracker stays actionable:
 
 | Stage | What | Config |
 |-------|------|--------|
 | **Scrape** | Title must match search terms; hard-reject marketing/HR/etc. | `AGENTZERO_SEARCH_TERMS` |
 | **Remote** | Drop on-site/hybrid unless you've applied | `AGENTZERO_REMOTE_ONLY=true` |
-| **Rank** | LLM scores each job 0.0–1.0 vs your résumé | `rank_and_sync.py` |
-| **Export** | Sheet/CSV omit jobs below match floor; applied jobs always export | `AGENTZERO_MIN_MATCH_SCORE=0.75` (set `0` to disable) |
+| **Rank** | LLM scores each job 0.0–1.0 vs your résumé | `rank_jobs.py` |
+| **Export** | CSV omits jobs below match floor; applied jobs always export | `AGENTZERO_MIN_MATCH_SCORE=0.75` (set `0` to disable) |
 
-Jobs filtered from the sheet **remain in SQLite** — re-sync or lower the floor to surface them.
+Jobs below the export floor **remain in SQLite** — lower the floor or open the web UI to review them.
 
 ### 6. Application tracking
 
-Edit these columns in the Google Sheet (imported into SQLite before every sync):
+Use the **web UI** (`docker compose up web` → http://localhost:8080) or edit SQLite via scripts:
 
-- `date_applied` — marks a role as applied; auto-sets status to `applied` when blank; protects from purges
 - `status` — `lead`, `new`, `applied`, `rejected`, `offer`, etc.
+- `date_applied` — marks a role as applied; protects from purges
 - `notes`
 
-The Google Sheet shows 13 operator columns; run `export_csv` for the full 24-column dump from SQLite.
+The web table shows 13 columns; `export_csv` writes the full 24-column schema from SQLite.
 
 ### 7. MCP agent (Cursor)
 
@@ -188,7 +215,7 @@ Requires `pip install -e ".[mcp]"` so `fastmcp` is in `.venv`.
 **macOS/Linux:** change `Scripts/python.exe` → `bin/python`.
 
 The MCP server includes **interactive workflow instructions** — the agent should run the
-lead session **in chat**, confirming with you before each scrape and sheet commit:
+lead session **in chat**, confirming with you before each scrape and lead commit:
 
 1. `lead_session_workflow` / `suggest_targets` — propose titles/locations/comp
 2. `check_sessions` — verify logins (CDP Chrome **auto-starts** when not running)
@@ -224,8 +251,8 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 |-----|----------|
 | **[Getting started](docs/GETTING_STARTED.md)** | Install, Chrome/CAPTCHA setup, daily pipeline, troubleshooting |
 | **[Docker](docs/DOCKER.md)** | Optional container runs; host Chrome CDP; build progress + secrets |
-| [Scraping & OAuth](docs/SCRAPING.md) | Boards, scripts, rate limits, browser sessions, filters, tracker sync |
-| [Security](docs/SECURITY.md) | Secrets, OAuth scopes, SSRF, LLM data |
+| [Scraping](docs/SCRAPING.md) | Boards, scripts, rate limits, browser sessions, filters |
+| [Security](docs/SECURITY.md) | Secrets, SSRF, LLM data, web UI exposure |
 | [Cost & models](docs/COST_AND_MODELS.md) | LLM pricing, model selection, knobs |
 
 ### Build and architecture (contributors / curious readers)
@@ -243,6 +270,8 @@ Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 
 ## Cost
 
+### Runtime (scrape + rank)
+
 **Pricing estimates as of 2026-05-29.** A full scrape-and-rank run usually costs **~$0.01–0.10**
 depending on model and how many unique jobs are ranked.
 
@@ -258,6 +287,21 @@ python scripts/estimate_cost.py   # estimate from your .env
 See **[Cost and model selection](docs/COST_AND_MODELS.md)** for criteria, truncation knobs, and
 monthly ballparks.
 
+### Building AgentZero (Cursor)
+
+This repo was built in a few focused days with **Cursor** (Ralph loop, TDD, MCP lead session) —
+not a months-long contractor engagement.
+
+| Item | Ballpark |
+|------|----------|
+| Cursor Pro | **~$20/month** |
+| Effective daily | **~$20 ÷ 30 ≈ $0.67/day** |
+| ~4 build days | **($20 ÷ 30) × 4 ≈ $2.70** in subscription time |
+
+That is the IDE/co-pilot line item only — add negligible **OpenAI** usage during development
+(smoke tests, rank tuning) on top. The payoff is a maintained, tested pipeline you run locally
+for pennies per scrape instead of paying for a hosted job-search SaaS.
+
 ---
 
 ## Disclaimer
@@ -266,7 +310,6 @@ Scraping job boards may violate site Terms of Service. Use at your own risk; res
 AgentZero queues applications for human review and does not auto-submit.
 
 **Privacy:** Résumé and job text are sent to your configured LLM provider when ingest/rank
-features run. See **[docs/SECURITY.md](docs/SECURITY.md)** for secrets, OAuth scopes, and network
-egress.
+features run. See **[docs/SECURITY.md](docs/SECURITY.md)** for secrets and network egress.
 
 **Windows:** If markdown or TOML won't render, run `python tools/fix_encoding.py` before committing.

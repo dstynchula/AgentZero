@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from agentzero.apply.sheet_fields import parse_sheet_status
+from agentzero.apply.tracker_fields import parse_tracker_status
 from agentzero.models import ApplicationStatus, JobPosting
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ def update_job_status(db: Database, job_id: str, status: str | ApplicationStatus
     if isinstance(status, ApplicationStatus):
         parsed = status
     else:
-        parsed = parse_sheet_status(status)
+        parsed = parse_tracker_status(status)
         if parsed is None:
             raise ValueError(f"invalid status: {status!r}")
 

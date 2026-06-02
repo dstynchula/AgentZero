@@ -11,7 +11,6 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from agentzero.config import get_settings
-from agentzero.google.sync import sync_jobs_to_sheet
 from agentzero.scrape.glassdoor_company import resolve_glassdoor_company
 from agentzero.storage.db import Database
 
@@ -50,12 +49,6 @@ def main() -> int:
             print(f"  [{index}/{len(targets)}] {job.title} -> {company}", flush=True)
 
         print(f"\nResolved {resolved}/{len(targets)}.", flush=True)
-        if settings.sheet_id:
-            result = sync_jobs_to_sheet(db=db, settings=settings)
-            print(
-                f"Re-synced sheet {result.spreadsheet_title!r} ({result.row_count} rows).",
-                flush=True,
-            )
     finally:
         db.close()
     return 0

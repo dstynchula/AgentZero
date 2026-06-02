@@ -1,11 +1,11 @@
-"""Filter jobs before export to Sheets/CSV based on LLM match score."""
+"""Filter jobs before CSV export based on LLM match score."""
 
 from __future__ import annotations
 
 from agentzero.models import ApplicationStatus, JobPosting
 
-# Lead-session statuses kept in SQLite for dedupe but not on the tracker sheet.
-_SHEET_EXCLUDED_STATUSES = frozenset(
+# Lead-session statuses kept in SQLite for dedupe but omitted from CSV export.
+_EXPORT_EXCLUDED_STATUSES = frozenset(
     {
         ApplicationStatus.LEAD,
         ApplicationStatus.REJECTED,
@@ -23,13 +23,13 @@ _ALWAYS_EXPORT_STATUSES = frozenset(
 
 
 def job_included_in_export(job: JobPosting, min_score: float | None) -> bool:
-    """True when *job* should appear on the tracker sheet.
+    """True when *job* should appear in CSV export.
 
     Unapproved or rejected leads stay in the DB only. Applied jobs always export.
     Unranked jobs export until scored. When ``min_score`` is set, ranked jobs
     below the floor are omitted.
     """
-    if job.status in _SHEET_EXCLUDED_STATUSES:
+    if job.status in _EXPORT_EXCLUDED_STATUSES:
         return False
     if min_score is None or min_score <= 0:
         return True

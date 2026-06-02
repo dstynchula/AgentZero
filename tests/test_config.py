@@ -60,14 +60,6 @@ def test_missing_api_key_raises_clear_error(monkeypatch):
         _ = s.active_api_key
 
 
-def test_sheet_id_accepts_full_url(monkeypatch):
-    monkeypatch.setenv(
-        "AGENTZERO_SHEET_ID",
-        "https://docs.google.com/spreadsheets/d/abc123-XYZ/edit#gid=0",
-    )
-    s = Settings(_env_file=None)
-    assert s.sheet_id == "abc123-XYZ"
-
 
 def test_get_settings_is_cached():
     assert get_settings() is get_settings()

@@ -118,7 +118,7 @@ def build_server():
         results_wanted: int | None = None,
         primary_query_only: bool = False,
     ) -> dict:
-        """Scrape job boards, enrich, rank; new roles land as ``lead`` (not on sheet yet)."""
+        """Scrape job boards, enrich, rank; new roles land as ``lead`` (review in web UI)."""
         terms = validate_scrape_tool_args(
             search_terms,
             salary_min=salary_min,
@@ -164,7 +164,7 @@ def build_server():
 
     @mcp.tool
     def approve_leads(job_ids: list[str]) -> dict:
-        """Promote leads to active status (eligible for sheet sync)."""
+        """Promote leads to active status (visible in web tracker)."""
         ids = validate_job_ids(job_ids)
         db = _db()
         try:
@@ -175,7 +175,7 @@ def build_server():
 
     @mcp.tool
     def reject_leads(job_ids: list[str]) -> dict:
-        """Reject leads (kept in DB for dedupe, excluded from sheet)."""
+        """Reject leads (kept in DB for dedupe, hidden in default web UI)."""
         ids = validate_job_ids(job_ids)
         db = _db()
         try:
@@ -186,7 +186,7 @@ def build_server():
 
     @mcp.tool
     def commit_leads(job_ids: list[str]) -> dict:
-        """Approve selected leads and push them to the Google Sheet."""
+        """Approve selected leads (promote LEAD → NEW in SQLite)."""
         ids = validate_job_ids(job_ids)
         db = _db()
         try:
@@ -194,11 +194,9 @@ def build_server():
             return {
                 "approved": result.approved,
                 "requested": len(ids),
-                "sheet_rows": result.sync.row_count,
-                "spreadsheet": result.sync.spreadsheet_title,
-                "sheet_sync_note": (
-                    "Full worksheet rewrite of all exportable DB rows. "
-                    "Confirm AGENTZERO_SHEET_ID before commit."
+                "tracker_note": (
+                    "Jobs are in SQLite. Open the web UI (docker compose up web) "
+                    "to review and edit status/notes."
                 ),
             }
         finally:

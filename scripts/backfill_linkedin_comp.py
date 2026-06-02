@@ -13,7 +13,6 @@ if str(REPO) not in sys.path:
 from agentzero.config import get_settings
 from agentzero.enrich.comp import enrich_comp
 from agentzero.enrich.detail_fetch import fetch_and_merge_detail
-from agentzero.google.sync import sync_jobs_to_sheet
 from agentzero.storage.db import Database
 
 
@@ -44,14 +43,6 @@ def main() -> int:
                 print("    -> (no comp found on detail page)", flush=True)
 
         print(f"\nUpdated comp on {updated}/{len(targets)} job(s).", flush=True)
-        if settings.sheet_id:
-            result = sync_jobs_to_sheet(db=db, settings=settings)
-            print(
-                f"Re-synced sheet {result.spreadsheet_title!r} ({result.row_count} rows).",
-                flush=True,
-            )
-        else:
-            print("No AGENTZERO_SHEET_ID — DB updated only.", flush=True)
     finally:
         db.close()
     return 0

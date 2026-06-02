@@ -11,7 +11,6 @@ Usage:
 
     python scripts/enrich_jobs.py
     python scripts/enrich_jobs.py --limit 10
-    python scripts/enrich_jobs.py --sync          # push to Google Sheet after
     python scripts/enrich_jobs.py --no-browser    # HTTP only (faster, less complete)
     python scripts/enrich_jobs.py --workers 8     # parallel HTTP/Glassdoor phase
 """
@@ -30,7 +29,6 @@ if str(REPO_ROOT) not in sys.path:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Deep-enrich jobs in SQLite")
     parser.add_argument("--limit", type=int, default=None, help="Max jobs to process")
-    parser.add_argument("--sync", action="store_true", help="Sync to Google Sheet when done")
     parser.add_argument(
         "--no-browser",
         action="store_true",
@@ -110,22 +108,6 @@ def main() -> int:
 
     if result.failed:
         return 1
-
-    if args.sync:
-        if not settings.sheet_id or not settings.google_token_path.is_file():
-            print("ERROR: Sheet sync needs AGENTZERO_SHEET_ID and token.json", file=sys.stderr)
-            return 1
-        print(
-            "WARNING: --sync clears the worksheet and rewrites all rows.",
-            flush=True,
-        )
-        from agentzero.google.sync import sync_jobs_to_sheet
-
-        print("Syncing to Google Sheet…", flush=True)
-        result = sync_jobs_to_sheet(db=db, settings=settings)
-        if result.imported:
-            print(f"Imported user fields for {result.imported} job(s) from the sheet.", flush=True)
-        print(f"OK - synced {result.row_count} row(s) to {result.spreadsheet_title!r}")
 
     return 0
 

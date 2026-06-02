@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from agentzero.storage.csv_export import SHEET_COLUMNS as UI_COLUMNS
+from agentzero.storage.csv_export import TRACKER_UI_COLUMNS as UI_COLUMNS
 
 DEFAULT_SORT_COLUMN = "match_score"
 DEFAULT_SORT_ORDER = "desc"
@@ -83,7 +83,7 @@ def sort_job_rows(
     *,
     descending: bool = True,
 ) -> list[dict[str, object]]:
-    """Sort sheet-shaped rows by *column*."""
+    """Sort tracker-shaped rows by *column*."""
     if column not in UI_COLUMNS:
         column = DEFAULT_SORT_COLUMN
     if column in NUMERIC_SORT_COLUMNS:

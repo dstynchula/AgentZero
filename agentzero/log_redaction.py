@@ -65,11 +65,3 @@ def install_log_redaction() -> None:
     _INSTALLED = True
 
 
-def mask_sheet_id(sheet_id: str | None) -> str:
-    """Mask a Google Sheet ID for operator logs."""
-    if not sheet_id:
-        return "(not set)"
-    sid = sheet_id.strip()
-    if len(sid) <= 8:
-        return sid
-    return f"{sid[:8]}…"
