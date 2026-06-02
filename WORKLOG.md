@@ -355,3 +355,11 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     accept: pytest tests/test_web_*.py tests/test_docker_compose_web.py tests/test_docs_web.py -q -> 26 passed;
             ruff check agentzero/web tests/test_web*.py -> clean
     branch: feat/web-P28-docker-ui
+
+[2026-06-02T21:30:00Z] P29 DONE - Web UI advanced display (sort, truncate, job card).
+    files: agentzero/web/display.py, agentzero/web/jobs.py, agentzero/web/app.py,
+           agentzero/web/templates/jobs.html, agentzero/web/templates/job_card.html,
+           tests/test_web_display.py, tests/test_web_jobs.py, tests/test_web_app_detail.py,
+           tests/test_web_app_read.py, docs/DOCKER.md, docs/web-ui-advanced-display.plan.md, PROGRESS.md
+    accept: pytest tests/test_web_*.py -q && ruff check agentzero/web -> green
+    branch: feat/web-P29-advanced-display

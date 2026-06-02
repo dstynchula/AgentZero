@@ -94,6 +94,10 @@ docker compose up web
 | **Save notes** | Updates `notes` on the row |
 | **Nope** | Sets `status=rejected` (row stays in DB for dedupe; omitted from sheet export) |
 | **Show rejected** | Lists noped roles |
+| **Column headers** | Sort asc/desc (default: `match_score` desc) |
+| **Row click** | Opens a **job card** with full details (rationale, description, links) |
+
+Long table cells are truncated; hover for the full value, or open the job card.
 
 Optional: push changes to Google Sheets after editing:
 
