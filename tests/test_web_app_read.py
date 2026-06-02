@@ -41,7 +41,7 @@ def test_jobs_page_sort_chips_for_all_columns(jobs_client):
     assert 'class="sort-toolbar"' in r.text
     for col in UI_COLUMNS:
         assert f'href="?sort={col}' in r.text or f"sort={col}&" in r.text
-        assert f'class="sort-chip' in r.text
+        assert 'class="sort-chip' in r.text
 
 
 def test_jobs_page_header_sort_links(jobs_client):
