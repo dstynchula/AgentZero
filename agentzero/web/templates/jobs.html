@@ -12,27 +12,53 @@
   {% endif %}
 </div>
 
-<table class="data-table">
+<div class="sort-toolbar" role="toolbar" aria-label="Sort jobs by column">
+  <span class="sort-toolbar-label">Sort by</span>
+  {% for col in columns %}
+  <a href="{{ sort_links[col] }}" class="sort-chip{% if col == sort %} is-active{% endif %}" title="Sort by {{ col }}">
+    {{ col }}{% if col == sort %}{% if sort_descending %} ↓{% else %} ↑{% endif %}{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<details class="column-picker" id="column-picker">
+  <summary>Columns — show, hide, or drag header edges to resize</summary>
+  <div class="column-picker-grid">
+    {% for col in columns %}
+    <label><input type="checkbox" data-column="{{ col }}" {% if col in default_columns %}checked{% endif %} /> {{ col }}</label>
+    {% endfor %}
+  </div>
+  <div class="column-picker-actions">
+    <button type="button" class="btn btn-secondary" id="column-picker-reset">Reset columns</button>
+  </div>
+</details>
+
+<div class="tracker-table-wrap">
+<table class="data-table" id="jobs-table">
   <thead>
     <tr>
       {% for col in columns %}
-      <th class="{% if col == sort %}sorted{% endif %}">
-        <a href="{{ sort_links[col] }}">{{ col }}{% if col == sort %}{% if sort_descending %} ▼{% else %} ▲{% endif %}{% endif %}</a>
+      <th class="{% if col == sort %}sorted{% endif %}{% if col not in default_columns %} col-hidden{% endif %}" data-col="{{ col }}">
+        <a class="th-sort-link" href="{{ sort_links[col] }}" title="Sort by {{ col }}">
+          <span class="th-label">{{ col }}</span>
+          <span class="sort-indicator" aria-hidden="true">{% if col == sort %}{% if sort_descending %}▼{% else %}▲{% endif %}{% else %}⇅{% endif %}</span>
+        </a>
+        <span class="col-resizer" aria-hidden="true"></span>
       </th>
       {% endfor %}
-      <th>actions</th>
+      <th class="actions-col">actions</th>
     </tr>
   </thead>
   <tbody>
     {% for job in jobs %}
     <tr class="job-row" data-href="/jobs/{{ job.job_id }}{{ list_query }}">
       {% for col in columns %}
-      <td class="data-cell">
+      <td class="data-cell{% if col not in default_columns %} col-hidden{% endif %}" data-col="{{ col }}">
         {% set cell = job.cells[col] %}
         {% if col == "url" and job.data[col] %}
         <a class="cell-truncated" href="{{ job.data[col] }}" target="_blank" rel="noopener" title="{{ cell.full }}" onclick="event.stopPropagation()">{{ cell.text }}</a>
         {% else %}
-        <span class="{% if cell.truncated %}cell-truncated{% endif %}" title="{{ cell.full }}">{{ cell.text }}</span>
+        <span class="cell-text {% if cell.truncated %}cell-truncated{% endif %}" title="{{ cell.full }}">{{ cell.text }}</span>
         {% endif %}
       </td>
       {% endfor %}
@@ -68,4 +94,167 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
+<script type="application/json" id="tracker-column-config">{{ tracker_column_config_json|safe }}</script>
+{% endblock %}
+{% block page_scripts %}
+<script>
+function initTrackerColumns() {
+  var STORAGE_COLS = "agentzero_tracker_visible_columns";
+  var STORAGE_WIDTHS = "agentzero_tracker_column_widths";
+  var table = document.getElementById("jobs-table");
+  var cfgNode = document.getElementById("tracker-column-config");
+  if (!table || !cfgNode) return;
+
+  var cfg;
+  try {
+    cfg = JSON.parse(cfgNode.textContent);
+  } catch (e) {
+    return;
+  }
+  var allCols = cfg.all || [];
+  var defaultCols = cfg.default || allCols.slice();
+  if (!defaultCols.length) defaultCols = allCols.slice();
+
+  function readVisible() {
+    try {
+      var raw = localStorage.getItem(STORAGE_COLS);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length) return null;
+      return parsed.filter(function (c) { return allCols.indexOf(c) >= 0; });
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function readWidths() {
+    try {
+      var raw = localStorage.getItem(STORAGE_WIDTHS);
+      return raw ? JSON.parse(raw) : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function cellsForCol(col) {
+    return table.querySelectorAll('[data-col="' + col + '"]');
+  }
+
+  function applyVisibility(visible) {
+    allCols.forEach(function (col) {
+      var show = visible.indexOf(col) >= 0;
+      cellsForCol(col).forEach(function (el) {
+        el.classList.toggle("col-hidden", !show);
+      });
+    });
+  }
+
+  function applyWidths(widths) {
+    Object.keys(widths).forEach(function (col) {
+      if (allCols.indexOf(col) < 0) return;
+      var w = widths[col];
+      cellsForCol(col).forEach(function (el) {
+        el.style.width = w;
+        el.style.minWidth = w;
+      });
+    });
+  }
+
+  function saveVisible(visible) {
+    localStorage.setItem(STORAGE_COLS, JSON.stringify(visible));
+  }
+
+  function saveWidths(widths) {
+    localStorage.setItem(STORAGE_WIDTHS, JSON.stringify(widths));
+  }
+
+  var visible = readVisible() || defaultCols.slice();
+  var widths = readWidths();
+  applyVisibility(visible);
+  applyWidths(widths);
+
+  var picker = document.getElementById("column-picker");
+  if (picker) {
+    picker.querySelectorAll('input[type="checkbox"][data-column]').forEach(function (cb) {
+      cb.checked = visible.indexOf(cb.getAttribute("data-column")) >= 0;
+      cb.addEventListener("change", function () {
+        var next = [];
+        picker.querySelectorAll('input[type="checkbox"][data-column]').forEach(function (box) {
+          if (box.checked) next.push(box.getAttribute("data-column"));
+        });
+        if (!next.length) {
+          cb.checked = true;
+          return;
+        }
+        visible = next;
+        saveVisible(visible);
+        applyVisibility(visible);
+      });
+    });
+    var resetBtn = document.getElementById("column-picker-reset");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", function () {
+        localStorage.removeItem(STORAGE_COLS);
+        localStorage.removeItem(STORAGE_WIDTHS);
+        visible = defaultCols.slice();
+        widths = {};
+        picker.querySelectorAll('input[type="checkbox"][data-column]').forEach(function (box) {
+          var col = box.getAttribute("data-column");
+          box.checked = defaultCols.indexOf(col) >= 0;
+        });
+        allCols.forEach(function (col) {
+          cellsForCol(col).forEach(function (el) {
+            el.style.width = "";
+            el.style.minWidth = "";
+          });
+        });
+        applyVisibility(visible);
+      });
+    }
+  }
+
+  table.querySelectorAll("th[data-col] .col-resizer").forEach(function (handle) {
+    var col = handle.parentElement.getAttribute("data-col");
+    var dragging = false;
+    var startX = 0;
+    var startW = 0;
+
+    function onMove(ev) {
+      if (!dragging) return;
+      var delta = ev.clientX - startX;
+      var next = Math.max(72, startW + delta) + "px";
+      widths[col] = next;
+      cellsForCol(col).forEach(function (el) {
+        el.style.width = next;
+        el.style.minWidth = next;
+      });
+    }
+
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      saveWidths(widths);
+    }
+
+    handle.addEventListener("mousedown", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var th = handle.parentElement;
+      dragging = true;
+      startX = ev.clientX;
+      startW = th.getBoundingClientRect().width;
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initTrackerColumns);
+} else {
+  initTrackerColumns();
+}
+</script>
 {% endblock %}

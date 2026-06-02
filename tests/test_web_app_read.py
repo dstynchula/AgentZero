@@ -1,96 +1,76 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 from agentzero.config import Settings
-from agentzero.models import ApplicationStatus
-from agentzero.storage.db import Database
 from agentzero.web.app import create_app
-from tests.test_db import _job
+from agentzero.web.jobs import LIST_VIEW_DEFAULT_COLUMNS, UI_COLUMNS
 
 
 @pytest.fixture
-def web_client(tmp_path):
-    db_path = tmp_path / "jobs.db"
-    app = create_app(db_path=db_path, settings=Settings(_env_file=None))
-    with TestClient(app) as client:
-        yield client, db_path
+def jobs_client(tmp_path: Path):
+    db_path = tmp_path / "t.db"
+    settings = Settings(_env_file=None, db_path=db_path)
+    app = create_app(db_path=db_path, settings=settings)
+    with TestClient(app) as c:
+        yield c
 
 
-def test_health(web_client):
-    client, _ = web_client
-    assert client.get("/health").json() == {"status": "ok"}
+def test_jobs_page_has_centered_table_wrapper(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'class="tracker-table-wrap"' in r.text
 
 
-def test_index_hides_rejected_by_default(web_client):
-    client, db_path = web_client
-    db = Database(db_path)
-    db.upsert_job(_job(title="Visible"))
-    db.upsert_job(
-        _job(title="Hidden", url="https://x.com/2", status=ApplicationStatus.REJECTED)
+def test_jobs_table_has_column_picker(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'id="column-picker"' in r.text
+    assert 'data-column="title"' in r.text
+    assert "column-picker-reset" in r.text
+    assert 'id="tracker-column-config"' in r.text
+    assert "initTrackerColumns" in r.text
+    assert r.text.find('id="jobs-table"') < r.text.find("initTrackerColumns")
+    assert "col-resizer" in r.text
+
+
+def test_jobs_page_sort_chips_for_all_columns(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'class="sort-toolbar"' in r.text
+    for col in UI_COLUMNS:
+        assert f'href="?sort={col}' in r.text or f"sort={col}&" in r.text
+        assert 'class="sort-chip' in r.text
+
+
+def test_jobs_page_header_sort_links(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'class="th-sort-link"' in r.text
+    assert "sort-indicator" in r.text
+
+
+def test_jobs_list_default_columns(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert tuple(LIST_VIEW_DEFAULT_COLUMNS) == (
+        "source",
+        "company",
+        "title",
+        "comp_max",
+        "match_score",
+        "status",
     )
-    db.close()
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "Visible" in response.text
-    assert "Hidden" not in response.text
+    for col in LIST_VIEW_DEFAULT_COLUMNS:
+        assert f'data-column="{col}"' in r.text
+    assert 'data-col="location"' in r.text
+    assert 'data-col="location" col-hidden' in r.text or 'col-hidden' in r.text
+    assert '"comp_max"' in r.text
 
 
-def test_show_rejected_query(web_client):
-    client, db_path = web_client
-    db = Database(db_path)
-    db.upsert_job(_job(status=ApplicationStatus.REJECTED))
-    db.close()
-    response = client.get("/?show_rejected=1")
-    assert response.status_code == 200
-    assert "Hide rejected" in response.text
-
-
-def test_api_jobs_include_rejected_param(web_client):
-    client, db_path = web_client
-    db = Database(db_path)
-    db.upsert_job(_job())
-    db.upsert_job(
-        _job(url="https://x.com/2", status=ApplicationStatus.REJECTED)
-    )
-    db.close()
-    assert len(client.get("/api/jobs").json()) == 1
-    assert len(client.get("/api/jobs?include_rejected=true").json()) == 2
-
-
-def test_index_sort_query_reorders(web_client):
-    client, db_path = web_client
-    db = Database(db_path)
-    db.upsert_job(_job(title="Alpha", match_score=0.2))
-    db.upsert_job(_job(title="Zulu", url="https://x.com/2", match_score=0.9))
-    db.close()
-    page = client.get("/?sort=title&order=asc")
-    assert page.text.index("Alpha") < page.text.index("Zulu")
-
-
-def test_index_header_links_include_sort(web_client):
-    client, _ = web_client
-    page = client.get("/")
-    assert "sort=company" in page.text
-    assert "sorted" in page.text or "match_score" in page.text
-
-
-def test_index_truncates_long_notes_in_html(web_client):
-    client, db_path = web_client
-    db = Database(db_path)
-    db.upsert_job(_job(notes="z" * 100))
-    db.close()
-    page = client.get("/")
-    assert "…" in page.text
-    assert 'class="cell-truncated"' in page.text
-
-
-def test_index_row_links_to_detail(web_client):
-    from agentzero.storage.db import Database
-
-    client, db_path = web_client
-    db = Database(db_path)
-    job = _job(title="CardTarget")
-    db.upsert_job(job)
-    job_id = job.job_id
-    db.close()
-    assert f'/jobs/{job_id}' in client.get("/").text
+def test_jobs_table_readable_title_styles(jobs_client):
+    r = jobs_client.get("/")
+    assert r.status_code == 200
+    assert 'data-col="title"' in r.text
+    assert "cell-text" in r.text

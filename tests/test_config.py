@@ -28,6 +28,11 @@ def test_defaults_without_env():
     assert isinstance(s.db_path, Path)
 
 
+def test_default_scrape_browser_sites_linkedin_only():
+    s = Settings(_env_file=None)
+    assert s.scrape_browser_sites == ["linkedin"]
+
+
 def test_env_overrides_and_csv_lists(monkeypatch):
     monkeypatch.setenv("AGENTZERO_LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("AGENTZERO_SEARCH_TERMS", "data engineer, ml engineer ,platform engineer")

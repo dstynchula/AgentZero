@@ -419,3 +419,14 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            tests/test_web_search_titles.py, tests/test_web_app_config.py, tests/test_docs_web.py, PROGRESS.md
     accept: pytest -q && ruff check agentzero tests scripts tools -> green
     branch: feat/web-P33-search-titles
+
+[2026-06-03T00:00:00Z] P33 merged — squash to main 1167185. PR: https://github.com/dstynchula/AgentZero/pull/33
+
+[2026-06-03T12:00:00Z] P34 DONE - Web UI/UX spike: CDP sources last in Settings catalog; linkedin-only browser defaults;
+    hide Chrome CDP card when unused; centered compact job tracker table.
+    files: agentzero/web/sources.py, agentzero/config.py, agentzero/web/templates/{config,jobs,base}.html,
+           .env.example, docs/GETTING_STARTED.md, tests/test_web_sources.py, tests/test_config.py,
+           tests/test_web_app_config.py, tests/test_web_app_read.py, PROGRESS.md
+    accept: pytest -q && ruff check agentzero tests scripts tools -> green
+    branch: feat/web-P34-ui-ux-spike
+    PR: https://github.com/dstynchula/AgentZero/pull/34

@@ -75,9 +75,9 @@ class Settings(BaseSettings):
     scrape_sites: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["google", "zip_recruiter"]
     )
-    # Playwright boards — sequential: Indeed, LinkedIn, Glassdoor.
+    # Playwright boards — default LinkedIn only; enable Indeed/Glassdoor in Settings or env.
     scrape_browser_sites: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["indeed", "linkedin", "glassdoor"]
+        default_factory=lambda: ["linkedin"]
     )
     scrape_user_agent: str | None = None
     scrape_delay_seconds: float = 3.0

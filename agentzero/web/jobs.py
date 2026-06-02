@@ -21,6 +21,16 @@ if TYPE_CHECKING:
 
 UI_COLUMNS = (*TRACKER_UI_COLUMNS,)
 
+# Default list-view columns (column picker can enable the rest).
+LIST_VIEW_DEFAULT_COLUMNS = (
+    "source",
+    "company",
+    "title",
+    "comp_max",
+    "match_score",
+    "status",
+)
+
 
 def list_jobs_for_ui(
     db: Database,
@@ -106,6 +116,7 @@ def list_context(
 __all__ = [
     "DEFAULT_SORT_COLUMN",
     "DEFAULT_SORT_ORDER",
+    "LIST_VIEW_DEFAULT_COLUMNS",
     "UI_COLUMNS",
     "job_detail_for_ui",
     "jobs_for_table",

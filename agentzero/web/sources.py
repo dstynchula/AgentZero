@@ -57,17 +57,20 @@ def source_catalog(
     browser_set = {s.strip().lower() for s in browser_on}
     jobspy_set = {s.strip().lower() for s in jobspy_on}
     rows: list[SourceRow] = []
-    for site in CORE_BROWSER_SITES:
-        rows.append(
-            SourceRow(
-                id=site,
-                name=_BROWSER_LABELS.get(site, site.title()),
-                method="Playwright",
-                group="browser",
-                enabled=site in browser_set,
-                uses_cdp=settings.use_cdp_for_site(site),
-            )
+
+    def _browser_row(site: str) -> SourceRow:
+        return SourceRow(
+            id=site,
+            name=_BROWSER_LABELS.get(site, site.title()),
+            method="Playwright",
+            group="browser",
+            enabled=site in browser_set,
+            uses_cdp=settings.use_cdp_for_site(site),
         )
+
+    for site in CORE_BROWSER_SITES:
+        if not settings.use_cdp_for_site(site):
+            rows.append(_browser_row(site))
     for site in CORE_JOBSPY_SITES:
         rows.append(
             SourceRow(
@@ -79,6 +82,9 @@ def source_catalog(
                 uses_cdp=False,
             )
         )
+    for site in CORE_BROWSER_SITES:
+        if settings.use_cdp_for_site(site):
+            rows.append(_browser_row(site))
     return rows
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
@@ -16,6 +17,7 @@ from agentzero.storage.db import Database
 from agentzero.web.cdp_status import cdp_status_payload, retry_cdp_connection
 from agentzero.web.display import build_list_query
 from agentzero.web.jobs import (
+    LIST_VIEW_DEFAULT_COLUMNS,
     UI_COLUMNS,
     job_detail_for_ui,
     jobs_for_table,
@@ -139,6 +141,13 @@ def create_app(
                 "nav_active": "jobs",
                 "jobs": jobs,
                 "columns": UI_COLUMNS,
+                "default_columns": LIST_VIEW_DEFAULT_COLUMNS,
+                "tracker_column_config_json": json.dumps(
+                    {
+                        "all": list(UI_COLUMNS),
+                        "default": list(LIST_VIEW_DEFAULT_COLUMNS),
+                    }
+                ),
                 "status_choices": _STATUS_CHOICES,
                 "show_rejected": show_rejected,
                 **ctx,

@@ -24,6 +24,22 @@ def client(tmp_path: Path):
         yield c, tmp_path
 
 
+def test_config_page_omits_chrome_cdp_when_no_cdp_sources(tmp_path: Path):
+    db_path = tmp_path / "t.db"
+    settings = Settings(
+        _env_file=None,
+        db_path=db_path,
+        scrape_browser_sites=["linkedin"],
+        scrape_sites=["google"],
+    )
+    app = create_app(db_path=db_path, settings=settings)
+    with TestClient(app) as c:
+        r = c.get("/config")
+    assert r.status_code == 200
+    assert "<h2>Chrome CDP</h2>" not in r.text
+    assert "Connect" not in r.text
+
+
 def test_config_page_renders(client):
     c, _ = client
     r = c.get("/config")
