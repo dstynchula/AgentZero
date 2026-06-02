@@ -10,22 +10,29 @@
     table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
     th, td { border: 1px solid #ccc; padding: 0.35rem 0.5rem; vertical-align: top; }
     th { background: #f4f4f4; text-align: left; }
+    th a { color: inherit; text-decoration: none; }
+    th a:hover { text-decoration: underline; }
+    th.sorted { font-weight: 700; }
+    tr.job-row { cursor: pointer; }
+    tr.job-row:hover td:not(.actions) { background: #f9f9f9; }
     .actions form { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; margin: 0.15rem 0; }
     .actions input[type="text"] { min-width: 8rem; max-width: 14rem; }
     .toolbar { margin: 0.75rem 0; }
     .muted { color: #666; font-size: 0.85rem; }
     a.url { word-break: break-all; }
+    .cell-truncated { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: top; max-width: 100%; }
+    td.data-cell { max-width: 12rem; }
   </style>
 </head>
 <body>
   <h1>AgentZero job tracker</h1>
-  <p class="muted">{{ jobs|length }} row(s){% if not show_rejected %} — rejected hidden{% endif %}</p>
+  <p class="muted">{{ jobs|length }} row(s){% if not show_rejected %} — rejected hidden{% endif %} — sorted by {{ sort }} ({{ order }})</p>
 
   <div class="toolbar">
     {% if show_rejected %}
-    <a href="/">Hide rejected</a>
+    <a href="/?sort={{ sort }}&order={{ order }}">Hide rejected</a>
     {% else %}
-    <a href="/?show_rejected=1">Show rejected</a>
+    <a href="/?show_rejected=1&sort={{ sort }}&order={{ order }}">Show rejected</a>
     {% endif %}
   </div>
 
@@ -33,40 +40,49 @@
     <thead>
       <tr>
         {% for col in columns %}
-        <th>{{ col }}</th>
+        <th class="{% if col == sort %}sorted{% endif %}">
+          <a href="{{ sort_links[col] }}">{{ col }}{% if col == sort %}{% if sort_descending %} ▼{% else %} ▲{% endif %}{% endif %}</a>
+        </th>
         {% endfor %}
         <th>actions</th>
       </tr>
     </thead>
     <tbody>
       {% for job in jobs %}
-      <tr>
+      <tr class="job-row" data-href="/jobs/{{ job.job_id }}{{ list_query }}">
         {% for col in columns %}
-        <td>
-          {% if col == "url" and job[col] %}
-          <a class="url" href="{{ job[col] }}" target="_blank" rel="noopener">{{ job[col] }}</a>
+        <td class="data-cell" onclick="window.location=this.closest('tr').dataset.href">
+          {% set cell = job.cells[col] %}
+          {% if col == "url" and job.data[col] %}
+          <a class="url cell-truncated" href="{{ job.data[col] }}" target="_blank" rel="noopener" title="{{ cell.full }}" onclick="event.stopPropagation()">{{ cell.text }}</a>
           {% else %}
-          {{ job[col] }}
+          <span class="{% if cell.truncated %}cell-truncated{% endif %}" title="{{ cell.full }}">{{ cell.text }}</span>
           {% endif %}
         </td>
         {% endfor %}
-        <td class="actions">
+        <td class="actions" onclick="event.stopPropagation()">
           <form method="post" action="/jobs/{{ job.job_id }}/status">
             {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+            <input type="hidden" name="sort" value="{{ sort }}" />
+            <input type="hidden" name="order" value="{{ order }}" />
             <select name="status">
               {% for s in status_choices %}
-              <option value="{{ s }}" {% if s == job.status %}selected{% endif %}>{{ s }}</option>
+              <option value="{{ s }}" {% if s == job.data.status %}selected{% endif %}>{{ s }}</option>
               {% endfor %}
             </select>
             <button type="submit">Save status</button>
           </form>
           <form method="post" action="/jobs/{{ job.job_id }}/notes">
             {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
-            <input type="text" name="notes" value="{{ job.notes or '' }}" />
+            <input type="hidden" name="sort" value="{{ sort }}" />
+            <input type="hidden" name="order" value="{{ order }}" />
+            <input type="text" name="notes" value="{{ job.data.notes or '' }}" />
             <button type="submit">Save notes</button>
           </form>
           <form method="post" action="/jobs/{{ job.job_id }}/reject" onsubmit="return confirm('Mark this role as rejected (nope)?');">
             {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+            <input type="hidden" name="sort" value="{{ sort }}" />
+            <input type="hidden" name="order" value="{{ order }}" />
             <button type="submit">Nope</button>
           </form>
         </td>

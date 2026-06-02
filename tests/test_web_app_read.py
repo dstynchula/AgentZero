@@ -55,3 +55,42 @@ def test_api_jobs_include_rejected_param(web_client):
     db.close()
     assert len(client.get("/api/jobs").json()) == 1
     assert len(client.get("/api/jobs?include_rejected=true").json()) == 2
+
+
+def test_index_sort_query_reorders(web_client):
+    client, db_path = web_client
+    db = Database(db_path)
+    db.upsert_job(_job(title="Alpha", match_score=0.2))
+    db.upsert_job(_job(title="Zulu", url="https://x.com/2", match_score=0.9))
+    db.close()
+    page = client.get("/?sort=title&order=asc")
+    assert page.text.index("Alpha") < page.text.index("Zulu")
+
+
+def test_index_header_links_include_sort(web_client):
+    client, _ = web_client
+    page = client.get("/")
+    assert "sort=company" in page.text
+    assert "sorted" in page.text or "match_score" in page.text
+
+
+def test_index_truncates_long_notes_in_html(web_client):
+    client, db_path = web_client
+    db = Database(db_path)
+    db.upsert_job(_job(notes="z" * 100))
+    db.close()
+    page = client.get("/")
+    assert "…" in page.text
+    assert 'class="cell-truncated"' in page.text
+
+
+def test_index_row_links_to_detail(web_client):
+    from agentzero.storage.db import Database
+
+    client, db_path = web_client
+    db = Database(db_path)
+    job = _job(title="CardTarget")
+    db.upsert_job(job)
+    job_id = job.job_id
+    db.close()
+    assert f'/jobs/{job_id}' in client.get("/").text
