@@ -189,6 +189,15 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P30e Docs + tests + P30 gate
 - [x] P30 done — code-only edits skip pip/Playwright; optional bind-mount override
 
+## P31 — Remove Google Sheets; local web tracker only
+
+- [x] P31a Remove `agentzero/google/`, sheet scripts, config fields
+- [x] P31b Leads/MCP/scripts — approve-only commit; `rank_jobs.py`
+- [x] P31c `TRACKER_UI_COLUMNS`; tracker_fields rename
+- [x] P31d Docs, compose, Dockerfile, `.env.example`, AGENTS.md
+- [x] P31e Tests + P31 gate
+- [x] P31 done — SQLite + web UI on :8080; no gspread/OAuth
+
 ## P32 — Web UI settings, dark mode, polish (2026-06-02)
 
 - [x] P32a Operator config (`web_operator_config.json`) + source toggles
@@ -198,15 +207,6 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P32e Search title selection, dark default, CDP Connect, source-aware host hints
 - [x] P32f Load résumé button (LLM search profile + title selection)
 - [x] P32g Cross-platform CDP launch (py/sh/ps1) + GETTING_STARTED + Settings UI instructions
-
-## P31 — Remove Google Sheets; local web tracker only
-
-- [x] P31a Remove `agentzero/google/`, sheet scripts, config fields
-- [x] P31b Leads/MCP/scripts — approve-only commit; `rank_jobs.py`
-- [x] P31c `TRACKER_UI_COLUMNS`; tracker_fields rename
-- [x] P31d Docs, compose, Dockerfile, `.env.example`, AGENTS.md
-- [x] P31e Tests + P31 gate
-- [x] P31 done — SQLite + web UI on :8080; no gspread/OAuth
 
 ## Reference docs
 
