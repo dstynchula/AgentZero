@@ -11,7 +11,7 @@ from agentzero.storage.db import Database
 
 
 def match_tier(score: float | None) -> str:
-    """Human-readable fit bucket for Sheets sorting."""
+    """Human-readable fit bucket for sorting in the web UI and CSV."""
     if score is None:
         return ""
     if score >= 0.75:
@@ -48,8 +48,8 @@ EXPORT_COLUMNS = [
     "job_id",
 ]
 
-# Operator-facing Google Sheet (CSV export keeps the full schema above).
-SHEET_COLUMNS = [
+# Operator-facing web table columns (CSV export keeps the full schema above).
+TRACKER_UI_COLUMNS = [
     "source",
     "company",
     "title",
@@ -107,10 +107,10 @@ def job_to_row(job: JobPosting, *, today: date | None = None) -> dict[str, objec
     }
 
 
-def job_to_sheet_row(job: JobPosting, *, today: date | None = None) -> dict[str, object]:
-    """Subset of ``job_to_row`` for the live Google Sheet tracker."""
+def job_to_tracker_ui_row(job: JobPosting, *, today: date | None = None) -> dict[str, object]:
+    """Subset of ``job_to_row`` for the web job tracker table."""
     full = job_to_row(job, today=today)
-    return {column: full[column] for column in SHEET_COLUMNS}
+    return {column: full[column] for column in TRACKER_UI_COLUMNS}
 
 
 def export_csv(

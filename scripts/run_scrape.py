@@ -167,7 +167,7 @@ def run(
         print("See docs/SCRAPING.md (Indeed CAPTCHA, rate limits).")
 
     print(f"\nDatabase: {settings.db_path.resolve()}")
-    print("Next: python scripts/sync_sheets.py --dry-run")
+    print("Next: docker compose up web  →  http://localhost:8080  (or python scripts/rank_jobs.py)")
     return exit_code
 
 

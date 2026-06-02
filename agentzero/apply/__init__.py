@@ -1,4 +1,4 @@
-"""Application tracking — sheet import and applied-job protection."""
+"""Application tracking — row import and applied-job protection."""
 
 from agentzero.apply.tracking import (
     find_job_for_tracker_row,

@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     max_concurrency: int = 4
     # Parallel LLM rank (classification) calls; I/O-bound — safe to raise if API limits allow.
     rank_max_concurrency: int = 8
-    # Minimum match_score for Google Sheet / CSV export (applied jobs always export).
+    # Minimum match_score for CSV export (applied jobs always export).
     # Set to 0 or unset via blank env to disable filtering.
     min_match_score: float | None = 0.75
     # JobSpy HTTP boards (Google + ZipRecruiter). Indeed/LinkedIn/Glassdoor use Playwright.
@@ -125,11 +125,6 @@ class Settings(BaseSettings):
     web_host: str = "0.0.0.0"
     web_port: int = 8080
 
-    # --- Google ---
-    google_client_secret: Path = Path("client_secret.json")
-    google_token_path: Path = Path("token.json")
-    sheet_id: str | None = None
-
     @field_validator("search_terms", "locations", "proxies", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:
@@ -179,24 +174,6 @@ class Settings(BaseSettings):
         if not 1 <= value <= 65_535:
             raise ValueError("web_port must be between 1 and 65535")
         return value
-
-    @field_validator("sheet_id", mode="before")
-    @classmethod
-    def _normalize_sheet_id(cls, value: object) -> object:
-        """Accept a bare spreadsheet ID or a full Google Sheets URL."""
-        if value is None or not isinstance(value, str):
-            return value
-        text = value.strip()
-        if not text:
-            return None
-        marker = "/spreadsheets/d/"
-        if marker in text:
-            start = text.index(marker) + len(marker)
-            end = start
-            while end < len(text) and text[end] not in "/?#":
-                end += 1
-            return text[start:end]
-        return text
 
     def use_cdp_for_site(self, site: str) -> bool:
         """True when this site should attach to Chrome over CDP instead of Playwright launch."""

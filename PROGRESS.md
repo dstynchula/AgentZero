@@ -189,6 +189,15 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P30e Docs + tests + P30 gate
 - [x] P30 done — code-only edits skip pip/Playwright; optional bind-mount override
 
+## P31 — Remove Google Sheets; local web tracker only
+
+- [x] P31a Remove `agentzero/google/`, sheet scripts, config fields
+- [x] P31b Leads/MCP/scripts — approve-only commit; `rank_jobs.py`
+- [x] P31c `TRACKER_UI_COLUMNS`; tracker_fields rename
+- [x] P31d Docs, compose, Dockerfile, `.env.example`, AGENTS.md
+- [x] P31e Tests + P31 gate
+- [x] P31 done — SQLite + web UI on :8080; no gspread/OAuth
+
 ## Reference docs
 
 | Doc | Contents |
@@ -202,6 +211,7 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/web-ui-docker.plan.md | P28 web tracker plan (TDD ledger) |
 | docs/web-ui-advanced-display.plan.md | P29 sort, truncate, job card plan |
 | docs/docker-build-cache.plan.md | P30 Dockerfile cache layers + dev override |
+| docs/remove-google-sheets.plan.md | P31 drop Sheets; web UI is the tracker |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist
@@ -209,4 +219,4 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [ ] Rotate OpenAI key and Google OAuth tokens before first public push
 - [ ] `python tools/fix_encoding.py` then verify `git status` (no `.env`, `token.json`, profiles)
 - [ ] `pytest -q` and `ruff check agentzero tests scripts tools` (513 tests as of P26k on main)
-- [ ] `python scripts/sync_sheets.py --dry-run` then `--yes` on correct sheet ID
+- [ ] `docker compose up web` — verify tracker after a scrape + rank

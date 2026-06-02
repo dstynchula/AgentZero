@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Remove non-remote jobs from SQLite (optional sheet sync).
+"""Remove non-remote jobs from SQLite.
 
 Usage:
 
     python scripts/purge_non_remote_jobs.py --dry-run
     python scripts/purge_non_remote_jobs.py --yes
-    python scripts/purge_non_remote_jobs.py --yes --sync-sheet
 """
 
 from __future__ import annotations
@@ -23,7 +22,6 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Delete non-remote jobs from SQLite")
     parser.add_argument("--dry-run", action="store_true", help="Preview only")
     parser.add_argument("--yes", action="store_true", help="Delete from database")
-    parser.add_argument("--sync-sheet", action="store_true", help="Run sync_sheets --yes after purge")
     parser.add_argument("--db", type=Path, default=None)
     args = parser.parse_args()
 
@@ -59,16 +57,6 @@ def main() -> int:
 
     deleted = db.delete_jobs([j.job_id for j in to_delete])
     print(f"\nDeleted {deleted} job(s) from {db.path.resolve()}")
-
-    if args.sync_sheet:
-        if not settings.sheet_id:
-            print("WARNING: AGENTZERO_SHEET_ID not set — skipping sheet sync.", file=sys.stderr)
-            return 0
-        from agentzero.google.auth import SHEETS_SCOPES
-        from agentzero.google.sync import sync_jobs_to_sheet
-
-        result = sync_jobs_to_sheet(db=db, settings=settings, scopes=SHEETS_SCOPES)
-        print(f"Synced {result.row_count} job(s) to {result.spreadsheet_title!r}")
 
     return 0
 

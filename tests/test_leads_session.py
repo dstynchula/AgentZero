@@ -6,9 +6,8 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from agentzero.apply.sheet_fields import merge_user_fields_from_sheet
+from agentzero.apply.tracker_fields import merge_user_fields_from_row
 from agentzero.config import Settings
-from agentzero.google.sync import SheetSyncResult
 from agentzero.ingest.resume import ResumeProfile
 from agentzero.ingest.search_profile import ResumeSearchProfile
 from agentzero.leads.session import (
@@ -64,7 +63,7 @@ def test_approved_new_included_in_export():
 
 def test_date_applied_promotes_reviewed_status():
     job = _job(status=ApplicationStatus.REVIEWED)
-    merged, changed = merge_user_fields_from_sheet(job, {"date_applied": "2026-05-01"})
+    merged, changed = merge_user_fields_from_row(job, {"date_applied": "2026-05-01"})
     assert changed
     assert merged.status == ApplicationStatus.APPLIED
     assert merged.date_applied == date(2026, 5, 1)
@@ -72,14 +71,14 @@ def test_date_applied_promotes_reviewed_status():
 
 def test_date_applied_does_not_downgrade_offer():
     job = _job(status=ApplicationStatus.OFFER)
-    merged, changed = merge_user_fields_from_sheet(job, {"date_applied": "2026-05-01"})
+    merged, changed = merge_user_fields_from_row(job, {"date_applied": "2026-05-01"})
     assert changed
     assert merged.status == ApplicationStatus.OFFER
 
 
 def test_date_applied_promotes_lead_status():
     job = _job(status=ApplicationStatus.LEAD)
-    merged, changed = merge_user_fields_from_sheet(job, {"date_applied": "2026-05-01"})
+    merged, changed = merge_user_fields_from_row(job, {"date_applied": "2026-05-01"})
     assert changed
     assert merged.status == ApplicationStatus.APPLIED
 
@@ -329,27 +328,15 @@ def test_reject_leads_skips_non_lead_and_missing(tmp_path):
     assert reject_leads(db, [active.job_id, "missing-id"]) == 0
 
 
-def test_commit_leads_approves_and_syncs(tmp_path, monkeypatch):
+def test_commit_leads_approves_in_db(tmp_path):
     db = Database(tmp_path / "jobs.db")
     lead = _job(status=ApplicationStatus.LEAD, url="https://x.com/lead")
     db.upsert_job(lead)
-    settings = Settings(_env_file=None, sheet_id="abc123")
-    sync_result = SheetSyncResult(
-        row_count=1,
-        spreadsheet_title="AgentZero Sheet",
-        imported=0,
-        created=0,
-        skipped_unknown_job_id=0,
-    )
-    monkeypatch.setattr(
-        "agentzero.google.sync.sync_jobs_to_sheet",
-        lambda **kwargs: sync_result,
-    )
+    settings = Settings(_env_file=None)
 
     result = commit_leads(db, settings, [lead.job_id])
 
     assert result.approved == 1
-    assert result.sync.row_count == 1
     assert db.get_job(lead.job_id).status == ApplicationStatus.NEW
 
 

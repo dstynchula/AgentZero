@@ -83,7 +83,6 @@ def main() -> int:
     from agentzero.config import get_settings
     from agentzero.ingest.resume import ingest_resume
     from agentzero.leads.session import (
-        approve_leads,
         build_run_settings,
         check_board_sessions,
         commit_leads,
@@ -172,7 +171,7 @@ def main() -> int:
     resume = ingest_resume(llm=llm, refresh_search=False)
     db = Database(settings.db_path)
     try:
-        print("\nScraping (new roles land as lead, not on sheet yet)…", flush=True)
+        print("\nScraping (new roles land as lead — review in web UI)…", flush=True)
         run = run_lead_scrape(db, effective, llm=llm, profile=resume)
         print(f"\nPipeline: scraped={run.pipeline.scraped} ranked={run.pipeline.ranked}")
         if run.pipeline.errors:
@@ -185,15 +184,8 @@ def main() -> int:
 
         if args.yes:
             job_ids = [job.job_id for job in run.leads]
-            if settings.sheet_id:
-                commit = commit_leads(db, settings, job_ids)
-                print(
-                    f"\nCommitted {commit.approved} lead(s) to "
-                    f"{commit.sync.spreadsheet_title!r}."
-                )
-            else:
-                count = approve_leads(db, job_ids)
-                print(f"\nApproved {count} lead(s) (no AGENTZERO_SHEET_ID — DB only).")
+            commit = commit_leads(db, settings, job_ids)
+            print(f"\nApproved {commit.approved} lead(s) in SQLite.")
             return 0
 
         answer = _prompt(
@@ -209,15 +201,9 @@ def main() -> int:
         else:
             job_ids = _split_csv(answer)
 
-        if settings.sheet_id:
-            commit = commit_leads(db, settings, job_ids)
-            print(
-                f"Committed {commit.approved} lead(s) to {commit.sync.spreadsheet_title!r} "
-                f"({commit.sync.row_count} rows)."
-            )
-        else:
-            count = approve_leads(db, job_ids)
-            print(f"Approved {count} lead(s) (set AGENTZERO_SHEET_ID to sync).")
+        commit = commit_leads(db, settings, job_ids)
+        print(f"Approved {commit.approved} lead(s) in SQLite.")
+        print("Open http://localhost:8080 after: docker compose up web")
     finally:
         db.close()
 

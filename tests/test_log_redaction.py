@@ -7,7 +7,6 @@ import logging
 from agentzero.log_redaction import (
     SecretRedactingFilter,
     install_log_redaction,
-    mask_sheet_id,
     redact_secrets,
 )
 
@@ -44,11 +43,6 @@ def test_redact_proxy_credentials():
 def test_innocent_text_unchanged():
     text = "Indeed browser fetch failed: timeout"
     assert redact_secrets(text) == text
-
-
-def test_mask_sheet_id():
-    assert mask_sheet_id("abcdefghijklmnop") == "abcdefgh…"
-    assert mask_sheet_id(None) == "(not set)"
 
 
 def test_logging_filter_redacts_message():

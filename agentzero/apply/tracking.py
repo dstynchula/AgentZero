@@ -1,4 +1,4 @@
-"""Application tracking helpers — sheet import, applied-job protection, lookups."""
+"""Application tracking helpers — row import, applied-job protection, lookups."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from agentzero.apply.sheet_fields import (
-    merge_user_fields_from_sheet,
-    parse_sheet_date,
-    parse_sheet_status,
+from agentzero.apply.tracker_fields import (
+    merge_user_fields_from_row,
+    parse_tracker_date,
+    parse_tracker_status,
 )
 from agentzero.models import ApplicationStatus, JobPosting, stable_job_id
 
@@ -28,7 +28,7 @@ def is_applied(job: JobPosting) -> bool:
 
 
 def is_application_locked(job: JobPosting) -> bool:
-    """True when prune/sync scripts must not delete this row (not sheet export policy)."""
+    """True when maintenance scripts must not delete this row (not export policy)."""
     return job.status in {
         ApplicationStatus.APPLIED,
         ApplicationStatus.INTERVIEWING,
@@ -85,7 +85,7 @@ class _JobIndex:
 
 
 def find_job_for_tracker_row(db: Database, row: dict[str, str]) -> JobPosting | None:
-    """Resolve a sheet row to an existing DB job (job_id, URL, or company+title)."""
+    """Resolve a tracker row to an existing DB job (job_id, URL, or company+title)."""
     return _JobIndex.from_jobs(db.list_jobs()).match(row)
 
 
@@ -95,7 +95,7 @@ def _placeholder_url(*, company: str, title: str, source: str) -> str:
 
 
 def job_from_tracker_row(row: dict[str, str]) -> JobPosting | None:
-    """Build a minimal job from sheet identity columns (for restored application rows)."""
+    """Build a minimal job from tracker identity columns (for restored application rows)."""
     company = str(row.get("company") or "").strip()
     title = str(row.get("title") or "").strip()
     if not company or not title:
@@ -148,14 +148,14 @@ def job_from_tracker_row(row: dict[str, str]) -> JobPosting | None:
         else:
             payload[field] = str(raw).strip()
 
-    date_applied = parse_sheet_date(row.get("date_applied"))
+    date_applied = parse_tracker_date(row.get("date_applied"))
     if date_applied is not None:
         payload["date_applied"] = date_applied
-    date_contacted = parse_sheet_date(row.get("date_first_contacted"))
+    date_contacted = parse_tracker_date(row.get("date_first_contacted"))
     if date_contacted is not None:
         payload["date_first_contacted"] = date_contacted
 
-    status = parse_sheet_status(row.get("status"))
+    status = parse_tracker_status(row.get("status"))
     if status is not None:
         payload["status"] = status
     elif date_applied is not None:
@@ -179,7 +179,7 @@ def import_tracker_rows(
     search_terms: list[str] | None = None,
     dry_run: bool = False,
 ) -> TrackerImportResult:
-    """Import application tracking + optional new jobs from sheet rows.
+    """Import application tracking + optional new jobs from tracker rows.
 
     When ``dry_run`` is set, no writes occur but the returned counts match what a
     real import would produce (the in-memory index is still advanced so duplicate
@@ -199,7 +199,7 @@ def import_tracker_rows(
 
         existing = index.match(row)
         if existing is not None:
-            merged, changed = merge_user_fields_from_sheet(existing, row)
+            merged, changed = merge_user_fields_from_row(existing, row)
             if changed:
                 if not dry_run:
                     db.upsert_job(merged)
@@ -207,8 +207,8 @@ def import_tracker_rows(
                 updated += 1
             continue
 
-        applied_date = parse_sheet_date(row.get("date_applied"))
-        has_tracking = applied_date is not None or parse_sheet_status(row.get("status")) is not None
+        applied_date = parse_tracker_date(row.get("date_applied"))
+        has_tracking = applied_date is not None or parse_tracker_status(row.get("status")) is not None
         if not has_tracking:
             skipped += 1
             continue
@@ -240,8 +240,8 @@ def import_tracker_rows(
     )
 
 
-def parse_sheet_row(header: list[str], values: list[str]) -> dict[str, str]:
-    """Map a sheet row to column names (empty cells → ``""``)."""
+def parse_tracker_row(header: list[str], values: list[str]) -> dict[str, str]:
+    """Map a header + values row to column names (empty cells → ``""``)."""
     out: dict[str, str] = {}
     for index, name in enumerate(header):
         if index < len(values):
@@ -251,21 +251,21 @@ def parse_sheet_row(header: list[str], values: list[str]) -> dict[str, str]:
     return out
 
 
-def rows_from_sheet_values(values: list[list[str]]) -> list[dict[str, str]]:
+def rows_from_tabular_values(values: list[list[str]]) -> list[dict[str, str]]:
     if not values:
         return []
     header = values[0]
-    return [parse_sheet_row(header, row) for row in values[1:] if any(cell.strip() for cell in row)]
+    return [parse_tracker_row(header, row) for row in values[1:] if any(cell.strip() for cell in row)]
 
 
 def tracker_rows_with_applications(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     """Rows that carry application context (date_applied or applied-like status)."""
     applied: list[dict[str, str]] = []
     for row in rows:
-        if parse_sheet_date(row.get("date_applied")):
+        if parse_tracker_date(row.get("date_applied")):
             applied.append(row)
             continue
-        status = parse_sheet_status(row.get("status"))
+        status = parse_tracker_status(row.get("status"))
         if status in {
             ApplicationStatus.APPLIED,
             ApplicationStatus.INTERVIEWING,

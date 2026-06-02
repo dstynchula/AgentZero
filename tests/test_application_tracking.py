@@ -259,13 +259,13 @@ def test_import_dry_run_update_path(tmp_path):
     assert db.get_job(job.job_id).notes is None
 
 
-def test_parse_sheet_row_and_rows_from_values():
-    from agentzero.apply.tracking import parse_sheet_row, rows_from_sheet_values
+def test_parse_tracker_row_and_rows_from_values():
+    from agentzero.apply.tracking import parse_tracker_row, rows_from_tabular_values
 
-    row = parse_sheet_row(["company", "title"], ["Acme", "Eng"])
+    row = parse_tracker_row(["company", "title"], ["Acme", "Eng"])
     assert row == {"company": "Acme", "title": "Eng"}
 
-    rows = rows_from_sheet_values(
+    rows = rows_from_tabular_values(
         [
             ["company", "title"],
             ["Acme", "Eng"],

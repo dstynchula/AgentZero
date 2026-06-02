@@ -93,7 +93,7 @@ python scripts/purge_non_remote_jobs.py --yes --sync-sheet
 
 ## Quality filters
 
-Listings pass through several gates before they reach the Google Sheet.
+Listings pass through several gates before they appear in the web tracker / CSV export.
 
 ### Title relevance (scrape)
 
@@ -133,7 +133,7 @@ python scripts/run_lead_session.py --yes   # approve + sync all new leads
 2. Prompts for your targets (or pass `--titles`, `--min-comp`, `--remote-only`)
 3. Checks browser sessions (Indeed/LinkedIn/Glassdoor)
 4. Scrapes + ranks; **new roles land as `lead` in SQLite** (not on the sheet)
-5. Shows a scored preview; approve (`all` / job IDs) → promotes to `new` and syncs to Google Sheet
+5. Shows a scored preview; approve (`all` / job IDs) → promotes to `new` in SQLite (web UI for tracking)
 
 **Cursor MCP:** register `python -m agentzero.mcp_server --stdio`. Tools: `suggest_targets`,
 `check_sessions`, `run_scrape`, `list_leads`, `approve_leads`, `commit_leads`. Same core:
@@ -149,22 +149,14 @@ Human-edited sheet columns are authoritative for application state:
 | `status` | `lead`, `new`, `applied`, `rejected`, `offer`, … |
 | `notes` | Free text |
 
-The live sheet exports **13 columns** (`SHEET_COLUMNS` in `csv_export.py`). Internal /
+The web tracker shows **13 columns** (`TRACKER_UI_COLUMNS` in `csv_export.py`). Internal /
 sparse fields (`remote`, `careers_url`, `date_posted`, `match_tier`, etc.) remain in SQLite
 and in full CSV export (`EXPORT_COLUMNS`).
 
-**Every sync** (`sync_sheets.py`, `rank_and_sync.py`) imports these fields from the sheet
-into SQLite before rewriting rows. Scraped fields (comp, match score, etc.) stay DB-authoritative.
+Edit **`date_applied`**, **`status`**, and **`notes`** in the web UI (`docker compose up web`).
+Scraped fields (comp, match score, etc.) remain DB-authoritative.
 
-Restore rows you manually re-added to the sheet after a purge:
-
-```powershell
-python scripts/import_sheet_status.py --dry-run
-python scripts/import_sheet_status.py          # import only
-python scripts/import_sheet_status.py --sync   # import + push DB to sheet
-```
-
-Code: `agentzero/apply/tracking.py`, `agentzero/apply/sheet_fields.py`.
+Code: `agentzero/apply/tracking.py`, `agentzero/apply/tracker_fields.py`, `agentzero/web/`.
 
 ## Why we got 400/429
 
@@ -212,8 +204,7 @@ AGENTZERO_PROXIES=
 # Minimum match_score for Sheet/CSV export (applied jobs always export). 0 = disable.
 AGENTZERO_MIN_MATCH_SCORE=0.75
 
-# Google Sheets (optional) — ID only, or full URL (auto-normalized)
-AGENTZERO_SHEET_ID=your-spreadsheet-id
+# Web tracker (optional): docker compose up web → http://localhost:8080
 ```
 
 Per run (primary-query mode): **5 fetches** — Indeed → LinkedIn → Glassdoor → Google → ZipRecruiter.
@@ -235,19 +226,17 @@ See also: **[GETTING_STARTED.md](GETTING_STARTED.md)** for install and Chrome se
 |--------|---------|
 | `scripts/open_indeed_browser.py` | Open visible Chrome to pass Indeed CAPTCHA once (saves cookies) |
 | `scripts/login_job_boards.py` | Log in to Indeed / LinkedIn / Glassdoor (cookies saved per site) |
-| `scripts/rank_and_sync.py` | LLM rank vs résumé, then Google Sheet (`--yes` to sync; respects min match score) |
+| `scripts/rank_jobs.py` | LLM rank vs résumé (respects min match score for CSV export) |
 | `scripts/enrich_jobs.py` | Secondary pass: job detail URLs + comp / company size / Glassdoor |
 | `scripts/run_lead_session.py` | Interactive lead session: scrape → review → approve → sheet (`--all-titles`, `--yes`) |
 | `scripts/run_linkedin_lead_scrape.py` | LinkedIn-only lead scrape via CDP Chrome (no interactive wizard) |
 | `scripts/backfill_linkedin_comp.py` | Backfill missing LinkedIn comp from detail pages + optional sheet sync |
 | `scripts/backfill_glassdoor_companies.py` | Resolve Glassdoor `Unknown` employers + optional sheet sync |
 | `scripts/run_scrape.py` | Full scrape pipeline; interactive search targeting; `--skip-resume-ingest` for repeat runs |
-| `scripts/sync_sheets.py` | Import sheet tracker fields → SQLite, push to Google Sheet (`--dry-run`, `--yes`) |
 | `scripts/import_sheet_status.py` | Import `date_applied`/status only; restore applied rows from sheet (`--sync`) |
 | `scripts/purge_non_remote_jobs.py` | Delete non-remote jobs from DB; skips applied (`--yes`, `--sync-sheet`) |
 | `scripts/prune_db_from_sheet.py` | Delete DB rows not in the sheet (`--dry-run`, `--yes`) |
 | `scripts/smoke_test.py` | Résumé ingest + optional `--scrape --limit N` pipeline test |
-| `scripts/google_auth.py` | One-time Google OAuth → `token.json`; verifies Sheet access |
 | `scripts/estimate_cost.py` | LLM cost estimate from current `.env` |
 | `scripts/import_browser_cookies.py` | Import Cookie-Editor export → per-site storage state |
 | `scripts/cdp_browser_spike.py` | Compare bundled Chromium vs CDP-attached Chrome |
@@ -276,13 +265,13 @@ python scripts/run_scrape.py --limit 10
 ### Recommended first-run sequence
 
 ```powershell
-pip install -e ".[dev,scrape,llm,google,mcp]"
+pip install -e ".[dev,scrape,llm,mcp,web]"
 playwright install chrome
 copy .env.example .env          # OPENAI_API_KEY + AGENTZERO_SCRAPE_BROWSER_CHANNEL=chrome
 python scripts/login_job_boards.py --site linkedin,glassdoor
 python scripts/verify_browser_session.py --site linkedin
-python scripts/google_auth.py
 python scripts/run_scrape.py --limit 5
+docker compose up web           # optional tracker
 ```
 
 When Chrome opens, complete **cookie consent** or **CAPTCHA**, then continue in the terminal if prompted.
@@ -376,21 +365,13 @@ On each scrape run with an LLM configured:
 Smoke test limits to **1 term × Remote** on first scrape to avoid rate limits.
 Use `scripts/run_scrape.py` for production runs with full search terms and interactive targeting.
 
-## Google OAuth
-
-- **`client_secret.json`** — Desktop OAuth client from Google Cloud Console
-- **`token.json`** — created by `scripts/google_auth.py` (git-ignored)
-- **`AGENTZERO_SHEET_ID`** — spreadsheet ID (not the full URL, though URLs are accepted)
-
-Default OAuth requests **Sheets scope only**. Use `--full-scopes` only if you add Gmail/Calendar/Drive features. See **[SECURITY.md](SECURITY.md)**.
-
 Browser profile directories under `data/browser_profiles/` contain login cookies — never commit them.
 
 ## Known limitations / next steps
 
-- [x] CLI command to sync SQLite → Google Sheet (`scripts/sync_sheets.py`)
-- [x] Application tracking import/export (`date_applied`, status, notes)
-- [x] Title + match-score filters for sheet export
+- [x] Local web tracker (`docker compose up web`)
+- [x] Application tracking in SQLite + web UI (`date_applied`, status, notes)
+- [x] Title + match-score filters for CSV export
 - [ ] Proxy rotation for ZipRecruiter (403 without proxies is expected; logged and skipped)
 - [x] Five-source sequential pipeline (Indeed, LinkedIn, Glassdoor, Google, ZipRecruiter)
 - [x] Dedicated `scripts/run_scrape.py` (skip résumé re-ingest on repeat runs)

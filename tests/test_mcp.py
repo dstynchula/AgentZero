@@ -14,7 +14,6 @@ import pytest
 from fastmcp.exceptions import ToolError
 
 from agentzero.config import Settings
-from agentzero.google.sync import SheetSyncResult
 from agentzero.ingest.search_profile import ResumeSearchProfile
 from agentzero.leads.session import LeadRunResult, SearchTargets
 from agentzero.loops.pipeline import PipelineResult
@@ -308,31 +307,12 @@ def test_commit_leads_handler_mocked(monkeypatch, mcp_settings):
     db.upsert_job(lead)
     db.close()
 
-    @dataclass
-    class CommitResult:
-        approved: int
-        sync: SheetSyncResult
-
-    sync = SheetSyncResult(
-        row_count=5,
-        spreadsheet_title="Jobs Sheet",
-        imported=0,
-        created=0,
-        skipped_unknown_job_id=0,
-    )
-
     monkeypatch.setattr("agentzero.config.get_settings", lambda: mcp_settings)
-    monkeypatch.setattr(
-        "agentzero.leads.session.commit_leads",
-        lambda db, settings, ids: CommitResult(approved=1, sync=sync),
-    )
     server = build_server()
 
     payload = _run(_call_tool(server, "commit_leads", {"job_ids": [lead.job_id]}))
     assert payload["approved"] == 1
-    assert payload["sheet_rows"] == 5
-    assert payload["spreadsheet"] == "Jobs Sheet"
-    assert "sheet_sync_note" in payload
+    assert "tracker_note" in payload
 
 
 def test_job_id_validation_surfaces_as_tool_error(mcp_server):

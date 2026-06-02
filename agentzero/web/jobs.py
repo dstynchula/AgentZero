@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from agentzero.models import ApplicationStatus
-from agentzero.storage.csv_export import SHEET_COLUMNS, job_to_row, job_to_sheet_row
+from agentzero.storage.csv_export import TRACKER_UI_COLUMNS, job_to_row, job_to_tracker_ui_row
 from agentzero.web.display import (
     DEFAULT_SORT_COLUMN,
     DEFAULT_SORT_ORDER,
@@ -19,7 +19,7 @@ from agentzero.web.display import (
 if TYPE_CHECKING:
     from agentzero.storage.db import Database
 
-UI_COLUMNS = (*SHEET_COLUMNS,)
+UI_COLUMNS = (*TRACKER_UI_COLUMNS,)
 
 
 def list_jobs_for_ui(
@@ -30,14 +30,14 @@ def list_jobs_for_ui(
     sort: str | None = None,
     order: str | None = None,
 ) -> list[dict[str, object]]:
-    """Return sheet-shaped rows for jobs, hiding rejected unless requested."""
+    """Return tracker-shaped rows for jobs, hiding rejected unless requested."""
     rows: list[dict[str, object]] = []
     for job in db.list_jobs():
         if not include_rejected and job.status == ApplicationStatus.REJECTED:
             continue
         if status_filter is not None and job.status.value != status_filter:
             continue
-        rows.append(job_to_sheet_row(job))
+        rows.append(job_to_tracker_ui_row(job))
     sort_column, descending = parse_sort_params(sort, order)
     return sort_job_rows(rows, sort_column, descending=descending)
 

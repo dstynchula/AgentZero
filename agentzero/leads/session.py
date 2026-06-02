@@ -18,7 +18,6 @@ from agentzero.scrape.remote_policy import apply_remote_only_settings
 
 if TYPE_CHECKING:
     from agentzero.config import Settings
-    from agentzero.google.sync import SheetSyncResult
     from agentzero.ingest.resume import ResumeProfile
     from agentzero.llm.provider import LLMProvider
     from agentzero.scrape.session_probe import SessionProbeResult
@@ -156,7 +155,7 @@ def run_lead_scrape(
     llm: LLMProvider | None,
     profile: ResumeProfile | None,
 ) -> LeadRunResult:
-    """Scrape, enrich, rank; new listings land as ``LEAD`` (not on the sheet yet)."""
+    """Scrape, enrich, rank; new listings land as ``LEAD`` (review in web UI before promoting)."""
     from agentzero.scrape.factory import build_scrape_source
 
     known_ids = set(db.list_job_ids())
@@ -186,7 +185,7 @@ def list_pending_leads(db: Database) -> list[JobPosting]:
 
 
 def approve_leads(db: Database, job_ids: list[str]) -> int:
-    """Promote ``LEAD`` rows to ``NEW`` (active leads eligible for sheet sync)."""
+    """Promote ``LEAD`` rows to ``NEW`` (active leads visible in the web tracker)."""
     updated = 0
     for job_id in job_ids:
         job = db.get_job(job_id)
@@ -198,7 +197,7 @@ def approve_leads(db: Database, job_ids: list[str]) -> int:
 
 
 def reject_leads(db: Database, job_ids: list[str]) -> int:
-    """Mark ``LEAD`` rows as ``REJECTED`` (kept for dedupe, excluded from sheet)."""
+    """Mark ``LEAD`` rows as ``REJECTED`` (kept for dedupe, hidden in default web UI)."""
     updated = 0
     for job_id in job_ids:
         job = db.get_job(job_id)
@@ -212,7 +211,6 @@ def reject_leads(db: Database, job_ids: list[str]) -> int:
 @dataclass(frozen=True, slots=True)
 class CommitLeadsResult:
     approved: int
-    sync: SheetSyncResult
 
 
 def commit_leads(
@@ -220,12 +218,10 @@ def commit_leads(
     settings: Settings,
     job_ids: list[str],
 ) -> CommitLeadsResult:
-    """Approve selected leads and push the DB to Google Sheets."""
-    from agentzero.google.sync import sync_jobs_to_sheet
-
+    """Approve selected leads (promote ``LEAD`` → ``NEW`` in SQLite)."""
+    _ = settings  # signature kept for MCP/CLI compatibility
     approved = approve_leads(db, job_ids)
-    sync = sync_jobs_to_sheet(db=db, settings=settings)
-    return CommitLeadsResult(approved=approved, sync=sync)
+    return CommitLeadsResult(approved=approved)
 
 
 def job_to_preview_dict(job: JobPosting) -> dict[str, object]:
@@ -266,5 +262,7 @@ def format_lead_preview(leads: list[JobPosting]) -> str:
             f"{_markdown_table_cell(job.company)} | {_markdown_table_cell(job.source)} |"
         )
     lines.append("")
-    lines.append(f"**{len(leads)}** lead(s) — approve to promote to the tracker sheet.")
+    lines.append(
+        f"**{len(leads)}** lead(s) — approve to promote (view at http://localhost:8080 when web is up)."
+    )
     return "\n".join(lines)

@@ -11,6 +11,7 @@ When AgentZero MCP tools are available, run the **lead session in chat**:
 2. `check_sessions` → fix login/CAPTCHA if needed (Chrome CDP auto-starts)
 3. `run_scrape` → only after explicit user OK
 4. Present leads → user picks job_ids
-5. `commit_leads` → only selected ids
+5. `commit_leads` → only selected ids (SQLite only; web UI for tracking)
 
-Never batch-scrape or commit to the sheet without user confirmation in the conversation.
+Never batch-scrape or promote leads without user confirmation in the conversation.
+Point operators to `docker compose up web` → http://localhost:8080 for day-to-day tracker edits.

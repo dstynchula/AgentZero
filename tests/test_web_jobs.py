@@ -1,5 +1,5 @@
 from agentzero.models import ApplicationStatus
-from agentzero.storage.csv_export import SHEET_COLUMNS
+from agentzero.storage.csv_export import TRACKER_UI_COLUMNS
 from agentzero.storage.db import Database
 from agentzero.web.jobs import job_detail_for_ui, jobs_for_table, list_jobs_for_ui
 from tests.test_db import _job
@@ -37,7 +37,7 @@ def test_row_shape(tmp_path):
     db = Database(tmp_path / "t.db")
     db.upsert_job(_job(match_score=0.9, notes="note"))
     row = list_jobs_for_ui(db)[0]
-    assert set(row.keys()) == set(SHEET_COLUMNS)
+    assert set(row.keys()) == set(TRACKER_UI_COLUMNS)
     db.close()
 
 

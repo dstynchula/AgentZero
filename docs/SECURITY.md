@@ -1,53 +1,20 @@
 # Security
 
-AgentZero runs locally on your machine, reads your résumé, calls third-party APIs, and
-optionally syncs to Google Sheets. This document describes secrets, scopes, network
-egress, and operator safety for self-hosted use.
+AgentZero runs locally on your machine, reads your résumé, and calls third-party APIs.
+Job tracking uses **SQLite** and the optional **web UI** on port 8080. This document
+describes secrets, network egress, and operator safety for self-hosted use.
 
 ## Secrets (never commit)
 
 | File / directory | Contents |
 |------------------|----------|
-| `.env` | LLM API keys, sheet ID, scrape settings |
-| `token.json` | Google OAuth refresh token |
-| `client_secret.json` | Google OAuth client credentials |
+| `.env` | LLM API keys, scrape settings |
 | `data/agentzero.db` | Job listings and enrichment data |
 | `data/browser_profiles/`, `data/indeed_browser_profile/` | **Logged-in job-board session cookies** |
 | `resume/` | Personal résumé (gitignored) |
 
-If any secret is committed or shared, rotate it immediately (new API key, re-run
-`scripts/google_auth.py`, clear browser profiles and log in again).
-
-## Google OAuth scopes
-
-Production scripts today only need **Google Sheets**:
-
-| Scope | Used by | Default? |
-|-------|---------|------------|
-| `spreadsheets` | `sync_sheets.py`, `rank_and_sync.py`, `enrich_jobs.py --sync` | **Yes** |
-| `gmail.modify`, `calendar`, `drive.file` | Reserved for future integrations | No (`--full-scopes` only; no code paths yet) |
-
-```powershell
-python scripts/google_auth.py              # Sheets only (recommended)
-python scripts/google_auth.py --full-scopes  # Only if you add Gmail/Calendar/Drive features
-```
-
-Verify the target spreadsheet before syncing:
-
-```powershell
-python scripts/sync_sheets.py --dry-run
-python scripts/sync_sheets.py --yes
-```
-
-**Operator error:** `sync_sheets.py --yes` clears and rewrites the entire worksheet. Confirm
-`AGENTZERO_SHEET_ID` points at your job tracker, not another document.
-
-To drop DB rows you removed from the sheet:
-
-```powershell
-python scripts/prune_db_from_sheet.py --dry-run
-python scripts/prune_db_from_sheet.py --yes
-```
+If any secret is committed or shared, rotate it immediately (new API key, clear browser
+profiles and log in again).
 
 ## LLM data processing
 
@@ -84,8 +51,6 @@ Treat LLM-derived match scores and repaired fields as **assistive**, not authori
 | Scrape (Playwright) | Indeed, LinkedIn, Glassdoor |
 | Enrichment | Job posting URLs, Glassdoor, DuckDuckGo (`ddgs`), careers pages |
 | LLM | Provider API |
-| Google | Sheets API (when syncing) |
-
 ### SSRF protection (enrichment HTTP)
 
 Outbound HTTP fetches in enrichment (`detail_fetch`, `web_research`, careers URL
@@ -123,7 +88,7 @@ set `AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=false` and start Chrome on the host with
 ### Log redaction
 
 `agentzero/log_redaction.py` installs a root logging filter on import (API keys, Bearer tokens,
-OAuth JSON fields, proxy credentials). Script output should use `mask_sheet_id()` for sheet IDs.
+OAuth JSON fields, proxy credentials).
 
 This is **best-effort** for app-controlled logs. Do not run `docker compose config` or paste
 `.env` into tickets. Keep log level at INFO in production compose (avoid httpx/playwright DEBUG).
@@ -134,46 +99,33 @@ This is **best-effort** for app-controlled logs. Do not run `docker compose conf
   and edit jobs in the mounted SQLite database (status, notes, soft-reject).
 - Intended for **local operator** use only. Do not publish 8080 to the public internet.
 - The web layer does **not** hard-delete rows; **Nope** sets `rejected` (same as MCP `reject_leads`).
-- No Google OAuth in the web process; sheet sync remains a separate CLI step.
-
 ### Docker secrets
 
-- Never bake `.env`, `token.json`, or `client_secret.json` into the image (see `.dockerignore`).
-- Runtime secrets: `env_file: .env` and read-only bind mounts in `docker-compose.yml`.
+- Never bake `.env` into the image (see `.dockerignore`).
+- Runtime secrets: `env_file: .env` in `docker-compose.yml`.
 - Do not store secrets in GitHub Actions for local Docker use; CI builds the image without `env_file`.
-
-### OAuth token storage
-
-`token.json` stores refresh tokens only — `client_secret` is stripped on save. Keep
-`client_secret.json` gitignored separately.
-
-On save, `persist_credentials` restricts file permissions:
-
-- **Unix:** `chmod 0o600` (owner read/write only)
-- **Windows:** `icacls` removes inherited ACLs and grants the current user full control only
 
 ## Scraping and legal use
 
 Scraping may violate site Terms of Service. AgentZero uses rate limits, sequential
 sources, and human CAPTCHA steps, but **you are responsible** for compliant use.
 
-Applications are **never auto-submitted**. The live pipeline is scrape → enrich → rank →
-sheet sync; you apply manually on each job board. Application status is tracked in the
-Google Sheet and imported via `agentzero/apply/tracking.py`.
+Applications are **never auto-submitted**. The live pipeline is scrape → enrich → rank;
+you apply manually on each job board. Application status is tracked in SQLite and the web UI.
 
-Lead-session statuses: `lead` and `rejected` stay in SQLite only until you approve (`new`)
-and commit; `reject_leads` never pushes those rows to the sheet.
+Lead-session statuses: `lead` and `rejected` stay hidden from the default web view until you
+approve (`new`) via MCP or the UI.
 
 ## MCP server
 
 `agentzero/mcp_server.py` exposes lead-session tools over **stdio** (local trust boundary):
 
 - Read: `scrape_status`, `list_quarantine`, `list_leads`, `suggest_targets`
-- Write: `run_scrape`, `approve_leads`, `reject_leads`, `commit_leads` (sheet sync)
+- Write: `run_scrape`, `approve_leads`, `reject_leads`, `commit_leads` (SQLite promote only)
 
 MCP tool inputs are bounded (max titles, results, job id count). The server ships with
 **interactive workflow instructions** — the Cursor agent should confirm with you before
-each scrape and sheet commit.
+each scrape and lead commit.
 
 Project config: `.cursor/mcp.json`. Agent rules: `AGENTS.md` and `.cursor/rules/agentzero-mcp.mdc`.
 

@@ -82,7 +82,7 @@ Use Cursor `notify_on_output` on `^AGENT_LOOP_TICK_docker_build`, or run `/loop 
 ```powershell
 docker compose run --rm agentzero python scripts/run_scrape.py --no-search-prompt
 docker compose run --rm agentzero python scripts/enrich_jobs.py
-docker compose run --rm agentzero python scripts/rank_and_sync.py --yes
+docker compose run --rm agentzero python scripts/rank_jobs.py
 ```
 
 `docker-compose.yml` sets:
@@ -94,17 +94,14 @@ docker compose run --rm agentzero python scripts/rank_and_sync.py --yes
 - `AGENTZERO_SCRAPE_BROWSER_CHANNEL=` (empty — use bundled Chromium, not host Chrome)
 - `AGENTZERO_SCRAPE_BROWSER_HEADLESS=true`
 
-Volumes: `./data`, `./resume` (read-only), `./token.json`, `./client_secret.json`.
-
-**Note:** `token.json` and `client_secret.json` must exist on the host (empty placeholder JSON is fine for scrape-only runs). Create from `google_auth.py` when using Sheets sync.
+Volumes: `./data`, `./resume` (read-only).
 
 ---
 
 ## 4. Web job tracker (port 8080)
 
-Browse and edit jobs in SQLite from the browser — no Google Sheet required for day-to-day
-updates. **Rejected** rows are hidden by default (soft-delete / “Nope”); use **Show rejected**
-to review roles you passed on.
+Browse and edit jobs in SQLite from the browser. **Rejected** rows are hidden by default
+(soft-delete / “Nope”); use **Show rejected** to review roles you passed on.
 
 ```powershell
 docker compose up web
@@ -115,20 +112,14 @@ docker compose up web
 |--------|--------|
 | **Save status** | Updates SQLite (e.g. `lead` → `new`) |
 | **Save notes** | Updates `notes` on the row |
-| **Nope** | Sets `status=rejected` (row stays in DB for dedupe; omitted from sheet export) |
+| **Nope** | Sets `status=rejected` (row stays in DB for dedupe; hidden by default) |
 | **Show rejected** | Lists noped roles |
 | **Column headers** | Sort asc/desc (default: `match_score` desc) |
 | **Row click** | Opens a **job card** with full details (rationale, description, links) |
 
 Long table cells are truncated; hover for the full value, or open the job card.
 
-Optional: push changes to Google Sheets after editing:
-
-```powershell
-docker compose run --rm agentzero python scripts/sync_sheets.py --yes
-```
-
-The `web` service mounts `./data` only (no OAuth files required for the UI). Rebuild the image
+The `web` service mounts `./data` only. Rebuild the image
 after pulling web changes (`python scripts/docker_build.py`) so `uvicorn` and FastAPI are installed.
 
 **Security:** the UI has **no login**. Bind to localhost via your firewall or Docker port mapping;
@@ -158,7 +149,7 @@ do not expose port 8080 on untrusted networks. See [SECURITY.md](SECURITY.md).
 | Indeed / Glassdoor | Host Chrome via CDP |
 | LinkedIn | Container Playwright + mounted `data/browser_profiles/` |
 | Google Jobs / ZipRecruiter | Container HTTP (JobSpy) |
-| LLM + Sheets | Container (keys from env, OAuth files mounted) |
+| LLM rank | Container (keys from env) |
 | MCP server | Host `.venv` (not in Docker) |
 | Web job tracker | Container `web` service → http://localhost:8080 |
 
