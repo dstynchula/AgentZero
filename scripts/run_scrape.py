@@ -33,7 +33,7 @@ from agentzero.scrape.remote_policy import apply_remote_only_settings
 from agentzero.storage.db import Database
 
 
-def _print_search_settings(settings, source=None) -> None:
+def _print_search_settings(settings, source=None, *, verbose: bool = False) -> None:
     from agentzero.scrape.factory import describe_scrape_stack
 
     if source is not None:
@@ -48,11 +48,16 @@ def _print_search_settings(settings, source=None) -> None:
         )
         print(f"Query mode:        {'primary title only' if info['primary_query_only'] else 'all titles'}")
         print(f"Delay between:     {info['delay_seconds']}s per fetch")
-    else:
+    elif verbose:
         print(f"Browser sites: {settings.scrape_browser_sites}")
         print(f"JobSpy sites:  {settings.scrape_sites}")
-    print(f"All titles:    {settings.search_terms}")
-    print(f"Locations:     {settings.locations}")
+        print(f"All titles:    {settings.search_terms}")
+        print(f"Locations:     {settings.locations}")
+    else:
+        print(
+            f"Search: {len(settings.search_terms)} title(s), "
+            f"{len(settings.locations)} location(s)"
+        )
     print(f"Results cap:   {settings.results_wanted}")
     if settings.salary_min is not None:
         print(
@@ -67,6 +72,7 @@ def run(
     skip_resume_ingest: bool,
     search_prompt: bool,
     refresh_search: bool,
+    verbose: bool,
 ) -> int:
     settings = get_settings()
     resume_profile = None
@@ -133,7 +139,7 @@ def run(
     print("\n" + "=" * 60, flush=True)
     print("Step 3/3 — Scrape + pipeline", flush=True)
     print("=" * 60, flush=True)
-    _print_search_settings(settings, source=source)
+    _print_search_settings(settings, source=source, verbose=verbose)
     result = pipeline.run(profile=resume_profile)
 
     print("\nPipeline result:")
@@ -188,6 +194,11 @@ def main() -> int:
         action="store_true",
         help="Re-run LLM search-term extraction instead of resume/search_profile.json",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print full search terms and locations (default: counts only)",
+    )
     args = parser.parse_args()
 
     try:
@@ -196,6 +207,7 @@ def main() -> int:
             skip_resume_ingest=args.skip_resume_ingest,
             search_prompt=not args.no_search_prompt,
             refresh_search=args.refresh_search_profile,
+            verbose=args.verbose,
         )
     except ValueError as exc:
         if "Missing API key" in str(exc):

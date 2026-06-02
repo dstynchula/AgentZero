@@ -11,6 +11,19 @@ def test_validate_cdp_url_accepts_localhost():
     assert validate_cdp_url("http://[::1]:9222") == "http://[::1]:9222"
 
 
+def test_validate_cdp_url_accepts_docker_host_when_allowed():
+    url = validate_cdp_url(
+        "http://host.docker.internal:9222",
+        allow_docker_host=True,
+    )
+    assert url == "http://host.docker.internal:9222"
+
+
+def test_validate_cdp_url_rejects_docker_host_by_default():
+    with pytest.raises(UnsafeCDPURLError, match="host.docker.internal"):
+        validate_cdp_url("http://host.docker.internal:9222", allow_docker_host=False)
+
+
 def test_validate_cdp_url_rejects_remote():
     with pytest.raises(UnsafeCDPURLError, match="localhost"):
         validate_cdp_url("http://192.168.1.10:9222")

@@ -147,6 +147,18 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P26m mcp_server contracts (≥60%) — PR #23
 - [ ] P26 done — total coverage ≥75%, all Accept gates green, CodeQL clean on main
 
+## P27 — Docker migration (host Chrome + env secrets)
+
+- [x] P27a Dockerfile, `.dockerignore`, `docker-compose.yml`
+- [x] P27b `BuildProgress` + `docker_build.py` + manifest + stall status
+- [x] P27c Monitor-agent docs (loop / Task / `/loop`)
+- [x] P27d CDP `host.docker.internal` allowlist + tests
+- [x] P27e `log_redaction.py` + bootstrap + tests
+- [x] P27f Script stdout leak fixes (sync_sheets, run_scrape, exc paths)
+- [x] P27g Docs: DOCKER, SECURITY, GETTING_STARTED, README, `.env.example`
+- [x] P27h CI docker-build job
+- [x] P27 done — full acceptance gate (Docker + redaction + ledgers)
+
 ## Reference docs
 
 | Doc | Contents |
@@ -155,7 +167,8 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 | docs/agentzero_job_hunter_d85b7004.plan.md | Original build plan + DAG |
 | docs/COST_AND_MODELS.md | LLM cost estimates (2026-05-29) |
 | docs/SCRAPING.md | Scraping, rate limits, OAuth, scripts |
-| docs/SECURITY.md | Secrets, OAuth scopes, SSRF, LLM data |
+| docs/SECURITY.md | Secrets, OAuth scopes, SSRF, LLM data, Docker, log redaction |
+| docs/DOCKER.md | Optional Docker runs, host CDP, build progress |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

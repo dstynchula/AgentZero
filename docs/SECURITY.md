@@ -109,10 +109,30 @@ self-hosted use; do not expose enrichment fetch to untrusted URL input from remo
 
 ### CDP (Chrome DevTools Protocol)
 
-`AGENTZERO_SCRAPE_CDP_URL` must target **localhost only** (`127.0.0.1`, `localhost`, `::1`).
+`AGENTZERO_SCRAPE_CDP_URL` must target a **permitted local listener**:
+
+- `127.0.0.1`, `localhost`, `::1` (default)
+- `host.docker.internal` only when `AGENTZERO_CDP_ALLOW_DOCKER_HOST=true` (Docker compose path; see [DOCKER.md](DOCKER.md))
+
 Remote CDP endpoints are rejected at config load time to prevent attaching Playwright to
 an attacker-controlled browser. Auto-launch starts a dedicated profile under
-`data/browser_profiles/cdp` — not your daily Chrome profile.
+`data/browser_profiles/cdp` on the host — not your daily Chrome profile. Inside Docker,
+set `AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=false` and start Chrome on the host with
+`scripts/launch_chrome_cdp.ps1`.
+
+### Log redaction
+
+`agentzero/log_redaction.py` installs a root logging filter on import (API keys, Bearer tokens,
+OAuth JSON fields, proxy credentials). Script output should use `mask_sheet_id()` for sheet IDs.
+
+This is **best-effort** for app-controlled logs. Do not run `docker compose config` or paste
+`.env` into tickets. Keep log level at INFO in production compose (avoid httpx/playwright DEBUG).
+
+### Docker secrets
+
+- Never bake `.env`, `token.json`, or `client_secret.json` into the image (see `.dockerignore`).
+- Runtime secrets: `env_file: .env` and read-only bind mounts in `docker-compose.yml`.
+- Do not store secrets in GitHub Actions for local Docker use; CI builds the image without `env_file`.
 
 ### OAuth token storage
 

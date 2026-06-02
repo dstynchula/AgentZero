@@ -13,6 +13,7 @@ For architecture, build history, and operator deep-dives, see the [documentation
 - **Google Chrome** installed (not just Playwright’s bundled Chromium)
 - OpenAI or Anthropic API key
 - Optional: Google Cloud OAuth client for Sheets sync
+- Optional: [Docker](DOCKER.md) for containerized pipeline runs (host Chrome still required for CDP)
 
 ---
 

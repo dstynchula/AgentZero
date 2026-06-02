@@ -115,6 +115,7 @@ def test_run_scrape_skip_ingest_without_snapshot(tmp_path, monkeypatch):
         skip_resume_ingest=True,
         search_prompt=False,
         refresh_search=False,
+        verbose=False,
     )
     assert code == 1
 

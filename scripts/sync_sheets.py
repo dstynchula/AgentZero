@@ -22,6 +22,7 @@ if str(REPO_ROOT) not in sys.path:
 from agentzero.config import get_settings
 from agentzero.google.auth import SHEETS_SCOPES
 from agentzero.google.sync import sync_jobs_to_sheet
+from agentzero.log_redaction import mask_sheet_id, redact_secrets
 from agentzero.rank.export_filter import filter_jobs_for_export
 from agentzero.storage.db import Database
 
@@ -74,7 +75,7 @@ def main() -> int:
             f"(min match_score {settings.min_match_score:g}; "
             f"{len(below_floor)} below floor, applied jobs always kept)"
         )
-    print(f"Sheet ID: {settings.sheet_id}")
+    print(f"Sheet ID: {mask_sheet_id(settings.sheet_id)}")
 
     if args.dry_run:
         print("Dry run — no changes written to Google Sheets.")
@@ -109,7 +110,7 @@ def main() -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     except Exception as exc:
-        print(f"ERROR: Sheets sync failed: {exc}", file=sys.stderr)
+        print(f"ERROR: Sheets sync failed: {redact_secrets(str(exc))}", file=sys.stderr)
         return 1
 
     if result.imported:

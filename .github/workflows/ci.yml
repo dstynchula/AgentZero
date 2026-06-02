@@ -30,3 +30,14 @@ jobs:
 
       - name: Encoding check (UTF-8, no UTF-16 text files)
         run: python tools/encoding_check.py
+
+  docker-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Docker build smoke
+        run: docker build -t agentzero:ci .
