@@ -23,26 +23,18 @@ def all_display_terms(
     profile_terms: list[str],
     operator: OperatorScrapeConfig | None,
 ) -> list[str]:
-    """Résumé titles plus any operator-only custom titles (stable order)."""
-    out: list[str] = list(profile_terms)
-    seen = {t.strip().lower() for t in profile_terms}
-    if operator and operator.search_terms:
-        for term in operator.search_terms:
-            key = term.strip().lower()
-            if key and key not in seen:
-                out.append(term)
-                seen.add(key)
-    return out
+    """Titles shown in Settings; operator list is authoritative once configured."""
+    if operator is None:
+        return list(profile_terms)
+    return list(operator.search_terms)
 
 
 def effective_search_terms(
     profile_terms: list[str],
     operator: OperatorScrapeConfig | None,
 ) -> list[str]:
-    """Titles used for scrape: explicit operator list, or full profile when unset."""
-    if not profile_terms and not (operator and operator.search_terms):
-        return []
-    if operator is None or not operator.search_terms:
+    """Titles used for scrape; operator list is authoritative once configured."""
+    if operator is None:
         return list(profile_terms)
     return list(operator.search_terms)
 
@@ -58,31 +50,32 @@ def title_rows(
     ]
 
 
-def custom_title_terms(
-    profile_terms: list[str],
-    operator: OperatorScrapeConfig | None,
-) -> list[str]:
-    """Operator titles that are not from the résumé profile."""
-    profile_lower = {t.strip().lower() for t in profile_terms}
-    if operator is None or not operator.search_terms:
-        return []
-    return [t for t in operator.search_terms if t.strip().lower() not in profile_lower]
-
-
 def merge_title_selection(
     selected_profile: list[str],
     profile_terms: list[str],
     operator: OperatorScrapeConfig | None,
 ) -> list[str]:
-    """Checkbox save: selected résumé titles plus unchanged custom titles."""
-    picked = normalize_title_selection(selected_profile, profile_terms)
-    custom = custom_title_terms(profile_terms, operator)
-    out = list(picked)
-    seen = {t.strip().lower() for t in out}
-    for term in custom:
+    """Checkbox save: keep operator order; update selection for profile rows shown."""
+    if operator is None or not operator.search_terms:
+        return normalize_title_selection(selected_profile, profile_terms)
+    profile_lower = {t.strip().lower() for t in profile_terms}
+    selected_lower = {t.strip().lower() for t in selected_profile}
+    out: list[str] = []
+    seen: set[str] = set()
+    for term in operator.search_terms:
         key = term.strip().lower()
-        if key not in seen:
+        if key in profile_lower:
+            if key in selected_lower and key not in seen:
+                out.append(term)
+                seen.add(key)
+        elif key not in seen:
             out.append(term)
+            seen.add(key)
+    for raw in selected_profile:
+        key = raw.strip().lower()
+        if key in profile_lower and key not in seen:
+            allowed = {t.strip().lower(): t for t in profile_terms}
+            out.append(allowed[key])
             seen.add(key)
     return out
 
