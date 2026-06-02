@@ -159,6 +159,18 @@ The loop re-reads this file each iteration. WORKLOG.md is append-only history.
 - [x] P27h CI docker-build job
 - [x] P27 done — full acceptance gate (Docker + redaction + ledgers)
 
+## P28 — Docker web job tracker (list + edit + soft-reject)
+
+- [x] P28a Web config + optional extra
+- [x] P28b Job list presenter + reject filter
+- [x] P28c Read-only app + filter toggle
+- [x] P28d Mutation service (status, notes, reject — no hard delete)
+- [x] P28e Write routes + Nope button
+- [x] P28f Docker Compose web service
+- [x] P28g Docs + security note
+- [x] P28h P28 acceptance gate
+- [x] P28 done — web UI; rejected hidden by default; Sheets optional
+
 ## Reference docs
 
 | Doc | Contents |

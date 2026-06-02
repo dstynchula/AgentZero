@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentZero Jobs</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1rem 1.5rem; }
+    h1 { font-size: 1.25rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+    th, td { border: 1px solid #ccc; padding: 0.35rem 0.5rem; vertical-align: top; }
+    th { background: #f4f4f4; text-align: left; }
+    .actions form { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; margin: 0.15rem 0; }
+    .actions input[type="text"] { min-width: 8rem; max-width: 14rem; }
+    .toolbar { margin: 0.75rem 0; }
+    .muted { color: #666; font-size: 0.85rem; }
+    a.url { word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>AgentZero job tracker</h1>
+  <p class="muted">{{ jobs|length }} row(s){% if not show_rejected %} — rejected hidden{% endif %}</p>
+
+  <div class="toolbar">
+    {% if show_rejected %}
+    <a href="/">Hide rejected</a>
+    {% else %}
+    <a href="/?show_rejected=1">Show rejected</a>
+    {% endif %}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        {% for col in columns %}
+        <th>{{ col }}</th>
+        {% endfor %}
+        <th>actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        {% for col in columns %}
+        <td>
+          {% if col == "url" and job[col] %}
+          <a class="url" href="{{ job[col] }}" target="_blank" rel="noopener">{{ job[col] }}</a>
+          {% else %}
+          {{ job[col] }}
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td class="actions">
+          <form method="post" action="/jobs/{{ job.job_id }}/status">
+            {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+            <select name="status">
+              {% for s in status_choices %}
+              <option value="{{ s }}" {% if s == job.status %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit">Save status</button>
+          </form>
+          <form method="post" action="/jobs/{{ job.job_id }}/notes">
+            {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+            <input type="text" name="notes" value="{{ job.notes or '' }}" />
+            <button type="submit">Save notes</button>
+          </form>
+          <form method="post" action="/jobs/{{ job.job_id }}/reject" onsubmit="return confirm('Mark this role as rejected (nope)?');">
+            {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+            <button type="submit">Nope</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ columns|length + 1 }}">No jobs in database.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

@@ -77,6 +77,38 @@ Volumes: `./data`, `./resume` (read-only), `./token.json`, `./client_secret.json
 
 ---
 
+## 4. Web job tracker (port 8080)
+
+Browse and edit jobs in SQLite from the browser — no Google Sheet required for day-to-day
+updates. **Rejected** rows are hidden by default (soft-delete / “Nope”); use **Show rejected**
+to review roles you passed on.
+
+```powershell
+docker compose up web
+# Open http://localhost:8080
+```
+
+| Action | Effect |
+|--------|--------|
+| **Save status** | Updates SQLite (e.g. `lead` → `new`) |
+| **Save notes** | Updates `notes` on the row |
+| **Nope** | Sets `status=rejected` (row stays in DB for dedupe; omitted from sheet export) |
+| **Show rejected** | Lists noped roles |
+
+Optional: push changes to Google Sheets after editing:
+
+```powershell
+docker compose run --rm agentzero python scripts/sync_sheets.py --yes
+```
+
+The `web` service mounts `./data` only (no OAuth files required for the UI). Rebuild the image
+after pulling web changes (`python scripts/docker_build.py`) so `uvicorn` and FastAPI are installed.
+
+**Security:** the UI has **no login**. Bind to localhost via your firewall or Docker port mapping;
+do not expose port 8080 on untrusted networks. See [SECURITY.md](SECURITY.md).
+
+---
+
 ## Troubleshooting
 
 | Issue | Action |
@@ -100,5 +132,6 @@ Volumes: `./data`, `./resume` (read-only), `./token.json`, `./client_secret.json
 | Google Jobs / ZipRecruiter | Container HTTP (JobSpy) |
 | LLM + Sheets | Container (keys from env, OAuth files mounted) |
 | MCP server | Host `.venv` (not in Docker) |
+| Web job tracker | Container `web` service → http://localhost:8080 |
 
 See also [SECURITY.md](SECURITY.md) (secrets, log redaction) and [SCRAPING.md](SCRAPING.md) (boards, CAPTCHA).

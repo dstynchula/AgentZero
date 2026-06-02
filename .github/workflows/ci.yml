@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -e ".[dev,scrape,llm,google,mcp]"
+        run: pip install -e ".[dev,scrape,llm,google,mcp,web]"
 
       - name: Ruff
         run: ruff check agentzero tests scripts tools

@@ -128,6 +128,14 @@ OAuth JSON fields, proxy credentials). Script output should use `mask_sheet_id()
 This is **best-effort** for app-controlled logs. Do not run `docker compose config` or paste
 `.env` into tickets. Keep log level at INFO in production compose (avoid httpx/playwright DEBUG).
 
+### Web UI (Docker `web` service)
+
+- **Unauthenticated** HTTP on port **8080** (default). Anyone who can reach the port can list
+  and edit jobs in the mounted SQLite database (status, notes, soft-reject).
+- Intended for **local operator** use only. Do not publish 8080 to the public internet.
+- The web layer does **not** hard-delete rows; **Nope** sets `rejected` (same as MCP `reject_leads`).
+- No Google OAuth in the web process; sheet sync remains a separate CLI step.
+
 ### Docker secrets
 
 - Never bake `.env`, `token.json`, or `client_secret.json` into the image (see `.dockerignore`).
