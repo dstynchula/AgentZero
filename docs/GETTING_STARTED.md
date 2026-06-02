@@ -48,18 +48,52 @@ Turnstile. Use **installed Chrome** instead (`AGENTZERO_SCRAPE_BROWSER_CHANNEL=c
 
 **One-time per job board:**
 
+LinkedIn — Playwright profile:
+
 ```powershell
-# LinkedIn — Playwright profile (works well as-is)
 python scripts/login_job_boards.py --site linkedin
+```
 
-# Indeed + Glassdoor — your real Chrome (MFA / Cloudflare)
-# Close Chrome, then:
+Indeed + Glassdoor — **real Chrome** over CDP (MFA / Cloudflare). Close other Chrome windows, then start a **dedicated CDP profile** from the repo root:
+
+**Windows (PowerShell):**
+
+```powershell
 .\scripts\launch_chrome_cdp.ps1
-# Uncomment AGENTZERO_SCRAPE_CDP_URL in .env, then:
-python scripts/login_job_boards.py --site indeed,glassdoor
+```
 
+**macOS / Linux:**
+
+```bash
+python scripts/launch_chrome_cdp.py
+```
+
+**macOS / Linux (shell — works in zsh):**
+
+```bash
+chmod +x scripts/launch_chrome_cdp.sh   # once
+./scripts/launch_chrome_cdp.sh
+```
+
+The launcher starts Chrome on `127.0.0.1:9223` and a small host proxy on port **9222**
+(so Docker can use `host.docker.internal:9222`; Chrome only accepts loopback). Set
+`--no-docker-expose` on the launch script to skip the proxy.
+
+Log into Indeed and Glassdoor in that Chrome window. Uncomment in `.env`:
+
+```env
+AGENTZERO_SCRAPE_CDP_URL=http://127.0.0.1:9222
+AGENTZERO_SCRAPE_CDP_SITES=indeed,glassdoor
+```
+
+Then:
+
+```powershell
+python scripts/login_job_boards.py --site indeed,glassdoor
 python scripts/verify_browser_session.py --site linkedin,glassdoor,indeed
 ```
+
+The same launch commands appear on the tracker **Settings → Chrome CDP** page after `docker compose up web` (http://localhost:8080/config).
 
 | Site | Browser mode |
 |------|----------------|

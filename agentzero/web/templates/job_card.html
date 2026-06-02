@@ -1,73 +1,53 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ job.title }} — {{ job.company }}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 1rem 1.5rem; max-width: 52rem; }
-    h1 { font-size: 1.35rem; margin-bottom: 0.25rem; }
-    .company { font-size: 1.1rem; color: #333; margin-bottom: 1rem; }
-    .back { margin-bottom: 1rem; display: inline-block; }
-    section { margin: 1rem 0; }
-    section h2 { font-size: 0.95rem; margin: 0 0 0.35rem; color: #444; }
-    dl { display: grid; grid-template-columns: 10rem 1fr; gap: 0.25rem 0.75rem; font-size: 0.9rem; }
-    dt { color: #666; margin: 0; }
-    dd { margin: 0; word-break: break-word; }
-    .rationale { white-space: pre-wrap; font-size: 0.9rem; line-height: 1.45; background: #f8f8f8; padding: 0.75rem; border-radius: 4px; }
-    .description { white-space: pre-wrap; font-size: 0.85rem; line-height: 1.4; max-height: 24rem; overflow-y: auto; }
-    a { color: #0645ad; }
-  </style>
-</head>
-<body>
-  <a class="back" href="/{{ list_query }}">← Back to list</a>
-  <h1>{{ job.title }}</h1>
-  <p class="company">{{ job.company }} · {{ job.source }}</p>
+{% extends "base.html" %}
+{% block title %}{{ job.title }} — {{ job.company }}{% endblock %}
+{% block body %}
+<p class="toolbar"><a href="/{{ list_query }}" class="btn btn-secondary">← Back to list</a></p>
+<h1>{{ job.title }}</h1>
+<p class="muted">{{ job.company }} · {{ job.source }}</p>
 
-  <section>
-    <h2>Overview</h2>
-    <dl>
-      <dt>Status</dt><dd>{{ job.status }}</dd>
-      <dt>Match score</dt><dd>{{ job.match_score }}{% if job.match_tier %} ({{ job.match_tier }}){% endif %}</dd>
-      <dt>Location</dt><dd>{{ job.location or "—" }}{% if job.remote %} · remote{% endif %}</dd>
-      <dt>Comp</dt>
-      <dd>
-        {% if job.comp_min or job.comp_max %}
-        {{ job.comp_min or "?" }} – {{ job.comp_max or "?" }}{% if job.currency %} {{ job.currency }}{% endif %}
-        {% if job.comp_is_estimate %} (estimate){% endif %}
-        {% else %}—{% endif %}
-      </dd>
-      <dt>Glassdoor</dt>
-      <dd>{% if job.glassdoor_rating %}{{ job.glassdoor_rating }}{% if job.glassdoor_reviews %} ({{ job.glassdoor_reviews }} reviews){% endif %}{% else %}—{% endif %}</dd>
-      <dt>Posted</dt><dd>{{ job.date_posted or "—" }}{% if job.posting_age_days is not none %} ({{ job.posting_age_days }}d ago){% endif %}</dd>
-      <dt>Applied</dt><dd>{{ job.date_applied or "—" }}</dd>
-      <dt>Notes</dt><dd>{{ job.notes or "—" }}</dd>
-    </dl>
-  </section>
+<section class="card">
+  <h2>Overview</h2>
+  <dl class="detail-grid">
+    <dt>Status</dt><dd>{{ job.status }}</dd>
+    <dt>Match score</dt><dd>{{ job.match_score }}{% if job.match_tier %} ({{ job.match_tier }}){% endif %}</dd>
+    <dt>Location</dt><dd>{{ job.location or "—" }}{% if job.remote %} · remote{% endif %}</dd>
+    <dt>Comp</dt>
+    <dd>
+      {% if job.comp_min or job.comp_max %}
+      {{ job.comp_min or "?" }} – {{ job.comp_max or "?" }}{% if job.currency %} {{ job.currency }}{% endif %}
+      {% if job.comp_is_estimate %} (estimate){% endif %}
+      {% else %}—{% endif %}
+    </dd>
+    <dt>Glassdoor</dt>
+    <dd>{% if job.glassdoor_rating %}{{ job.glassdoor_rating }}{% if job.glassdoor_reviews %} ({{ job.glassdoor_reviews }} reviews){% endif %}{% else %}—{% endif %}</dd>
+    <dt>Posted</dt><dd>{{ job.date_posted or "—" }}{% if job.posting_age_days is not none %} ({{ job.posting_age_days }}d ago){% endif %}</dd>
+    <dt>Applied</dt><dd>{{ job.date_applied or "—" }}</dd>
+    <dt>Notes</dt><dd>{{ job.notes or "—" }}</dd>
+  </dl>
+</section>
 
-  <section>
-    <h2>Links</h2>
-    <dl>
-      <dt>Posting</dt><dd><a href="{{ job.url }}" target="_blank" rel="noopener">{{ job.url }}</a></dd>
-      {% if job.careers_url %}
-      <dt>Careers</dt><dd><a href="{{ job.careers_url }}" target="_blank" rel="noopener">{{ job.careers_url }}</a></dd>
-      {% endif %}
-      <dt>Job ID</dt><dd><code>{{ job.job_id }}</code></dd>
-    </dl>
-  </section>
+<section class="card">
+  <h2>Links</h2>
+  <dl class="detail-grid">
+    <dt>Posting</dt><dd><a href="{{ job.url }}" target="_blank" rel="noopener">{{ job.url }}</a></dd>
+    {% if job.careers_url %}
+    <dt>Careers</dt><dd><a href="{{ job.careers_url }}" target="_blank" rel="noopener">{{ job.careers_url }}</a></dd>
+    {% endif %}
+    <dt>Job ID</dt><dd><code>{{ job.job_id }}</code></dd>
+  </dl>
+</section>
 
-  {% if job.match_rationale %}
-  <section>
-    <h2>Match rationale</h2>
-    <div class="rationale">{{ job.match_rationale }}</div>
-  </section>
-  {% endif %}
+{% if job.match_rationale %}
+<section class="card">
+  <h2>Match rationale</h2>
+  <div class="rationale">{{ job.match_rationale }}</div>
+</section>
+{% endif %}
 
-  {% if job.description %}
-  <section>
-    <h2>Description</h2>
-    <div class="description">{{ job.description }}</div>
-  </section>
-  {% endif %}
-</body>
-</html>
+{% if job.description %}
+<section class="card">
+  <h2>Description</h2>
+  <div class="description-block">{{ job.description }}</div>
+</section>
+{% endif %}
+{% endblock %}

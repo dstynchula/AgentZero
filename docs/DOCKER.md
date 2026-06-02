@@ -12,17 +12,29 @@ MCP/Cursor continues to use a local `.venv` on the host ([`AGENTS.md`](../AGENTS
 - Docker Desktop (Windows/Mac) or Docker Engine (Linux)
 - Google Chrome on the **host** for CDP boards
 - `.env` copied from `.env.example` (API keys, optional sheet ID)
-- Optional: `token.json` and `client_secret.json` for Sheets sync
+- Host `.venv` optional for `launch_chrome_cdp.py` (PowerShell script invokes `python` on PATH)
 
 ---
 
 ## 1. Start host Chrome (CDP)
 
-```powershell
-.\scripts\launch_chrome_cdp.ps1
-```
+From the repo root on the **host** (not inside the container):
 
-Log into Indeed/Glassdoor once in that window. The container reaches it via `host.docker.internal:9222`.
+| Platform | Command |
+|----------|---------|
+| Windows (PowerShell) | `.\scripts\launch_chrome_cdp.ps1` |
+| macOS / Linux | `python scripts/launch_chrome_cdp.py` |
+| macOS / Linux (shell) | `./scripts/launch_chrome_cdp.sh` |
+
+Log into Indeed/Glassdoor once in that window.
+
+**How Docker reaches CDP:** Chrome listens on `127.0.0.1:9223` only (security). The launcher also
+starts a host TCP proxy on `0.0.0.0:9222` that forwards to Chrome and rewrites `Host:
+host.docker.internal` → `127.0.0.1` (Chrome rejects the Docker hostname otherwise). Containers use
+`http://host.docker.internal:9222`. Relaunching the script stops stale proxy processes on 9222.
+
+Same commands appear on **Settings → Chrome CDP** at http://localhost:8080/config when the web UI
+is running; use **Connect** after Chrome is up.
 
 ---
 
@@ -108,6 +120,16 @@ docker compose up web
 # Open http://localhost:8080
 ```
 
+The `web` service uses the same host CDP settings as `agentzero`:
+
+- `AGENTZERO_SCRAPE_CDP_URL=http://host.docker.internal:9222`
+- `AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH=false` (Connect **probes** only; launch Chrome on the host)
+- `AGENTZERO_CDP_ALLOW_DOCKER_HOST=true`
+
+Start Chrome on the host first (`launch_chrome_cdp.ps1` / `.py`). The launcher starts Chrome on
+`127.0.0.1:9223` and a small TCP proxy on `0.0.0.0:9222` (Chromium only binds loopback; Docker
+cannot reach `127.0.0.1` on the host). Then use **Connect** on Settings.
+
 | Action | Effect |
 |--------|--------|
 | **Save status** | Updates SQLite (e.g. `lead` → `new`) |
@@ -116,10 +138,17 @@ docker compose up web
 | **Show rejected** | Lists noped roles |
 | **Column headers** | Sort asc/desc (default: `match_score` desc) |
 | **Row click** | Opens a **job card** with full details (rationale, description, links) |
+| **Settings** (`/config`) | Enable/disable scrape sources, start a background scrape, CDP setup instructions |
+
+**Settings** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
+scrapes use `resume/search_profile.json` and need an LLM API key; new rows land as `lead`.
+Chrome CDP must run on the **host** — Settings shows PS1, Python, and shell launch commands plus env vars.
+
+Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/config`.
 
 Long table cells are truncated; hover for the full value, or open the job card.
 
-The `web` service mounts `./data` only. Rebuild the image
+The `web` service mounts `./data` and `./resume` (read-only). Rebuild the image
 after pulling web changes (`python scripts/docker_build.py`) so `uvicorn` and FastAPI are installed.
 
 **Security:** the UI has **no login**. Bind to localhost via your firewall or Docker port mapping;
@@ -131,7 +160,10 @@ do not expose port 8080 on untrusted networks. See [SECURITY.md](SECURITY.md).
 
 | Issue | Action |
 |-------|--------|
-| CDP connection refused | Confirm host Chrome is running (`launch_chrome_cdp.ps1`) |
+| CDP connection refused | Start host Chrome (`launch_chrome_cdp.ps1` / `.py` / `.sh`) |
+| Connect says “Chrome not found” in Docker | Web container cannot launch host Chrome; restart `docker compose up web` so CDP URL is `host.docker.internal`, not `127.0.0.1` |
+| Connect fails but Chrome is on 9222 (host) | Close Chrome and relaunch via `launch_chrome_cdp` (starts loopback Chrome + `0.0.0.0:9222` proxy for Docker) |
+| Connect fails; host `curl :9222` works | Restart `launch_chrome_cdp` so the proxy rewrites `Host: host.docker.internal` → `127.0.0.1` (Chrome rejects the Docker hostname) |
 | `UnsafeCDPURLError` for docker host | Set `AGENTZERO_CDP_ALLOW_DOCKER_HOST=true` in `.env` |
 | `Chromium distribution 'chrome' is not found` | Compose clears `AGENTZERO_SCRAPE_BROWSER_CHANNEL`; do not force `chrome` in container |
 | Playwright "Sync API inside asyncio loop" during full scrape | Known when JobSpy runs before browser boards in one process; use host venv for full scrape or scrape boards only via verify script until fixed |
