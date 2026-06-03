@@ -34,6 +34,37 @@ CREATE TABLE IF NOT EXISTS quarantine (
     error TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    session_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    archived INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tool_calls TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session
+    ON chat_messages(session_id, id);
+
+CREATE TABLE IF NOT EXISTS chat_pending_actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL UNIQUE,
+    tool_name TEXT NOT NULL,
+    arguments TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id)
+);
 """
 
 PIPELINE_COLUMNS = ("scrape_status", "enrich_status", "rank_status", "draft_status")
@@ -65,6 +96,11 @@ class Database:
     def close(self) -> None:
         with self._lock:
             self._conn.close()
+
+    def with_connection(self, fn):
+        """Run *fn(conn)* under the database lock (for chat store helpers)."""
+        with self._lock:
+            return fn(self._conn)
 
     def upsert_job(self, job: JobPosting) -> None:
         """Insert or replace a job row keyed by ``job_id`` (idempotent)."""

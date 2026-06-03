@@ -67,7 +67,7 @@ def step_ingest_resume() -> object:
         print(f"  Titles:     {', '.join(snapshot.search_terms)}")
         print(f"  Locations:  {', '.join(snapshot.locations)}")
         if snapshot.salary_min is not None:
-            print(f"  Comp floor: ${snapshot.salary_min:,.0f}")
+            print("  Comp floor: (configured)")
     return profile
 
 
@@ -95,10 +95,7 @@ def step_scrape(*, limit: int, profile: object | None, search_prompt: bool) -> i
     print(f"Search terms:  {settings.search_terms}")
     print(f"Locations:     {settings.locations}")
     if settings.salary_min is not None:
-        print(
-            f"Comp floor:    ${settings.salary_min:,.0f} USD/year "
-            f"(posted range top must reach this)"
-        )
+        print("Comp floor:    (configured)")
 
     db = Database(settings.db_path)
     pipeline = Pipeline(db, source, settings=settings, llm=llm, max_workers=2)

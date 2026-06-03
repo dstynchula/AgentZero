@@ -142,13 +142,17 @@ Browse and edit jobs in SQLite from the browser — no Google Sheet required.
 
 ```powershell
 docker compose up web
-# Open http://localhost:8080
+# Open http://localhost:8080 — Chat is the default landing page
 ```
+
+The **Chat** assistant reads your job tracker and search profile, discusses fit, and proposes
+actions (scrape, status changes, cover letters, lead approve/reject). **Confirm** or **Reject**
+each mutating action in the UI — same trust model as MCP lead sessions. Model:
+`AGENTZERO_CHAT_MODEL` (default `gpt-5.5`, OpenAI only).
 
 | Action | Effect |
 |--------|--------|
-| Column headers | Sort asc/desc |
-| Row click | Job card — description, match rationale, status, notes |
+| **Jobs** (`/jobs`) | Sortable table; row click opens job card |
 | Save status / notes | Updates SQLite (on list or job card) |
 | Cover letter | Generate from `resume/` + job (GPT-5.5), edit in pane, Save, Download .txt |
 | Nope | Soft-reject (`status=rejected`, hidden by default) |

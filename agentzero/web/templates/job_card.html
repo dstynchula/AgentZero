@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ job.title }} — {{ job.company }}{% endblock %}
 {% block body %}
-<p class="toolbar"><a href="/{{ list_query }}" class="btn btn-secondary">← Back to list</a></p>
+<p class="toolbar"><a href="/jobs{{ list_query }}" class="btn btn-secondary">← Back to list</a></p>
 
 {% if flash %}
 <div class="flash {% if flash_ok %}flash-ok{% else %}flash-err{% endif %}">{{ flash }}</div>

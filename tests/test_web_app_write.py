@@ -55,7 +55,7 @@ def test_post_reject_hides_from_default_index(web_client):
     job_id = job.job_id
     db.close()
     client.post(f"/jobs/{job_id}/reject", follow_redirects=False)
-    page = client.get("/")
+    page = client.get("/jobs")
     assert job.title not in page.text
 
 
@@ -67,5 +67,5 @@ def test_reject_then_show_rejected_lists_row(web_client):
     job_id = job.job_id
     db.close()
     client.post(f"/jobs/{job_id}/reject")
-    page = client.get("/?show_rejected=1")
+    page = client.get("/jobs?show_rejected=1")
     assert "Nope Role" in page.text

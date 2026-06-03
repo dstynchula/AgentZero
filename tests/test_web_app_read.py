@@ -18,13 +18,13 @@ def jobs_client(tmp_path: Path):
 
 
 def test_jobs_page_has_centered_table_wrapper(jobs_client):
-    r = jobs_client.get("/")
+    r = jobs_client.get("/jobs")
     assert r.status_code == 200
     assert 'class="tracker-table-wrap"' in r.text
 
 
 def test_jobs_table_has_column_picker(jobs_client):
-    r = jobs_client.get("/")
+    r = jobs_client.get("/jobs")
     assert r.status_code == 200
     assert 'id="column-picker"' in r.text
     assert 'data-column="title"' in r.text
@@ -36,7 +36,7 @@ def test_jobs_table_has_column_picker(jobs_client):
 
 
 def test_jobs_page_has_no_sort_toolbar(jobs_client):
-    r = jobs_client.get("/")
+    r = jobs_client.get("/jobs")
     assert r.status_code == 200
     assert "sort-toolbar" not in r.text
     assert "sort-chip" not in r.text
@@ -45,14 +45,14 @@ def test_jobs_page_has_no_sort_toolbar(jobs_client):
 
 
 def test_jobs_page_header_sort_links(jobs_client):
-    r = jobs_client.get("/")
+    r = jobs_client.get("/jobs")
     assert r.status_code == 200
     assert 'class="th-sort-link"' in r.text
     assert "sort-indicator" in r.text
 
 
 def test_jobs_list_default_columns(jobs_client):
-    r = jobs_client.get("/")
+    r = jobs_client.get("/jobs")
     assert r.status_code == 200
     assert tuple(LIST_VIEW_DEFAULT_COLUMNS) == (
         "source",
@@ -70,7 +70,7 @@ def test_jobs_list_default_columns(jobs_client):
 
 
 def test_jobs_table_readable_title_styles(jobs_client):
-    r = jobs_client.get("/")
+    r = jobs_client.get("/jobs")
     assert r.status_code == 200
     assert 'data-col="title"' in r.text
     assert "cell-text" in r.text

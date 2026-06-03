@@ -30,6 +30,7 @@ $0.60–$1.50/month** — not hundreds of dollars.
 | Résumé → search terms | 1 | Once per process (cached if unchanged) |
 | Rank each job | **1 × unique jobs** | **Main cost** |
 | Cover letter (job card) | **1 per generate** | Uses `AGENTZERO_COVER_LETTER_MODEL` (default `gpt-5.5`) |
+| Web chat turn | **1+ per message** | Uses `AGENTZERO_CHAT_MODEL` (default `gpt-5.5`); tool calls add tokens |
 | Validation repair | ~5% of rows | Fallback; usually small |
 
 **Not billed by AgentZero:** JobSpy board scraping (no API key fee from us).
@@ -70,6 +71,14 @@ provider.
 - Separate from scrape/rank model — natural tone for interview-ready drafts
 - One LLM call per **Generate** on the job card (résumé + job description)
 - Requires `AGENTZERO_LLM_PROVIDER=openai` and `OPENAI_API_KEY`
+
+### Web chat assistant (`/`)
+
+**Default: `gpt-5.5`** via `AGENTZERO_CHAT_MODEL`
+
+- OpenAI **tool-calling** only in v1 (Anthropic → set provider to OpenAI or wait for a follow-up)
+- Read tools (jobs, profile, scraper status) run immediately; mutating tools require **Confirm**
+- Session history stored in SQLite (`chat_sessions`, `chat_messages`)
 
 ### Avoid for bulk ranking
 

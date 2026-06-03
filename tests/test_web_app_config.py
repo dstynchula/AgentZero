@@ -38,6 +38,20 @@ def test_config_redirect_rejects_open_redirect_path(client):
     assert r.headers["location"] == "/scraper"
 
 
+def test_config_post_redirect_rejects_open_redirect_path(client):
+    c, _ = client
+    r = c.post("/config//evil.example", follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "/scraper"
+
+
+def test_config_redirect_known_path_to_scraper_route(client):
+    c, _ = client
+    r = c.get("/config/sources?saved=1&next=https://evil.example", follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "/scraper/sources?saved=1"
+
+
 def test_api_config_redirects_to_api_scraper(client):
     c, _ = client
     r = c.get("/api/config", follow_redirects=False)
@@ -78,7 +92,7 @@ def test_scraper_page_renders(client):
 
 def test_jobs_page_defaults_to_dark_theme(client):
     c, _ = client
-    r = c.get("/")
+    r = c.get("/jobs")
     assert r.status_code == 200
     assert "Scraper" in r.text
     assert 'data-theme="dark"' in r.text

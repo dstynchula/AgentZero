@@ -4,6 +4,7 @@ from fastapi import Request
 
 from agentzero.web.legacy_redirect import (
     legacy_api_scraper_redirect_url,
+    legacy_scraper_redirect_base,
     legacy_scraper_redirect_url,
     safe_legacy_scraper_path,
 )
@@ -30,6 +31,13 @@ def test_safe_legacy_scraper_path_rejects_open_redirect():
 def test_safe_legacy_scraper_path_allows_known_routes():
     assert safe_legacy_scraper_path("sources") == "sources"
     assert safe_legacy_scraper_path("/cdp/connect") == "cdp/connect"
+
+
+def test_legacy_scraper_redirect_base_returns_literal_paths():
+    assert legacy_scraper_redirect_base("sources") == "/scraper/sources"
+    assert legacy_scraper_redirect_base("cdp/connect") == "/scraper/cdp/connect"
+    assert legacy_scraper_redirect_base("//evil.example") == "/scraper"
+    assert legacy_scraper_redirect_base("https://evil.example/x") == "/scraper"
 
 
 def test_legacy_scraper_redirect_filters_query():

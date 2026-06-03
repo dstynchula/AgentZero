@@ -139,8 +139,7 @@ def format_search_summary(profile: ResumeSearchProfile) -> str:
         lines.append("  Work mode: (not set)")
     if profile.salary_min is not None:
         lines.append(
-            f"  Comp floor: ${profile.salary_min:,.0f} USD/year "
-            f"(keep roles whose posted range reaches at least this)"
+            "  Comp floor: (configured — keep roles whose posted range meets your minimum)"
         )
     else:
         lines.append("  Comp floor: (not set — all comp ranges kept)")
