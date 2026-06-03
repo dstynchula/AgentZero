@@ -29,6 +29,7 @@ $0.60–$1.50/month** — not hundreds of dollars.
 | Résumé → profile | 1 | Once per script run |
 | Résumé → search terms | 1 | Once per process (cached if unchanged) |
 | Rank each job | **1 × unique jobs** | **Main cost** |
+| Cover letter (job card) | **1 per generate** | Uses `AGENTZERO_COVER_LETTER_MODEL` (default `gpt-5.5`) |
 | Validation repair | ~5% of rows | Fallback; usually small |
 
 **Not billed by AgentZero:** JobSpy board scraping (no API key fee from us).
@@ -61,6 +62,14 @@ provider.
 
 - Slightly higher cost (~3× vs nano on typical runs)
 - Conservative choice if JSON reliability matters more than pennies
+
+### Cover letters (job card only)
+
+**Default: `gpt-5.5`** via `AGENTZERO_COVER_LETTER_MODEL`
+
+- Separate from scrape/rank model — natural tone for interview-ready drafts
+- One LLM call per **Generate** on the job card (résumé + job description)
+- Requires `AGENTZERO_LLM_PROVIDER=openai` and `OPENAI_API_KEY`
 
 ### Avoid for bulk ranking
 
