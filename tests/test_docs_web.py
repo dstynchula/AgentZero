@@ -19,9 +19,10 @@ def test_getting_started_mentions_cdp_launch_scripts():
     assert "launch_chrome_cdp.sh" in text
 
 
-def test_docker_doc_mentions_config_page():
+def test_docker_doc_mentions_scraper_page():
     text = Path("docs/DOCKER.md").read_text(encoding="utf-8")
-    assert "/config" in text or "settings" in text.lower()
+    assert "/scraper" in text
+    assert "scraper" in text.lower()
 
 
 def test_docker_doc_mentions_data_search_profile():

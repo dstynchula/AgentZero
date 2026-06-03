@@ -226,6 +226,14 @@ Plan: [docs/web-ui-ux-spike.plan.md](docs/web-ui-ux-spike.plan.md)
 - [x] P34c Hide Chrome CDP card when no CDP source enabled
 - [x] P34d Job tracker: centered, compact table
 
+## P35 — Job card + Scraper nav (2026-06-03)
+
+Plan: [docs/web-job-card-nav.plan.md](docs/web-job-card-nav.plan.md)
+
+- [x] P35a Job card shows description from DB
+- [x] P35b Remove sort-by toolbar (header sort only)
+- [x] P35c Settings → Scraper (/scraper + /config redirects)
+
 ## Reference docs
 
 | Doc | Contents |
@@ -243,6 +251,7 @@ Plan: [docs/web-ui-ux-spike.plan.md](docs/web-ui-ux-spike.plan.md)
 | docs/web-ui-settings.plan.md | P32 settings page, dark mode, scrape trigger |
 | docs/web-search-titles.plan.md | P33 résumé load path + add/remove titles |
 | docs/web-ui-ux-spike.plan.md | P34 tracker layout + Settings CDP UX |
+| docs/web-job-card-nav.plan.md | P35 job card description + Scraper routes |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

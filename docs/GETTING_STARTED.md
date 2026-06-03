@@ -96,12 +96,12 @@ python scripts/login_job_boards.py --site indeed,glassdoor
 python scripts/verify_browser_session.py --site linkedin,glassdoor,indeed
 ```
 
-The same launch commands appear on the tracker **Settings → Chrome CDP** page after `docker compose up web` (http://localhost:8080/config).
+The same launch commands appear on the tracker **Scraper → Chrome CDP** page after `docker compose up web` (http://localhost:8080/scraper).
 
 | Site | Browser mode |
 |------|----------------|
 | LinkedIn | Playwright profile (`data/browser_profiles/linkedin`) — **enabled by default** |
-| Indeed, Glassdoor | CDP — real Chrome (`AGENTZERO_SCRAPE_CDP_URL`); opt in via Settings or `AGENTZERO_SCRAPE_BROWSER_SITES` |
+| Indeed, Glassdoor | CDP — real Chrome (`AGENTZERO_SCRAPE_CDP_URL`); opt in via Scraper or `AGENTZERO_SCRAPE_BROWSER_SITES` |
 
 | Exit code | Meaning | What to do |
 |-----------|---------|------------|

@@ -24,6 +24,10 @@ from agentzero.web.jobs import (
     list_context,
     list_jobs_for_ui,
 )
+from agentzero.web.legacy_redirect import (
+    legacy_api_scraper_redirect_url,
+    legacy_scraper_redirect_url,
+)
 from agentzero.web.mutations import (
     JobNotFoundError,
     reject_job,
@@ -89,7 +93,7 @@ def create_app(
         snapshot = load_search_profile()
         profile_terms = list(snapshot.search_terms) if snapshot else []
         return {
-            "nav_active": "config",
+            "nav_active": "scraper",
             "sources": source_catalog(settings, operator),
             "active_sources": active_source_names(settings, operator),
             "cdp": cdp_status_payload(settings, operator),
@@ -178,8 +182,8 @@ def create_app(
             },
         )
 
-    @app.get("/config", response_class=HTMLResponse)
-    def config_page(request: Request) -> HTMLResponse:
+    @app.get("/scraper", response_class=HTMLResponse)
+    def scraper_page(request: Request) -> HTMLResponse:
         flash = ""
         flash_ok = True
         params = request.query_params
@@ -212,8 +216,8 @@ def create_app(
             _config_context(request, flash=flash, flash_ok=flash_ok),
         )
 
-    @app.get("/api/config")
-    def api_config(request: Request) -> dict[str, object]:
+    @app.get("/api/scraper")
+    def api_scraper(request: Request) -> dict[str, object]:
         ctx = _config_context(request)
         return {
             "sources": [row.to_dict() for row in ctx["sources"]],
@@ -224,8 +228,8 @@ def create_app(
             "search_profile": ctx["search_profile"],
         }
 
-    @app.post("/config/sources", response_model=None)
-    def post_config_sources(
+    @app.post("/scraper/sources", response_model=None)
+    def post_scraper_sources(
         request: Request,
         browser_sites: Annotated[list[str] | None, Form()] = None,
         jobspy_sites: Annotated[list[str] | None, Form()] = None,
@@ -251,19 +255,19 @@ def create_app(
             scrape_browser_sites=normalized.scrape_browser_sites,
             scrape_sites=normalized.scrape_sites,
         )
-        return RedirectResponse(url="/config?saved=1", status_code=303)
+        return RedirectResponse(url="/scraper?saved=1", status_code=303)
 
-    @app.post("/config/resume/load", response_model=None)
-    def post_config_resume_load(request: Request) -> RedirectResponse:
+    @app.post("/scraper/resume/load", response_model=None)
+    def post_scraper_resume_load(request: Request) -> RedirectResponse:
         ok, _message = request.app.state.resume_loader.start(
             request.app.state.operator_config_path,
             force_refresh=True,
         )
         query = "resume_loading=1" if ok else "resume_busy=1"
-        return RedirectResponse(url=f"/config?{query}", status_code=303)
+        return RedirectResponse(url=f"/scraper?{query}", status_code=303)
 
-    @app.post("/config/search-titles", response_model=None)
-    def post_config_search_titles(
+    @app.post("/scraper/search-titles", response_model=None)
+    def post_scraper_search_titles(
         request: Request,
         search_terms: Annotated[list[str] | None, Form()] = None,
     ):
@@ -301,10 +305,10 @@ def create_app(
                 status_code=400,
             )
         patch_operator_config(cfg_path, search_terms=terms)
-        return RedirectResponse(url="/config?titles_saved=1", status_code=303)
+        return RedirectResponse(url="/scraper?titles_saved=1", status_code=303)
 
-    @app.post("/config/search-titles/add", response_model=None)
-    def post_config_search_titles_add(
+    @app.post("/scraper/search-titles/add", response_model=None)
+    def post_scraper_search_titles_add(
         request: Request,
         term: Annotated[str, Form()] = "",
     ) -> RedirectResponse | HTMLResponse:
@@ -340,10 +344,10 @@ def create_app(
                 ),
                 status_code=400,
             )
-        return RedirectResponse(url="/config?title_added=1", status_code=303)
+        return RedirectResponse(url="/scraper?title_added=1", status_code=303)
 
-    @app.post("/config/search-titles/remove", response_model=None)
-    def post_config_search_titles_remove(
+    @app.post("/scraper/search-titles/remove", response_model=None)
+    def post_scraper_search_titles_remove(
         request: Request,
         term: Annotated[str, Form()] = "",
     ) -> RedirectResponse | HTMLResponse:
@@ -379,29 +383,58 @@ def create_app(
                 ),
                 status_code=400,
             )
-        return RedirectResponse(url="/config?title_removed=1", status_code=303)
+        return RedirectResponse(url="/scraper?title_removed=1", status_code=303)
 
-    @app.post("/config/cdp/connect", response_model=None)
-    def post_config_cdp_connect(request: Request) -> RedirectResponse:
+    @app.post("/scraper/cdp/connect", response_model=None)
+    def post_scraper_cdp_connect(request: Request) -> RedirectResponse:
         settings: Settings = request.app.state.settings
         ok, message = retry_cdp_connection(settings, _operator(request))
         from urllib.parse import quote
 
         q = "cdp_ok=1" if ok else "cdp_fail=1"
         return RedirectResponse(
-            url=f"/config?{q}&msg={quote(message)}",
+            url=f"/scraper?{q}&msg={quote(message)}",
             status_code=303,
         )
 
-    @app.post("/config/scrape", response_model=None)
-    def post_config_scrape(request: Request) -> RedirectResponse:
+    @app.post("/scraper/scrape", response_model=None)
+    def post_scraper_scrape(request: Request) -> RedirectResponse:
         ok, _message = request.app.state.scrape_runner.start(
             db=_db(request),
             settings=request.app.state.settings,
             operator=_operator(request),
         )
         query = "scrape_started=1" if ok else "scrape_busy=1"
-        return RedirectResponse(url=f"/config?{query}", status_code=303)
+        return RedirectResponse(url=f"/scraper?{query}", status_code=303)
+
+    @app.get("/config", include_in_schema=False)
+    @app.get("/config/", include_in_schema=False)
+    def redirect_config_root(request: Request) -> RedirectResponse:
+        return RedirectResponse(
+            url=legacy_scraper_redirect_url(request),
+            status_code=307,
+        )
+
+    @app.get("/config/{path:path}", include_in_schema=False)
+    def redirect_config_get(request: Request, path: str) -> RedirectResponse:
+        return RedirectResponse(
+            url=legacy_scraper_redirect_url(request, path),
+            status_code=307,
+        )
+
+    @app.post("/config/{path:path}", include_in_schema=False)
+    def redirect_config_post(request: Request, path: str) -> RedirectResponse:
+        return RedirectResponse(
+            url=legacy_scraper_redirect_url(request, path),
+            status_code=307,
+        )
+
+    @app.get("/api/config", include_in_schema=False)
+    def redirect_api_config(request: Request) -> RedirectResponse:
+        return RedirectResponse(
+            url=legacy_api_scraper_redirect_url(request),
+            status_code=307,
+        )
 
     def _redirect_index(
         show_rejected: bool,

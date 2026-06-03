@@ -66,5 +66,6 @@ def test_job_detail_for_ui(tmp_path):
     detail = job_detail_for_ui(db, job.job_id)
     assert detail is not None
     assert detail["match_rationale"] == "Strong fit"
+    assert "description" in detail
     assert job_detail_for_ui(db, "missing") is None
     db.close()
