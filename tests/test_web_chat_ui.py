@@ -42,3 +42,20 @@ def test_nav_includes_chat_jobs_scraper(web_client):
     assert ">Chat</a>" in r.text or ">Chat<" in r.text
     assert 'href="/jobs"' in r.text
     assert 'href="/scraper"' in r.text
+
+
+def test_chat_page_has_waiting_indicator(web_client):
+    r = web_client.get("/")
+    assert r.status_code == 200
+    assert 'id="chat-waiting"' in r.text
+    assert "chat-waiting" in r.text
+    assert 'aria-live="polite"' in r.text
+    assert 'id="chat-waiting"' in r.text and "hidden" in r.text.split('id="chat-waiting"')[1][:80]
+
+
+def test_chat_page_script_supports_optimistic_user_echo(web_client):
+    r = web_client.get("/")
+    assert r.status_code == 200
+    assert "function appendUserBubble" in r.text
+    assert "function setWaiting" in r.text
+    assert 'setAttribute("data-optimistic"' in r.text

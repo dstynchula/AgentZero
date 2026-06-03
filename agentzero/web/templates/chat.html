@@ -21,7 +21,11 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       margin-bottom: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
+    #chat-messages { min-height: 0; flex: 1; }
     .chat-msg {
       margin-bottom: 0.75rem;
       padding: 0.55rem 0.75rem;
@@ -45,6 +49,38 @@
       color: var(--muted);
       margin-bottom: 0.2rem;
     }
+    .chat-waiting {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 0.35rem 0.25rem;
+    }
+    .chat-waiting[hidden] { display: none !important; }
+    .chat-waiting-dot {
+      width: 0.45rem;
+      height: 0.45rem;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: chat-waiting-pulse 1s ease-in-out infinite;
+    }
+    .chat-waiting-dot:nth-child(2) { animation-delay: 0.15s; }
+    .chat-waiting-dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes chat-waiting-pulse {
+      0%, 80%, 100% { opacity: 0.35; transform: scale(0.85); }
+      40% { opacity: 1; transform: scale(1); }
+    }
+    .chat-error {
+      margin: 0 0 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--danger);
+      background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+    .chat-error[hidden] { display: none !important; }
     .chat-input-row {
       display: flex;
       gap: 0.5rem;
@@ -61,6 +97,11 @@
       background: var(--surface-2);
       color: var(--text);
       resize: vertical;
+    }
+    .chat-input-row textarea:disabled,
+    .chat-input-row button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
     }
     .chat-sidebar .session-list {
       list-style: none;
@@ -111,8 +152,17 @@
       </div>
     </div>
     <div id="chat-thread" class="chat-thread">
-      <div class="chat-empty" id="chat-empty">Start a conversation or pick a chat from history.</div>
+      <div id="chat-messages">
+        <div class="chat-empty" id="chat-empty">Start a conversation or pick a chat from history.</div>
+      </div>
+      <div id="chat-waiting" class="chat-waiting" hidden aria-live="polite">
+        <span class="chat-waiting-dot" aria-hidden="true"></span>
+        <span class="chat-waiting-dot" aria-hidden="true"></span>
+        <span class="chat-waiting-dot" aria-hidden="true"></span>
+        <span>Waiting for reply…</span>
+      </div>
     </div>
+    <p id="chat-error" class="chat-error" hidden role="alert"></p>
     <form id="chat-form" class="chat-input-row">
       <textarea id="chat-input" rows="2" placeholder="Ask about jobs, leads, or your search profile…" required></textarea>
       <button type="submit" class="btn" id="chat-send">Send</button>
@@ -133,9 +183,13 @@
   var sessionId = null;
   var pending = null;
   var thread = document.getElementById("chat-thread");
+  var messagesEl = document.getElementById("chat-messages");
   var empty = document.getElementById("chat-empty");
+  var waitingEl = document.getElementById("chat-waiting");
+  var errorEl = document.getElementById("chat-error");
   var form = document.getElementById("chat-form");
   var input = document.getElementById("chat-input");
+  var sendBtn = document.getElementById("chat-send");
   var sessionList = document.getElementById("session-list");
   var hitlCard = document.getElementById("hitl-card");
   var hitlSummary = document.getElementById("hitl-summary");
@@ -146,13 +200,43 @@
     return d.innerHTML;
   }
 
+  function clearChatError() {
+    errorEl.hidden = true;
+    errorEl.textContent = "";
+  }
+
+  function showChatError(message) {
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+  }
+
+  function setWaiting(on) {
+    waitingEl.hidden = !on;
+    input.disabled = on;
+    sendBtn.disabled = on;
+  }
+
+  function appendUserBubble(text) {
+    empty.hidden = true;
+    var div = document.createElement("div");
+    div.className = "chat-msg chat-msg-user";
+    div.setAttribute("data-optimistic", "1");
+    div.innerHTML =
+      '<div class="chat-msg-role">user</div>' +
+      escapeHtml(text);
+    messagesEl.appendChild(div);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
   function renderMessages(messages) {
-    thread.innerHTML = "";
+    messagesEl.innerHTML = "";
     if (!messages.length) {
-      thread.appendChild(empty);
+      messagesEl.appendChild(empty);
       empty.hidden = false;
+      thread.scrollTop = 0;
       return;
     }
+    empty.hidden = true;
     messages.forEach(function (msg) {
       if (msg.role === "tool") return;
       var div = document.createElement("div");
@@ -160,7 +244,7 @@
       div.innerHTML =
         '<div class="chat-msg-role">' + escapeHtml(msg.role) + '</div>' +
         escapeHtml(msg.content || "");
-      thread.appendChild(div);
+      messagesEl.appendChild(div);
     });
     thread.scrollTop = thread.scrollHeight;
   }
@@ -208,6 +292,7 @@
     sessionId = data.session_id;
     renderMessages([]);
     showPending(null);
+    clearChatError();
     await loadSessions();
     input.focus();
   }
@@ -216,9 +301,11 @@
     e.preventDefault();
     var text = input.value.trim();
     if (!text) return;
+    clearChatError();
     if (!sessionId) await newChat();
+    appendUserBubble(text);
     input.value = "";
-    input.disabled = true;
+    setWaiting(true);
     try {
       var res = await fetch("/api/chat/sessions/" + sessionId + "/messages", {
         method: "POST",
@@ -227,13 +314,15 @@
       });
       var data = await res.json();
       if (!res.ok) {
-        alert(data.detail || "Send failed");
+        showChatError(data.detail || "Send failed");
         return;
       }
       await selectSession(sessionId);
       if (data.pending_action) showPending(data.pending_action);
+    } catch (err) {
+      showChatError(err && err.message ? err.message : "Send failed");
     } finally {
-      input.disabled = false;
+      setWaiting(false);
       input.focus();
     }
   });
@@ -242,19 +331,30 @@
 
   document.getElementById("hitl-confirm").addEventListener("click", async function () {
     if (!sessionId || !pending) return;
-    var res = await fetch("/api/chat/sessions/" + sessionId + "/confirm", { method: "POST" });
-    if (!res.ok) {
-      var err = await res.json();
-      alert(err.detail || "Confirm failed");
-      return;
+    setWaiting(true);
+    clearChatError();
+    try {
+      var res = await fetch("/api/chat/sessions/" + sessionId + "/confirm", { method: "POST" });
+      if (!res.ok) {
+        var err = await res.json();
+        showChatError(err.detail || "Confirm failed");
+        return;
+      }
+      await selectSession(sessionId);
+    } finally {
+      setWaiting(false);
     }
-    await selectSession(sessionId);
   });
 
   document.getElementById("hitl-reject").addEventListener("click", async function () {
     if (!sessionId || !pending) return;
-    await fetch("/api/chat/sessions/" + sessionId + "/reject", { method: "POST" });
-    await selectSession(sessionId);
+    setWaiting(true);
+    try {
+      await fetch("/api/chat/sessions/" + sessionId + "/reject", { method: "POST" });
+      await selectSession(sessionId);
+    } finally {
+      setWaiting(false);
+    }
   });
 
   loadSessions();
