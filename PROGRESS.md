@@ -345,13 +345,13 @@ Plan: [docs/docker-web-scrape-fix.plan.md](docs/docker-web-scrape-fix.plan.md)
 
 ## LinkedIn scrape reliability (T01–T07)
 
-- [ ] T01 — Track service stack + debug telemetry
-- [ ] T02 — Debug harness + session matrix
-- [ ] T03 — Parser / marker hardening
-- [ ] T04 — Title-filter diagnostics
-- [ ] T05 — Navigation reliability
-- [ ] T06 — Unify factory on LinkedInJobsService
-- [ ] T07 — Live gate + prep-pr
+- [x] T01 — Track service stack + debug telemetry
+- [x] T02 — Debug harness + session matrix
+- [x] T03 — Parser / marker hardening
+- [x] T04 — Title-filter diagnostics
+- [x] T05 — Navigation reliability
+- [x] T06 — Unify factory on LinkedInJobsService
+- [x] T07 — Live gate + prep-pr
 
 ## Pre-public release checklist
 

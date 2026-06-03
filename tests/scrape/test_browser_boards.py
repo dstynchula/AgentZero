@@ -78,6 +78,10 @@ def test_parse_linkedin_search_embedded_only_html():
     assert by_company["Harvey"]["title"] == "Staff Cloud Security Engineer"
 
 
+def test_page_has_job_results_job_posting_marker():
+    assert page_has_job_results('<script>"jobPosting:1234567890"</script>')
+
+
 def test_build_linkedin_remote_url():
     parsed = parse_search_location("remote - usa")
     url = build_linkedin_search_url(term="Security Engineer", parsed=parsed)

@@ -62,8 +62,22 @@ After scrape, shallow enrich runs in the pipeline (comp/size/Glassdoor from fiel
 ```powershell
 python scripts/backfill_linkedin_comp.py          # fetch comp from LinkedIn detail pages + sync
 python scripts/backfill_glassdoor_companies.py    # resolve Unknown Glassdoor employers + sync
-python scripts/run_linkedin_lead_scrape.py        # LinkedIn-only lead scrape (requires CDP Chrome)
+python scripts/run_linkedin_lead_scrape.py        # LinkedIn-only lead scrape (Playwright profile)
 ```
+
+### Debug LinkedIn search locally
+
+When search returns zero rows, use the debug harness (Playwright profile by default; pass `--cdp` to use CDP Chrome):
+
+```powershell
+$env:AGENTZERO_SCRAPE_BROWSER_HEADLESS = 'false'
+$env:AGENTZERO_SCRAPE_BROWSER_PAUSE_FOR_CAPTCHA = 'true'
+python scripts/verify_browser_session.py --site linkedin
+python scripts/debug_linkedin_search.py --dry-run --terms "Staff Security Engineer" --locations "Remote - USA" --remote
+python scripts/debug_linkedin_search.py --live --terms "Staff Security Engineer" --locations "Remote - USA" --remote --snapshot
+```
+
+JSON output includes `session_state`, `has_job_markers`, `parsed_raw`, and `after_title_filter`. HTML snapshots go to `data/debug/` (gitignored). Live pytest smoke: `AGENTZERO_LINKEDIN_LIVE=1 pytest tests/scrape/test_linkedin_live.py -q`.
 
 Re-run Glassdoor ratings after fixing company names: clear is not needed — run `enrich_jobs.py` (web search
 fills missing `glassdoor_rating`/`glassdoor_reviews`). Direct Glassdoor HTTP refresh alone often fails without

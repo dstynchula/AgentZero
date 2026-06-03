@@ -10,6 +10,18 @@ def repo_root() -> pathlib.Path:
     return REPO_ROOT
 
 
+def pytest_collection_modifyitems(config, items):
+    """Skip @pytest.mark.external unless AGENTZERO_LINKEDIN_LIVE=1."""
+    import os
+
+    if os.environ.get("AGENTZERO_LINKEDIN_LIVE") == "1":
+        return
+    skip = pytest.mark.skip(reason="external tests require AGENTZERO_LINKEDIN_LIVE=1")
+    for item in items:
+        if "external" in item.keywords:
+            item.add_marker(skip)
+
+
 @pytest.fixture(autouse=True)
 def _no_live_network(monkeypatch):
     """Unit tests must not hit DuckDuckGo, Glassdoor, or job-board HTTP."""

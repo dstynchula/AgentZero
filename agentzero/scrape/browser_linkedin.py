@@ -13,9 +13,14 @@ _JOB_MARKERS = (
     "jobs-search-results-list",
     "jobs-search__results-list",
     "job-search-card",
+    "scm-job-card",
+    "jobs-search-results__list-item",
+    "job-card-container",
+    "job-card-list",
     'aria-label="Dismiss ',
     "Easy Apply",
     "Actively reviewing applicants",
+    "jobPosting:",
 )
 
 _CAPTCHA_MARKERS = (

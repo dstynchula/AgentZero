@@ -1,0 +1,22 @@
+{
+  "scrape_browser_sites": [
+    "linkedin"
+  ],
+  "scrape_sites": [],
+  "search_terms": [
+    "Staff Security Engineer",
+    "Principal Security Engineer",
+    "Senior Security Engineer"
+  ],
+  "excluded_search_terms": [
+    "Engineering Manager",
+    "Senior Manager, Security (Head of Security)"
+  ],
+  "work_mode": "remote",
+  "locations": [
+    "remote - usa"
+  ],
+  "salary_min": 180000.0,
+  "scrape_remote_only": true,
+  "search_targets_configured": true
+}
