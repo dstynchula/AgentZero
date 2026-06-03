@@ -24,6 +24,10 @@ from agentzero.web.jobs import (
     list_context,
     list_jobs_for_ui,
 )
+from agentzero.web.legacy_redirect import (
+    legacy_api_scraper_redirect_url,
+    legacy_scraper_redirect_url,
+)
 from agentzero.web.mutations import (
     JobNotFoundError,
     reject_job,
@@ -403,30 +407,34 @@ def create_app(
         query = "scrape_started=1" if ok else "scrape_busy=1"
         return RedirectResponse(url=f"/scraper?{query}", status_code=303)
 
-    def _legacy_scraper_url(request: Request, path: str = "") -> str:
-        suffix = f"/{path.lstrip('/')}" if path else ""
-        url = f"/scraper{suffix}"
-        if request.url.query:
-            url = f"{url}?{request.url.query}"
-        return url
-
     @app.get("/config", include_in_schema=False)
     @app.get("/config/", include_in_schema=False)
     def redirect_config_root(request: Request) -> RedirectResponse:
-        return RedirectResponse(url=_legacy_scraper_url(request), status_code=307)
+        return RedirectResponse(
+            url=legacy_scraper_redirect_url(request),
+            status_code=307,
+        )
 
     @app.get("/config/{path:path}", include_in_schema=False)
     def redirect_config_get(request: Request, path: str) -> RedirectResponse:
-        return RedirectResponse(url=_legacy_scraper_url(request, path), status_code=307)
+        return RedirectResponse(
+            url=legacy_scraper_redirect_url(request, path),
+            status_code=307,
+        )
 
     @app.post("/config/{path:path}", include_in_schema=False)
     def redirect_config_post(request: Request, path: str) -> RedirectResponse:
-        return RedirectResponse(url=_legacy_scraper_url(request, path), status_code=307)
+        return RedirectResponse(
+            url=legacy_scraper_redirect_url(request, path),
+            status_code=307,
+        )
 
     @app.get("/api/config", include_in_schema=False)
     def redirect_api_config(request: Request) -> RedirectResponse:
-        query = f"?{request.url.query}" if request.url.query else ""
-        return RedirectResponse(url=f"/api/scraper{query}", status_code=307)
+        return RedirectResponse(
+            url=legacy_api_scraper_redirect_url(request),
+            status_code=307,
+        )
 
     def _redirect_index(
         show_rejected: bool,

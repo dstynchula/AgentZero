@@ -28,7 +28,14 @@ def test_config_redirects_to_scraper(client):
     c, _ = client
     r = c.get("/config", follow_redirects=False)
     assert r.status_code == 307
-    assert r.headers["location"].rstrip("/").endswith("/scraper")
+    assert r.headers["location"] == "/scraper"
+
+
+def test_config_redirect_rejects_open_redirect_path(client):
+    c, _ = client
+    r = c.get("/config//evil.example", follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "/scraper"
 
 
 def test_api_config_redirects_to_api_scraper(client):
