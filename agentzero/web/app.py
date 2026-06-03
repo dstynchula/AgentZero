@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from agentzero.config import Settings, get_settings
 from agentzero.generate.cover_letter import COVER_LETTER_DIR, save_cover_letter
-from agentzero.models import ApplicationStatus
+from agentzero.models import ApplicationStatus, normalize_job_id
 from agentzero.storage.db import Database
 from agentzero.web.cdp_status import cdp_status_payload, retry_cdp_connection
 from agentzero.web.cover_letter_io import (
@@ -60,6 +60,18 @@ from agentzero.web.sources import active_source_names, source_catalog
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 _STATUS_CHOICES = [status.value for status in ApplicationStatus]
+_JOB_DETAIL_FLASH_KEYS = frozenset(
+    {
+        "cover_saved",
+        "cover_started",
+        "cover_ready",
+        "cover_busy",
+        "cover_fail",
+        "status_saved",
+        "notes_saved",
+        "rejected",
+    }
+)
 
 
 def create_app(
@@ -118,6 +130,12 @@ def create_app(
     def _letters_dir(request: Request) -> Path:
         return cover_letters_dir(getattr(request.app.state, "cover_letters_dir", None))
 
+    def _safe_job_id(job_id: str) -> str:
+        try:
+            return normalize_job_id(job_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="job not found") from exc
+
     def _redirect_job_detail(
         job_id: str,
         show_rejected: bool,
@@ -127,18 +145,20 @@ def create_app(
         flag: str | None = None,
         msg: str | None = None,
     ) -> RedirectResponse:
-        base = build_list_query(show_rejected=show_rejected, sort=sort, order=order)
-        parts: list[str] = []
-        if base:
-            parts.append(base.lstrip("?"))
-        if flag:
-            parts.append(flag)
-        if msg:
-            from urllib.parse import quote
+        from urllib.parse import parse_qsl, urlencode
 
-            parts.append(f"msg={quote(msg)}")
-        suffix = f"?{'&'.join(parts)}" if parts else ""
-        return RedirectResponse(url=f"/jobs/{job_id}{suffix}", status_code=303)
+        safe_id = _safe_job_id(job_id)
+        query_items: list[tuple[str, str]] = list(
+            parse_qsl(build_list_query(show_rejected=show_rejected, sort=sort, order=order).lstrip("?"))
+        )
+        if flag:
+            key, _, value = flag.partition("=")
+            if key in _JOB_DETAIL_FLASH_KEYS:
+                query_items.append((key, value or "1"))
+        if msg:
+            query_items.append(("msg", msg[:500]))
+        suffix = f"?{urlencode(query_items)}" if query_items else ""
+        return RedirectResponse(url=f"/jobs/{safe_id}{suffix}", status_code=303)
 
     def _job_detail_flash(request: Request) -> tuple[str, bool]:
         params = request.query_params
@@ -687,10 +707,11 @@ def create_app(
     def get_cover_letter_download(request: Request, job_id: str) -> FileResponse:
         from agentzero.generate.cover_letter import cover_letter_path
 
-        job = _db(request).get_job(job_id)
+        safe_id = _safe_job_id(job_id)
+        job = _db(request).get_job(safe_id)
         if job is None:
             raise HTTPException(status_code=404, detail="job not found")
-        path = cover_letter_path(job_id, base_dir=_letters_dir(request))
+        path = cover_letter_path(safe_id, base_dir=_letters_dir(request))
         if not path.is_file():
             raise HTTPException(status_code=404, detail="cover letter not found")
         filename = cover_letter_download_filename(job)

@@ -175,6 +175,11 @@ def test_download_404_when_missing(web_client):
     assert r.status_code == 404
 
 
+def test_download_404_for_invalid_job_id(web_client):
+    client, _, _ = web_client
+    r = client.get("/jobs/../escape/cover-letter/download")
+    assert r.status_code == 404
+
 def test_cover_letter_runner_missing_resume(tmp_path, monkeypatch):
     from agentzero.storage.db import Database
     from agentzero.web.cover_letter_runner import CoverLetterRunner

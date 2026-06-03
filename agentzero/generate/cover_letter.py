@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from agentzero.models import JobPosting
+from agentzero.models import JobPosting, normalize_job_id
 
 if TYPE_CHECKING:
     from agentzero.llm.provider import LLMProvider
@@ -35,8 +35,14 @@ COVER_LETTER_SYSTEM_PROMPT = (
 
 def cover_letter_path(job_id: str, *, base_dir: Path = COVER_LETTER_DIR) -> Path:
     """Path to the on-disk cover letter for ``job_id``."""
-    safe_id = job_id.replace("/", "_").replace("\\", "_")
-    return base_dir / f"{safe_id}.txt"
+    safe_id = normalize_job_id(job_id)
+    root = base_dir.resolve()
+    path = (root / f"{safe_id}.txt").resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"invalid job_id path: {job_id!r}") from exc
+    return path
 
 
 def _truncate(text: str, limit: int) -> str:

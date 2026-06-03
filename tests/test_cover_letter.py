@@ -88,3 +88,12 @@ def test_rejects_empty_llm_response():
     llm = FakeCoverLLM(text="   ")
     with pytest.raises(ValueError, match="empty"):
         generate_cover_letter_text(job, "resume text", llm=llm)
+
+
+def test_cover_letter_path_rejects_invalid_job_id(tmp_path):
+    out_dir = tmp_path / "letters"
+    with pytest.raises(ValueError, match="invalid job_id"):
+        cover_letter_path("../escape", base_dir=out_dir)
+    with pytest.raises(ValueError, match="invalid job_id"):
+        cover_letter_path("not-a-valid-id", base_dir=out_dir)
+

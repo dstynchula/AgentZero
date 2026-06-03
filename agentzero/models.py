@@ -28,11 +28,22 @@ class ApplicationStatus(StrEnum):
     OFFER = "offer"
 
 
+_JOB_ID_RE = re.compile(r"^[a-f0-9]{16}$")
+
+
 def stable_job_id(*, source: str, company: str, title: str, url: str) -> str:
     """Deterministic id for deduplication across boards and loop re-runs."""
     parts = (source, company, title, url)
     key = "|".join(_normalize_id_part(p) for p in parts)
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+
+
+def normalize_job_id(job_id: str) -> str:
+    """Return a validated stable job id (16 lowercase hex chars)."""
+    cleaned = job_id.strip()
+    if not _JOB_ID_RE.fullmatch(cleaned):
+        raise ValueError(f"invalid job_id: {job_id!r}")
+    return cleaned
 
 
 def _normalize_id_part(value: str) -> str:
