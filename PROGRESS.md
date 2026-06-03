@@ -256,6 +256,12 @@ Plan: [docs/web-chat.plan.md](docs/web-chat.plan.md)
 - [x] P38e Docs
 - [x] P38f Ledger + gate
 
+## P39 — Web chat send UX
+
+Plan: [docs/web-chat-ux.plan.md](docs/web-chat-ux.plan.md)
+
+- [x] P39a Optimistic user echo + waiting indicator
+
 ## Reference docs
 
 | Doc | Contents |
@@ -276,6 +282,7 @@ Plan: [docs/web-chat.plan.md](docs/web-chat.plan.md)
 | docs/web-job-card-nav.plan.md | P35 job card description + Scraper routes |
 | docs/web-job-card-cover-letter.plan.md | P37 cover letter + inline job card edits |
 | docs/web-chat.plan.md | P38 web chat (default landing, HITL tools) |
+| docs/web-chat-ux.plan.md | P39 chat send UX (optimistic echo, waiting) |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist
