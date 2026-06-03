@@ -82,6 +82,53 @@
 </section>
 
 <section class="card">
+  <h2>Search targets</h2>
+  <p class="muted">Work mode, office locations, comp floor, and post-scrape remote-only filter for the next scrape.</p>
+  {% if search_targets.profile_hint %}
+  <p class="muted">From résumé: {{ search_targets.profile_hint }}</p>
+  {% endif %}
+  <form method="post" action="/scraper/search-targets" id="search-targets-form">
+    <fieldset style="border:none;padding:0;margin:0 0 0.75rem;">
+      <legend class="muted" style="font-size:0.9rem;margin-bottom:0.35rem;">Work mode</legend>
+      <label style="margin-right:1rem;">
+        <input type="radio" name="work_mode" value="remote" {% if search_targets.work_mode == 'remote' %}checked{% endif %} />
+        Remote (USA)
+      </label>
+      <label>
+        <input type="radio" name="work_mode" value="in_office" {% if search_targets.work_mode == 'in_office' %}checked{% endif %} />
+        In-office
+      </label>
+    </fieldset>
+    <p class="muted" style="margin:0 0 0.35rem;font-size:0.9rem;">Office locations</p>
+    <input
+      type="text"
+      name="locations"
+      id="search-targets-locations"
+      placeholder="e.g. Los Angeles, CA; Seattle, WA"
+      value="{{ search_targets.locations_text }}"
+      style="width:100%;max-width:28rem;padding:0.35rem 0.5rem;margin-bottom:0.75rem;"
+      {% if search_targets.work_mode != 'in_office' %}disabled{% endif %}
+    />
+    <p class="muted" style="margin:0 0 0.35rem;font-size:0.9rem;">Comp floor (USD/year, optional)</p>
+    <input
+      type="number"
+      name="salary_min"
+      min="0"
+      step="1000"
+      placeholder="{% if search_profile and search_profile.salary_min %}e.g. {{ '{:,.0f}'.format(search_profile.salary_min) }}{% else %}e.g. 180000{% endif %}"
+      value="{{ search_targets.salary_min }}"
+      style="max-width:12rem;padding:0.35rem 0.5rem;margin-bottom:0.75rem;"
+    />
+    <label style="display:block;margin-bottom:0.75rem;">
+      <input type="checkbox" name="scrape_remote_only" value="on" {% if search_targets.scrape_remote_only %}checked{% endif %} />
+      Drop on-site/hybrid listings after scrape
+      <span class="muted" style="display:block;font-size:0.85rem;margin-top:0.2rem;">Keeps only remote-friendly rows in the scrape result.</span>
+    </label>
+    <button type="submit" class="btn">Save search targets</button>
+  </form>
+</section>
+
+<section class="card">
   <h2>Run scrape</h2>
   <p class="muted">Uses saved titles/sources and your LLM key. New listings land as <strong>lead</strong> for review.</p>
   <div id="scrape-progress">
@@ -143,6 +190,22 @@
 {% endblock %}
 {% block page_scripts %}
 <script>
+(function () {
+  var locInput = document.getElementById("search-targets-locations");
+  var modeRadios = document.querySelectorAll('#search-targets-form input[name="work_mode"]');
+  function syncLocationsField() {
+    if (!locInput) return;
+    var inOffice = false;
+    modeRadios.forEach(function (r) {
+      if (r.checked && r.value === "in_office") inOffice = true;
+    });
+    locInput.disabled = !inOffice;
+  }
+  modeRadios.forEach(function (r) {
+    r.addEventListener("change", syncLocationsField);
+  });
+  syncLocationsField();
+})();
 (function () {
   var statusEl = document.getElementById("scrape-progress-status");
   var barEl = document.getElementById("scrape-progress-bar");

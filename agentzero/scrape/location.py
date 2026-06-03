@@ -17,10 +17,24 @@ _REMOTE_CA_RE = re.compile(
     r"^canada\s*[-–—,]\s*remote$",
     re.IGNORECASE,
 )
-_REMOTE_GENERIC_RE = re.compile(
-    r"^remote(?:\s*[-–—,]\s*(?P<region>[a-z\s\.]+))?$",
-    re.IGNORECASE,
-)
+_REMOTE_SEPARATORS = "-–—,"
+_MAX_REMOTE_REGION_LEN = 80
+
+
+def _remote_generic_region(normalized: str) -> str | None:
+    """Parse ``remote`` / ``remote - region`` without a backtracking-prone regex."""
+    lower = normalized.casefold()
+    if not lower.startswith("remote"):
+        return None
+    suffix = normalized[6:].lstrip()
+    if not suffix:
+        return ""
+    if suffix[0] in _REMOTE_SEPARATORS:
+        suffix = suffix[1:].lstrip()
+    region = suffix[:_MAX_REMOTE_REGION_LEN].strip()
+    if len(suffix) > _MAX_REMOTE_REGION_LEN:
+        region = suffix[:_MAX_REMOTE_REGION_LEN].rstrip()
+    return region
 
 _COUNTRY_LOCATION = {
     "USA": "United States",
@@ -83,9 +97,9 @@ def parse_search_location(
             omit_hours_old=True,
         )
 
-    generic = _REMOTE_GENERIC_RE.match(normalized)
-    if generic:
-        region = (generic.group("region") or "").strip()
+    remote_region = _remote_generic_region(normalized)
+    if remote_region is not None:
+        region = remote_region.strip()
         if not region or region.lower() in {"usa", "us", "u.s.", "u.s.a.", "united states"}:
             return parse_search_location(
                 "remote - usa",

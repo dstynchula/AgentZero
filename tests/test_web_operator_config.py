@@ -47,3 +47,17 @@ def test_settings_for_scrape_disables_interactive():
 def test_operator_config_path_beside_db(tmp_path: Path):
     db = tmp_path / "data" / "agentzero.db"
     assert operator_config_path(db) == tmp_path / "data" / "web_operator_config.json"
+
+
+def test_operator_config_search_targets_fields(tmp_path: Path):
+    path = tmp_path / "web_operator_config.json"
+    cfg = OperatorScrapeConfig(
+        work_mode="in_office",
+        locations=["Los Angeles, CA"],
+        salary_min=200_000.0,
+        scrape_remote_only=True,
+        search_targets_configured=True,
+    )
+    save_operator_config(path, cfg)
+    loaded = load_operator_config(path)
+    assert loaded == cfg

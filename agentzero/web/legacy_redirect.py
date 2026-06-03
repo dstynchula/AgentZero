@@ -13,6 +13,7 @@ _ALLOWED_CONFIG_PATHS = frozenset(
         "search-titles",
         "search-titles/add",
         "search-titles/remove",
+        "search-targets",
         "cdp/connect",
         "scrape",
     }
@@ -24,6 +25,7 @@ _ALLOWED_FLASH_QUERY_KEYS = frozenset(
         "titles_saved",
         "title_added",
         "title_removed",
+        "search_targets_saved",
         "cdp_ok",
         "cdp_fail",
         "msg",
@@ -74,6 +76,8 @@ def legacy_scraper_redirect_base(path: str = "") -> str:
             return "/scraper/search-titles/add"
         case "search-titles/remove":
             return "/scraper/search-titles/remove"
+        case "search-targets":
+            return "/scraper/search-targets"
         case "cdp/connect":
             return "/scraper/cdp/connect"
         case "scrape":

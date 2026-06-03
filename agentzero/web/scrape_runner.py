@@ -19,6 +19,7 @@ from agentzero.loops.run_progress import (
     scrape_progress_path,
 )
 from agentzero.scrape.remote_policy import apply_remote_only_settings
+from agentzero.web.search_targets import apply_operator_search_targets
 from agentzero.web.search_titles import apply_operator_search_terms
 
 if TYPE_CHECKING:
@@ -290,8 +291,11 @@ def _execute_scrape(
         )
 
     cfg = apply_remote_only_settings(
-        apply_operator_search_terms(
-            apply_search_profile(settings_for_scrape(settings, operator), snapshot),
+        apply_operator_search_targets(
+            apply_operator_search_terms(
+                apply_search_profile(settings_for_scrape(settings, operator), snapshot),
+                operator,
+            ),
             operator,
         )
     )

@@ -122,6 +122,7 @@ def create_app(
 
     def _config_context(request: Request, *, flash: str = "", flash_ok: bool = True) -> dict:
         from agentzero.ingest.search_profile import load_search_profile
+        from agentzero.web.search_targets import effective_search_targets_form
 
         settings: Settings = request.app.state.settings
         operator = _operator(request)
@@ -134,6 +135,7 @@ def create_app(
             "cdp": cdp_status_payload(settings, operator),
             "scrape": request.app.state.scrape_runner.snapshot(),
             "search_profile": search_profile_summary(snapshot),
+            "search_targets": effective_search_targets_form(snapshot, operator, settings=settings),
             "title_rows": title_rows(profile_terms, operator),
             "resume": latest_resume_info(),
             "resume_load": request.app.state.resume_loader.snapshot(),
@@ -463,6 +465,8 @@ def create_app(
             flash = "Search title added."
         elif params.get("title_removed") == "1":
             flash = "Search title removed."
+        elif params.get("search_targets_saved") == "1":
+            flash = "Search targets saved."
         elif params.get("cdp_ok") == "1":
             flash = params.get("msg") or "Chrome CDP connected."
         elif params.get("cdp_fail") == "1":
@@ -652,6 +656,44 @@ def create_app(
                 status_code=400,
             )
         return RedirectResponse(url="/scraper?title_removed=1", status_code=303)
+
+    @app.post("/scraper/search-targets", response_model=None)
+    def post_scraper_search_targets(
+        request: Request,
+        work_mode: Annotated[str, Form()] = "remote",
+        locations: Annotated[str, Form()] = "",
+        salary_min: Annotated[str, Form()] = "",
+        scrape_remote_only: Annotated[str | None, Form()] = None,
+    ) -> RedirectResponse | HTMLResponse:
+        from agentzero.ingest.search_profile import load_search_profile
+        from agentzero.web.search_targets import (
+            operator_search_targets_patch,
+            parse_search_targets_form,
+        )
+
+        settings: Settings = request.app.state.settings
+        cfg_path = request.app.state.operator_config_path
+        snapshot = load_search_profile()
+        country = settings.country_indeed or "USA"
+        if snapshot is not None and snapshot.country_indeed:
+            country = snapshot.country_indeed
+        try:
+            parsed = parse_search_targets_form(
+                work_mode=work_mode,
+                locations_text=locations,
+                salary_min_text=salary_min,
+                scrape_remote_only=scrape_remote_only is not None,
+                country_indeed=country,
+            )
+        except ValueError as exc:
+            return _TEMPLATES.TemplateResponse(
+                request,
+                "config.html",
+                _config_context(request, flash=str(exc), flash_ok=False),
+                status_code=400,
+            )
+        patch_operator_config(cfg_path, **operator_search_targets_patch(parsed))
+        return RedirectResponse(url="/scraper?search_targets_saved=1", status_code=303)
 
     @app.post("/scraper/cdp/connect", response_model=None)
     def post_scraper_cdp_connect(request: Request) -> RedirectResponse:
