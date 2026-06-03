@@ -21,7 +21,7 @@ def test_probe_browser_session_blocks_unsafe_post_navigation_url():
     with (
         patch(
             "agentzero.scrape.browser_common.launch_browser_page",
-            return_value=(None, None, page),
+            return_value=(None, None, page, None),
         ),
         patch("agentzero.scrape.browser_common.close_browser_session"),
         patch(
@@ -57,7 +57,7 @@ def test_probe_browser_session_ready_with_listings():
     html = "<div class='job_seen_beacon'>job</div>"
 
     with (
-        patch("agentzero.scrape.browser_common.launch_browser_page", return_value=(None, None, page)),
+        patch("agentzero.scrape.browser_common.launch_browser_page", return_value=(None, None, page, None)),
         patch("agentzero.scrape.browser_common.close_browser_session"),
         patch("agentzero.scrape.browser_common.validate_browser_page_url", return_value=True),
         patch("agentzero.scrape.browser_common.wait_for_html", return_value=html),
@@ -77,7 +77,7 @@ def test_probe_browser_session_wait_for_html_fallback():
     page.content.return_value = "<html>login</html>"
 
     with (
-        patch("agentzero.scrape.browser_common.launch_browser_page", return_value=(None, None, page)),
+        patch("agentzero.scrape.browser_common.launch_browser_page", return_value=(None, None, page, None)),
         patch("agentzero.scrape.browser_common.close_browser_session"),
         patch("agentzero.scrape.browser_common.validate_browser_page_url", return_value=True),
         patch("agentzero.scrape.browser_common.wait_for_html", return_value=None),

@@ -156,7 +156,7 @@ Playwright is not blocked by Uvicorn's asyncio loop; live progress is written to
 `data/scrape_progress.json` and polled by the UI (~500ms).
 Chrome CDP must run on the **host** — Scraper shows PS1, Python, and shell launch commands plus env vars.
 When Chrome returns a loopback WebSocket URL (`127.0.0.1:9223`), the scraper rewrites it to
-`host.docker.internal:9222` so Playwright inside the container attaches through the host proxy.
+`host.docker.internal:9222` and attaches with Playwright `connect_over_cdp(rewritten_ws)`.
 
 Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/scraper`.
 

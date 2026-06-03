@@ -34,7 +34,7 @@ def test_launch_browser_page_uses_channel(tmp_path):
     with patch("playwright.sync_api.sync_playwright", return_value=MagicMock(start=MagicMock(return_value=mock_pw))):
         from agentzero.scrape.browser_common import launch_browser_page
 
-        pw, ctx, page = launch_browser_page(s, site="linkedin")
+        pw, ctx, page, _browser = launch_browser_page(s, site="linkedin")
 
     mock_pw.chromium.launch_persistent_context.assert_called_once()
     call_kwargs = mock_pw.chromium.launch_persistent_context.call_args
@@ -75,14 +75,14 @@ def test_launch_browser_page_cdp_only_for_configured_sites(tmp_path):
 
         mock_pw.reset_mock()
         mock_pw.chromium.connect_over_cdp.return_value = mock_browser
-        pw, ctx, page = launch_browser_page(s, site="linkedin")
+        pw, ctx, page, _browser = launch_browser_page(s, site="linkedin")
         mock_pw.chromium.connect_over_cdp.assert_not_called()
         mock_pw.chromium.launch_persistent_context.assert_called_once()
         close_browser_session(pw, ctx, s, site="linkedin")
         ctx.close.assert_called_once()
 
 
-def test_launch_browser_page_cdp_docker_uses_connect_ws_endpoint(tmp_path):
+def test_launch_browser_page_cdp_docker_uses_connect_over_cdp_rewritten_ws(tmp_path):
     s = Settings(
         _env_file=None,
         scrape_browser_profile_dir=tmp_path / "indeed_browser_profile",
@@ -96,7 +96,7 @@ def test_launch_browser_page_cdp_docker_uses_connect_ws_endpoint(tmp_path):
     mock_context = MagicMock()
     mock_browser.contexts = [mock_context]
     mock_context.new_page.return_value = MagicMock()
-    mock_pw.chromium.connect.return_value = mock_browser
+    mock_pw.chromium.connect_over_cdp.return_value = mock_browser
     ws = "ws://host.docker.internal:9222/devtools/browser/abc"
 
     with (
@@ -108,8 +108,7 @@ def test_launch_browser_page_cdp_docker_uses_connect_ws_endpoint(tmp_path):
 
         launch_browser_page(s, site="glassdoor")
 
-    mock_pw.chromium.connect.assert_called_once_with(ws_endpoint=ws)
-    mock_pw.chromium.connect_over_cdp.assert_not_called()
+    mock_pw.chromium.connect_over_cdp.assert_called_once_with(ws)
 
 
 def test_ensure_cdp_ready_auto_launches_when_down(tmp_path):

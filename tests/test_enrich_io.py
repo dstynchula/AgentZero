@@ -261,15 +261,15 @@ def test_fetch_html_browser_success_and_cleanup():
         patch("agentzero.enrich.detail_fetch.validate_fetch_url"),
         patch(
             "agentzero.scrape.browser_common.launch_browser_page",
-            return_value=(playwright, context, page),
+            return_value=(playwright, context, page, None),
         ),
+        patch("agentzero.scrape.browser_common.close_browser_session") as close_session,
     ):
         from agentzero.enrich.detail_fetch import _fetch_html_browser
 
         html = _fetch_html_browser("https://www.linkedin.com/jobs/view/1", settings=settings, site="linkedin")
     assert html is not None
-    context.close.assert_called_once()
-    playwright.stop.assert_called_once()
+    close_session.assert_called_once()
 
 
 def test_fetch_html_browser_unsafe_landing_url():
@@ -282,7 +282,7 @@ def test_fetch_html_browser_unsafe_landing_url():
         patch("agentzero.enrich.detail_fetch.validate_fetch_url"),
         patch(
             "agentzero.scrape.browser_common.launch_browser_page",
-            return_value=(playwright, context, page),
+            return_value=(playwright, context, page, None),
         ),
         patch(
             "agentzero.enrich.detail_fetch.validate_fetch_url",

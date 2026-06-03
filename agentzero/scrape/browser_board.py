@@ -118,6 +118,20 @@ class BrowserJobBoardSource(JobSource):
         return f"{self._site_key}_browser"
 
     def fetch(self, *, progress: object | None = None) -> Sequence[RawRecord]:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as pw:
+            return self.fetch_with_playwright(pw, progress=progress)
+
+    def fetch_with_playwright(
+        self,
+        playwright: object,
+        *,
+        progress: object | None = None,
+    ) -> Sequence[RawRecord]:
+        return self._fetch_board(playwright, stop_playwright=False)
+
+    def _fetch_board(self, playwright: object, *, stop_playwright: bool) -> Sequence[RawRecord]:
         display, needs_human, has_results, build_url, parse_html, consent = self._cfg
         term, parsed = primary_scrape_query(self._settings)
         url = build_url(term=term, parsed=parsed)
@@ -134,9 +148,13 @@ class BrowserJobBoardSource(JobSource):
             flush=True,
         )
 
-        playwright = context = None
+        context = browser = None
         try:
-            playwright, context, page = launch_browser_page(self._settings, site=self._site_key)
+            playwright, context, page, browser = launch_browser_page(
+                self._settings,
+                site=self._site_key,
+                playwright=playwright,
+            )
             page.goto(url, wait_until="domcontentloaded", timeout=60_000)
             if not validate_browser_page_url(page):
                 return []
@@ -236,7 +254,14 @@ class BrowserJobBoardSource(JobSource):
             log.warning("%s browser fetch failed: %s", display, redact_secrets(str(exc)))
             return []
         finally:
-            close_browser_session(playwright, context, self._settings, site=self._site_key)
+            close_browser_session(
+                playwright,
+                context,
+                self._settings,
+                site=self._site_key,
+                browser=browser,
+                stop_playwright=stop_playwright,
+            )
 
 
 def _default_input(prompt: str) -> str:

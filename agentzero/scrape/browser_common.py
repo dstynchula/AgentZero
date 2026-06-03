@@ -125,7 +125,7 @@ def connect_cdp_browser(playwright: object, cdp_url: str, *, allow_docker_host: 
     chromium = playwright.chromium  # type: ignore[union-attr]
     if ws is not None:
         log.info("Connecting to Chrome over CDP via %s", ws)
-        return chromium.connect(ws_endpoint=ws)
+        return chromium.connect_over_cdp(ws)
     log.info("Connecting to Chrome over CDP at %s", cdp_url)
     return chromium.connect_over_cdp(cdp_url)
 
@@ -297,8 +297,18 @@ def validate_browser_page_url(page: BrowserPage) -> bool:
     return True
 
 
-def launch_browser_page(settings: Settings, *, site: str, headless: bool | None = None):
-    """Return (playwright, context, page) — caller must close context."""
+def launch_browser_page(
+    settings: Settings,
+    *,
+    site: str,
+    headless: bool | None = None,
+    playwright: object | None = None,
+):
+    """Return ``(playwright, context, page, browser)`` — caller must close session.
+
+    When *playwright* is supplied, reuse it (multi-board scrape). *browser* is set
+    for CDP attach and ``None`` for persistent-context launches.
+    """
     from playwright.sync_api import sync_playwright
 
     from agentzero.scrape.browser_session import (
@@ -312,7 +322,8 @@ def launch_browser_page(settings: Settings, *, site: str, headless: bool | None 
     profile_dir = browser_profile_dir(settings, site)
     profile_dir.mkdir(parents=True, exist_ok=True)
 
-    playwright = sync_playwright().start()
+    if playwright is None:
+        playwright = sync_playwright().start()
     launch_args = build_launch_args(settings, headless=headless_val)
     context_kwargs: dict = {
         "user_agent": user_agent,
@@ -334,7 +345,7 @@ def launch_browser_page(settings: Settings, *, site: str, headless: bool | None 
         state = load_storage_state(storage_state_path(settings, site))
         if state:
             apply_storage_state(context, state)
-        return playwright, context, page
+        return playwright, context, page, browser
 
     persistent_kwargs = persistent_context_kwargs(
         settings,
@@ -358,7 +369,7 @@ def launch_browser_page(settings: Settings, *, site: str, headless: bool | None 
         apply_storage_state(context, state)
 
     page = context.pages[0] if context.pages else context.new_page()
-    return playwright, context, page
+    return playwright, context, page, None
 
 
 def close_browser_session(
@@ -367,15 +378,27 @@ def close_browser_session(
     settings: Settings,
     *,
     site: str | None = None,
+    browser: object | None = None,
+    stop_playwright: bool = True,
 ) -> None:
     """Close Playwright resources; CDP attach disconnects without closing user Chrome."""
     if site is not None and settings.use_cdp_for_site(site):
-        if playwright is not None:
+        if browser is not None:
+            try:
+                browser.close()  # type: ignore[union-attr]
+            except Exception:
+                pass
+        elif context is not None:
+            try:
+                context.close()  # type: ignore[union-attr]
+            except Exception:
+                pass
+        if stop_playwright and playwright is not None:
             playwright.stop()  # type: ignore[union-attr]
         return
     if context is not None:
         context.close()  # type: ignore[union-attr]
-    if playwright is not None:
+    if stop_playwright and playwright is not None:
         playwright.stop()  # type: ignore[union-attr]
 
 

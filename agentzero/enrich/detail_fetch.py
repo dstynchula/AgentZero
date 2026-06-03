@@ -38,11 +38,11 @@ def _fetch_html_browser(url: str, *, settings: Settings, site: str) -> str | Non
     except UnsafeURLError as exc:
         log.warning("Blocked unsafe browser detail URL %s: %s", url, exc)
         return None
-    from agentzero.scrape.browser_common import launch_browser_page
+    from agentzero.scrape.browser_common import close_browser_session, launch_browser_page
 
-    playwright = context = None
+    playwright = context = browser = None
     try:
-        playwright, context, page = launch_browser_page(
+        playwright, context, page, browser = launch_browser_page(
             settings,
             site=site,
             headless=settings.scrape_browser_headless,
@@ -59,10 +59,14 @@ def _fetch_html_browser(url: str, *, settings: Settings, site: str) -> str | Non
         log.warning("Browser detail fetch failed for %s: %s", url, exc)
         return None
     finally:
-        if context is not None:
-            context.close()
-        if playwright is not None:
-            playwright.stop()
+        close_browser_session(
+            playwright,
+            context,
+            settings,
+            site=site,
+            browser=browser,
+            stop_playwright=True,
+        )
 
 
 def fetch_job_detail_html(
