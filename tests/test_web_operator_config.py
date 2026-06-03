@@ -29,13 +29,13 @@ def test_effective_lists_overlay():
     op = OperatorScrapeConfig(scrape_browser_sites=["linkedin"], scrape_sites=[])
     browser, jobspy = effective_scrape_lists(base, op)
     assert browser == ["linkedin"]
-    assert jobspy == ["google", "zip_recruiter"]
+    assert jobspy == []
 
 
 def test_normalize_rejects_unknown_sites():
     cfg = normalize_source_selection(["indeed", "bogus"], ["zip_recruiter", "evil"])
     assert cfg.scrape_browser_sites == ["indeed"]
-    assert cfg.scrape_sites == ["zip_recruiter"]
+    assert cfg.scrape_sites == []
 
 
 def test_settings_for_scrape_disables_interactive():

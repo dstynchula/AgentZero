@@ -5,7 +5,9 @@ from agentzero.scrape.validate import (
     ValidationOutcome,
     apply_aliases,
     assert_source_healthy,
+    has_min_role_context,
     parse_comp_from_text,
+    reject_incomplete_raw,
     validate_batch,
     validate_raw,
 )
@@ -32,6 +34,7 @@ def test_validate_raw_accepts_valid_record():
         "company": "Co",
         "url": "https://jobs.example.com/1",
         "source": "linkedin",
+        "location": "Remote",
     }
     outcome = validate_raw(raw, source="linkedin")
     assert outcome.ok
@@ -53,6 +56,37 @@ def test_validate_raw_repairs_via_aliases():
     assert outcome.job.comp_max == 150_000
     assert outcome.job.currency == "USD"
     assert outcome.job.comp_is_estimate is True
+
+
+def test_reject_incomplete_raw_missing_company():
+    raw = {"title": "Engineer", "company": "Unknown", "url": "https://x.com/1"}
+    assert reject_incomplete_raw(raw) == "missing or placeholder company"
+
+
+def test_reject_incomplete_raw_missing_location_and_description():
+    raw = {
+        "title": "Engineer",
+        "company": "Acme",
+        "url": "https://x.com/1",
+    }
+    assert reject_incomplete_raw(raw) == (
+        "insufficient role context (need location, description, or comp hint)"
+    )
+
+
+def test_validate_raw_accepts_minimal_listing_with_location():
+    raw = {
+        "title": "Backend Dev",
+        "company": "Co",
+        "url": "https://jobs.example.com/1",
+        "location": "Remote",
+    }
+    outcome = validate_raw(raw, source="linkedin")
+    assert outcome.ok
+
+
+def test_has_min_role_context_comp_raw():
+    assert has_min_role_context({"comp_raw": "$100k - $120k"})
 
 
 def test_validate_raw_quarantines_unfixable():
@@ -92,8 +126,19 @@ def test_currency_symbol_mapping():
 
 def test_validate_batch_metrics_and_quarantine_list():
     records = [
-        {"title": "A", "company": "C", "url": "https://x.com/a", "source": "indeed"},
-        {"job_title": "B", "company_name": "C", "job_url": "https://x.com/b"},
+        {
+            "title": "A",
+            "company": "C",
+            "url": "https://x.com/a",
+            "source": "indeed",
+            "location": "Remote",
+        },
+        {
+            "job_title": "B",
+            "company_name": "C",
+            "job_url": "https://x.com/b",
+            "salary": "$80,000",
+        },
         {"title": "broken"},
     ]
     jobs, quarantined, metrics = validate_batch(records, source="indeed")
@@ -126,8 +171,14 @@ def test_validation_outcome_ok_property():
 
 
 def test_apply_aliases_coerces_remote_string():
-    raw = {"title": "T", "company": "C", "url": "https://x.com/1", "is_remote": "yes"}
-    mapped = apply_aliases(raw, source="zip_recruiter")
-    outcome = validate_raw(mapped, source="zip_recruiter")
+    raw = {
+        "title": "T",
+        "company": "C",
+        "url": "https://x.com/1",
+        "is_remote": "yes",
+        "location": "Remote",
+    }
+    mapped = apply_aliases(raw, source="indeed")
+    outcome = validate_raw(mapped, source="indeed")
     assert outcome.job is not None
     assert outcome.job.remote is True

@@ -33,7 +33,7 @@ $0.60–$1.50/month** — not hundreds of dollars.
 | Web chat turn | **1+ per message** | Uses `AGENTZERO_CHAT_MODEL` (default `gpt-5.5`); tool calls add tokens |
 | Validation repair | ~5% of rows | Fallback; usually small |
 
-**Not billed by AgentZero:** JobSpy board scraping (no API key fee from us).
+**Not billed by AgentZero:** browser board scraping (no API key fee from us).
 
 ## Cost optimizations built in
 

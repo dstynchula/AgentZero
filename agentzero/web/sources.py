@@ -6,12 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from agentzero.config import Settings
-from agentzero.scrape.factory import (
-    CORE_BROWSER_SITES,
-    CORE_JOBSPY_SITES,
-    build_scrape_source,
-    list_source_names,
-)
+from agentzero.scrape.factory import CORE_BROWSER_SITES, build_scrape_source, list_source_names
 from agentzero.web.operator_config import (
     OperatorScrapeConfig,
     effective_scrape_lists,
@@ -22,10 +17,6 @@ _BROWSER_LABELS = {
     "indeed": "Indeed",
     "linkedin": "LinkedIn",
     "glassdoor": "Glassdoor",
-}
-_JOBSPY_LABELS = {
-    "google": "Google Jobs",
-    "zip_recruiter": "ZipRecruiter",
 }
 
 
@@ -53,9 +44,8 @@ def source_catalog(
     settings: Settings,
     operator: OperatorScrapeConfig | None,
 ) -> list[SourceRow]:
-    browser_on, jobspy_on = effective_scrape_lists(settings, operator)
+    browser_on, _jobspy_ignored = effective_scrape_lists(settings, operator)
     browser_set = {s.strip().lower() for s in browser_on}
-    jobspy_set = {s.strip().lower() for s in jobspy_on}
     rows: list[SourceRow] = []
 
     def _browser_row(site: str) -> SourceRow:
@@ -71,17 +61,6 @@ def source_catalog(
     for site in CORE_BROWSER_SITES:
         if not settings.use_cdp_for_site(site):
             rows.append(_browser_row(site))
-    for site in CORE_JOBSPY_SITES:
-        rows.append(
-            SourceRow(
-                id=site,
-                name=_JOBSPY_LABELS.get(site, site.title()),
-                method="JobSpy",
-                group="jobspy",
-                enabled=site in jobspy_set,
-                uses_cdp=False,
-            )
-        )
     for site in CORE_BROWSER_SITES:
         if settings.use_cdp_for_site(site):
             rows.append(_browser_row(site))

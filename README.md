@@ -9,7 +9,7 @@
 AgentZero is a **local, résumé-driven job search agent**. Drop your résumé in `resume/`, run a
 daily pipeline, and it will:
 
-- Scrape **five job boards** (Indeed, LinkedIn, Glassdoor, Google Jobs, ZipRecruiter)
+- Scrape **three job boards** (Indeed, LinkedIn, Glassdoor)
 - **Enrich** listings (comp, company size, Glassdoor, careers URLs)
 - **Rank** jobs against your résumé with an LLM
 - Mirror everything to **SQLite** and a **local web tracker** (Docker on port 8080)
@@ -34,10 +34,9 @@ flowchart TB
         P["Search profile · LLM + Pydantic models"]
     end
 
-    subgraph SC["① Scrape — Playwright · JobSpy · httpx"]
+    subgraph SC["① Scrape — Playwright · CDP"]
         CDP["Host Chrome · CDP :9222"]
         BR["Indeed · LinkedIn · Glassdoor"]
-        JS["Google Jobs · ZipRecruiter"]
     end
 
     V["② Validate — schema gate · quarantine table"]
@@ -52,7 +51,6 @@ flowchart TB
     R --> P --> SC
     CDP --> BR
     BR --> V
-    JS --> V
     V --> E --> RK --> DB --> LD --> OP --> AP --> UI
 
     subgraph BUILD["Built with — agentic loop"]
@@ -254,7 +252,7 @@ Same core as `scripts/run_lead_session.py`. See also `AGENTS.md`.
 Snapshot saved to `data/search_profile.json` (gitignored; beside the DB). Skip the prompt only for CI:
 `run_scrape.py --no-search-prompt`.
 
-Defaults: **Indeed, LinkedIn, Glassdoor** via Playwright + **Chrome**; **Google Jobs, ZipRecruiter** via JobSpy HTTP.
+Defaults: **Indeed, LinkedIn, and Glassdoor** via Playwright + **Chrome** (CDP when configured).
 
 ```powershell
 python scripts/verify_browser_session.py --site linkedin   # before first scrape
@@ -262,7 +260,6 @@ python scripts/run_scrape.py --limit 5
 ```
 
 - Visible **Chrome** window (`AGENTZERO_SCRAPE_BROWSER_CHANNEL=chrome`) — complete CAPTCHA once per board.
-- ZipRecruiter may 403 without proxies (`AGENTZERO_PROXIES=host:port`).
 
 Full operator guide: **[docs/SCRAPING.md](docs/SCRAPING.md)**.
 

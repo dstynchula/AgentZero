@@ -31,7 +31,8 @@ def test_build_llm_repair_prompt_includes_schema_and_error():
 
 def test_llm_repair_strips_markdown_fence():
     llm = FakeLLM(
-        '```json\n{"title": "T", "company": "C", "url": "https://x.com/1", "source": "indeed"}\n```'
+        '```json\n{"title": "T", "company": "C", "url": "https://x.com/1", '
+        '"source": "indeed", "location": "Remote"}\n```'
     )
     repaired = llm_repair_raw(
         {"broken": True}, source="indeed", error="err", llm=llm
@@ -47,6 +48,7 @@ def test_validate_raw_with_llm_repairs_broken_record():
                 "company": "DataCo",
                 "url": "https://jobs.example.com/9",
                 "source": "indeed",
+                "location": "Remote",
             }
         )
     )
@@ -66,19 +68,36 @@ def test_validate_raw_with_llm_quarantines_when_repair_fails():
 
 
 def test_validate_raw_with_llm_skips_llm_when_none():
-    raw = {"title": "A", "company": "C", "url": "https://x.com/a", "source": "indeed"}
+    raw = {
+        "title": "A",
+        "company": "C",
+        "url": "https://x.com/a",
+        "source": "indeed",
+        "location": "Remote",
+    }
     outcome = validate_raw_with_llm(raw, source="indeed", llm=None)
     assert outcome.ok
 
 
 def test_validate_batch_with_llm_improves_valid_pct():
     records = [
-        {"job_title": "A", "company_name": "C", "job_url": "https://x.com/a"},
+        {
+            "job_title": "A",
+            "company_name": "C",
+            "job_url": "https://x.com/a",
+            "location": "Remote",
+        },
         {"title": "broken"},
     ]
     llm = FakeLLM(
         json.dumps(
-            {"title": "B", "company": "C", "url": "https://x.com/b", "source": "indeed"}
+            {
+                "title": "B",
+                "company": "C",
+                "url": "https://x.com/b",
+                "source": "indeed",
+                "location": "Remote",
+            }
         )
     )
     jobs, quarantined, metrics = validate_batch(records, source="indeed", llm=llm)

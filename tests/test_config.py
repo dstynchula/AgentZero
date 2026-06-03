@@ -28,9 +28,9 @@ def test_defaults_without_env():
     assert isinstance(s.db_path, Path)
 
 
-def test_default_scrape_browser_sites_linkedin_only():
+def test_default_scrape_browser_sites_three_boards():
     s = Settings(_env_file=None)
-    assert s.scrape_browser_sites == ["linkedin"]
+    assert s.scrape_browser_sites == ["indeed", "linkedin", "glassdoor"]
 
 
 def test_env_overrides_and_csv_lists(monkeypatch):

@@ -251,7 +251,7 @@ def interactive_refine_search_profile(
             flush=True,
         )
     print(
-        "Boards (sequential): Indeed -> LinkedIn -> Glassdoor -> Google -> ZipRecruiter",
+        "Boards (sequential): Indeed -> LinkedIn -> Glassdoor",
         flush=True,
     )
 

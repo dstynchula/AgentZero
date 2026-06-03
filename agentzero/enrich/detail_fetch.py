@@ -115,6 +115,12 @@ def merge_detail_fields(job: JobPosting, fields: dict[str, Any]) -> JobPosting:
         from agentzero.enrich.company import bucket_employee_count
 
         updates["company_size"] = bucket_employee_count(int(hint))
+    for key in ("apply_url", "easy_apply_url"):
+        value = fields.get(key)
+        if value and not getattr(job, key):
+            updates[key] = value
+    if fields.get("easy_apply") and job.easy_apply is None:
+        updates["easy_apply"] = fields["easy_apply"]
     if not updates:
         return job
     return job.model_copy(update=updates)

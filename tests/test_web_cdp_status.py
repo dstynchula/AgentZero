@@ -29,14 +29,13 @@ def test_host_instructions_only_enabled_sources():
     settings = Settings(
         _env_file=None,
         scrape_browser_sites=["indeed", "linkedin", "glassdoor"],
-        scrape_sites=["google", "zip_recruiter"],
         scrape_cdp_url="http://127.0.0.1:9222",
         scrape_cdp_sites=["indeed", "glassdoor"],
     )
     op = OperatorScrapeConfig(scrape_browser_sites=["indeed"], scrape_sites=["google"])
     text = build_host_instructions(settings, op)
     assert "Indeed" in text
-    assert "Google Jobs" in text
+    assert "Google Jobs" not in text
     assert "LinkedIn" not in text
     assert "ZipRecruiter" not in text
     assert "Glassdoor" not in text

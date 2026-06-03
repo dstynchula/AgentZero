@@ -1,4 +1,4 @@
-﻿"""Tests for LinkedIn/Glassdoor browser parsers and five-source factory."""
+﻿"""Tests for LinkedIn/Glassdoor browser parsers and three-board factory."""
 
 from __future__ import annotations
 
@@ -14,13 +14,7 @@ from agentzero.scrape.browser_linkedin import (
     page_has_job_results,
     parse_linkedin_search_html,
 )
-from agentzero.scrape.factory import (
-    CORE_BROWSER_SITES,
-    CORE_JOBSPY_SITES,
-    build_scrape_source,
-    describe_scrape_stack,
-    resolve_core_jobspy_sites,
-)
+from agentzero.scrape.factory import CORE_BROWSER_SITES, build_scrape_source, describe_scrape_stack
 from agentzero.scrape.location import parse_search_location
 from agentzero.scrape.multi import MultiSource
 from agentzero.scrape.validate import validate_raw
@@ -79,18 +73,9 @@ def test_build_linkedin_remote_url():
     assert "f_WT=2" in url
 
 
-def test_resolve_core_jobspy_sites():
-    assert resolve_core_jobspy_sites(["google"]) == ["google"]
-    assert resolve_core_jobspy_sites(["google", "zip_recruiter", "linkedin"]) == [
-        "google",
-        "zip_recruiter",
-    ]
-
-
-def test_factory_five_source_stack():
+def test_factory_three_board_stack():
     settings = Settings(
         _env_file=None,
-        scrape_sites=["google", "zip_recruiter"],
         scrape_browser_sites=list(CORE_BROWSER_SITES),
         search_terms=["Staff Security Engineer", "Principal Security Engineer"],
         locations=["remote - usa"],
@@ -104,16 +89,12 @@ def test_factory_five_source_stack():
         "indeed_browser",
         "linkedin_browser",
         "glassdoor_browser",
-        "jobspy",
     ]
-    jobspy = source._sources[-1]
-    assert jobspy.settings.scrape_sites == list(CORE_JOBSPY_SITES)
 
 
 def test_describe_scrape_stack():
     settings = Settings(
         _env_file=None,
-        scrape_sites=["google", "zip_recruiter"],
         scrape_browser_sites=["indeed"],
         search_terms=["Security Engineer"],
         locations=["remote - usa"],

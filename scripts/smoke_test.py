@@ -5,7 +5,7 @@ Usage (from repo root, venv active):
 
     python scripts/smoke_test.py              # résumé read + LLM ingest + search profile
     python scripts/smoke_test.py --resume-only
-    python scripts/smoke_test.py --scrape     # also fetch a small JobSpy batch + pipeline
+    python scripts/smoke_test.py --scrape     # also run a small browser scrape + pipeline
     python scripts/smoke_test.py --scrape --limit 10
 """
 
@@ -91,7 +91,6 @@ def step_scrape(*, limit: int, profile: object | None, search_prompt: bool) -> i
 
     _print_header(f"3. Scrape + pipeline (limit={limit})")
     print(f"Browser sites: {settings.scrape_browser_sites}")
-    print(f"JobSpy sites:  {settings.scrape_sites}")
     print(f"Search terms:  {settings.search_terms}")
     print(f"Locations:     {settings.locations}")
     if settings.salary_min is not None:
@@ -129,13 +128,13 @@ def main() -> int:
     parser.add_argument(
         "--scrape",
         action="store_true",
-        help="Run a small JobSpy fetch + validate/enrich/rank pipeline",
+        help="Run a small browser scrape + validate/enrich/rank pipeline",
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=5,
-        help="Max JobSpy results for --scrape (default: 5)",
+        help="Max results per board for --scrape (default: 5)",
     )
     parser.add_argument(
         "--no-search-prompt",

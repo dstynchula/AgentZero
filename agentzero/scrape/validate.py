@@ -27,6 +27,8 @@ SOURCE_ALIASES: dict[str, dict[str, str]] = {
         "job_url": "url",
         "jobUrl": "url",
         "link": "url",
+        "apply_url": "apply_url",
+        "application_url": "apply_url",
         "site": "source",
         "board": "source",
         "salary": "comp_raw",
@@ -50,6 +52,43 @@ SALARY_SINGLE_RE = re.compile(
     re.IGNORECASE,
 )
 CURRENCY_MAP = {"$": "USD", "€": "EUR", "£": "GBP"}
+
+_PLACEHOLDER_COMPANY = frozenset({"", "unknown", "n/a", "na", "tbd", "none"})
+_MIN_DESCRIPTION_LEN = 40
+
+
+def has_min_role_context(mapped: RawRecord) -> bool:
+    """True when the listing has location, salary hint, or enough description text."""
+    location = str(mapped.get("location") or "").strip()
+    if location:
+        return True
+    comp_raw = str(mapped.get("comp_raw") or "").strip()
+    if comp_raw:
+        return True
+    if mapped.get("comp_min") is not None or mapped.get("comp_max") is not None:
+        return True
+    description = str(mapped.get("description") or "").strip()
+    return len(description) >= _MIN_DESCRIPTION_LEN
+
+
+def is_placeholder_company(company: str) -> bool:
+    return company.strip().lower() in _PLACEHOLDER_COMPANY
+
+
+def reject_incomplete_raw(mapped: RawRecord) -> str | None:
+    """Return a quarantine reason when company/role basics are missing."""
+    company = str(mapped.get("company") or "").strip()
+    title = str(mapped.get("title") or "").strip()
+    url = str(mapped.get("url") or "").strip()
+    if not company or is_placeholder_company(company):
+        return "missing or placeholder company"
+    if not title:
+        return "missing title"
+    if not url:
+        return "missing url"
+    if not has_min_role_context(mapped):
+        return "insufficient role context (need location, description, or comp hint)"
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +171,9 @@ def _coerce_types(data: RawRecord) -> RawRecord:
 def validate_raw(raw: RawRecord, *, source: str) -> ValidationOutcome:
     """Validate a raw record, applying deterministic alias repair first."""
     mapped = _coerce_types(apply_aliases(raw, source=source))
+    incomplete = reject_incomplete_raw(mapped)
+    if incomplete:
+        return ValidationOutcome(job=None, error=incomplete, quarantined=True)
     try:
         job = JobPosting.model_validate(mapped)
         repaired = mapped != raw

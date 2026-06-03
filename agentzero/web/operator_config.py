@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from agentzero.config import Settings
-from agentzero.scrape.factory import CORE_BROWSER_SITES, CORE_JOBSPY_SITES
+from agentzero.scrape.factory import CORE_BROWSER_SITES
 
 
 class OperatorScrapeConfig(BaseModel):
@@ -50,15 +50,11 @@ def effective_scrape_lists(
     settings: Settings,
     operator: OperatorScrapeConfig | None,
 ) -> tuple[list[str], list[str]]:
-    """Return (browser_sites, jobspy_sites) after optional operator overlay."""
+    """Return (browser_sites, legacy_jobspy_sites) after optional operator overlay."""
     browser = list(settings.scrape_browser_sites)
-    jobspy = list(settings.scrape_sites)
-    if operator is not None:
-        if operator.scrape_browser_sites:
-            browser = operator.scrape_browser_sites
-        if operator.scrape_sites:
-            jobspy = operator.scrape_sites
-    return browser, jobspy
+    if operator is not None and operator.scrape_browser_sites:
+        browser = operator.scrape_browser_sites
+    return browser, []
 
 
 def settings_for_scrape(
@@ -77,11 +73,11 @@ def settings_for_scrape(
 
 def normalize_source_selection(
     browser_sites: list[str],
-    jobspy_sites: list[str],
+    jobspy_sites: list[str] | None = None,
 ) -> OperatorScrapeConfig:
+    _ = jobspy_sites
     browser = [s for s in browser_sites if s in CORE_BROWSER_SITES]
-    jobspy = [s for s in jobspy_sites if s in CORE_JOBSPY_SITES]
     return OperatorScrapeConfig(
         scrape_browser_sites=browser,
-        scrape_sites=jobspy,
+        scrape_sites=[],
     )

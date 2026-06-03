@@ -107,6 +107,57 @@ def test_job_card_has_status_and_notes_forms(card_client):
     assert "/notes" in r.text
     assert "Save status" in r.text
     assert "Save notes" in r.text
+    assert "<h2>Notes</h2>" in r.text
+    assert 'id="job-notes"' in r.text
+
+
+def test_job_card_shows_apply_button_with_posting_fallback(card_client):
+    client, db_path = card_client
+    from agentzero.storage.db import Database
+
+    db = Database(db_path)
+    job = _job(url="https://www.indeed.com/viewjob?jk=abc123")
+    db.upsert_job(job)
+    db.close()
+
+    r = client.get(f"/jobs/{job.job_id}")
+    assert r.status_code == 200
+    assert "<h2>Apply</h2>" in r.text
+    assert 'href="https://www.indeed.com/viewjob?jk=abc123"' in r.text
+    assert "easy apply link not located" in r.text.lower() or "Easy apply link not located" in r.text
+
+
+def test_job_card_shows_easy_apply_not_located_hint_when_no_apply_url(card_client):
+    client, db_path = card_client
+    from agentzero.storage.db import Database
+
+    db = Database(db_path)
+    job = _job(
+        url="https://www.linkedin.com/jobs/view/1",
+        easy_apply=True,
+    )
+    db.upsert_job(job)
+    db.close()
+
+    r = client.get(f"/jobs/{job.job_id}")
+    assert r.status_code == 200
+    assert "easy apply" in r.text.lower()
+
+
+def test_job_card_has_notes_section_with_textarea(card_client):
+    client, db_path = card_client
+    from agentzero.storage.db import Database
+
+    db = Database(db_path)
+    job = _job(notes="Prior note")
+    db.upsert_job(job)
+    db.close()
+
+    r = client.get(f"/jobs/{job.job_id}")
+    assert r.status_code == 200
+    assert "<h2>Notes</h2>" in r.text
+    assert "Prior note" in r.text
+    assert "<textarea" in r.text
 
 
 def test_post_status_from_detail_redirects_back_to_job_card(card_client):

@@ -39,8 +39,6 @@ def _print_search_settings(settings, source=None, *, verbose: bool = False) -> N
     if source is not None:
         info = describe_scrape_stack(source, settings)
         print(f"Effective sources: {', '.join(info['sources'])}")
-        if info["jobspy_sites"]:
-            print(f"JobSpy sites:      {info['jobspy_sites']}")
         remote = "yes" if info["remote"] else "no"
         print(
             f"Primary query:     {info['primary_term']!r} @ {info['primary_location']!r} "
@@ -50,7 +48,6 @@ def _print_search_settings(settings, source=None, *, verbose: bool = False) -> N
         print(f"Delay between:     {info['delay_seconds']}s per fetch")
     elif verbose:
         print(f"Browser sites: {settings.scrape_browser_sites}")
-        print(f"JobSpy sites:  {settings.scrape_sites}")
         print(f"All titles:    {settings.search_terms}")
         print(f"Locations:     {settings.locations}")
     else:

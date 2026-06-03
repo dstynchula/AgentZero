@@ -58,9 +58,11 @@ LINKEDIN_SALARY_SELECTORS = (
 )
 
 
-def parse_linkedin_job_detail_html(html: str) -> dict[str, Any]:
+def parse_linkedin_job_detail_html(html: str, *, url: str = "") -> dict[str, Any]:
     """Extract fields from a LinkedIn job view page."""
-    out: dict[str, Any] = {}
+    from agentzero.scrape.apply_links import extract_apply_fields_from_html
+
+    out: dict[str, Any] = extract_apply_fields_from_html(html, source="linkedin", posting_url=url)
     try:
         from bs4 import BeautifulSoup
     except ImportError:
@@ -108,9 +110,11 @@ def parse_linkedin_job_detail_html(html: str) -> dict[str, Any]:
     return out
 
 
-def parse_indeed_job_detail_html(html: str) -> dict[str, Any]:
+def parse_indeed_job_detail_html(html: str, *, url: str = "") -> dict[str, Any]:
     """Extract fields from an Indeed viewjob page."""
-    out: dict[str, Any] = {}
+    from agentzero.scrape.apply_links import extract_apply_fields_from_html
+
+    out: dict[str, Any] = extract_apply_fields_from_html(html, source="indeed", posting_url=url)
     try:
         from bs4 import BeautifulSoup
     except ImportError:
@@ -135,9 +139,10 @@ def parse_indeed_job_detail_html(html: str) -> dict[str, Any]:
 
 def parse_glassdoor_job_detail_html(html: str, *, title: str = "", url: str = "") -> dict[str, Any]:
     """Extract fields from a Glassdoor job view page."""
+    from agentzero.scrape.apply_links import extract_apply_fields_from_html
     from agentzero.scrape.glassdoor_company import company_from_glassdoor_html
 
-    out: dict[str, Any] = {}
+    out: dict[str, Any] = extract_apply_fields_from_html(html, source="glassdoor", posting_url=url)
     company = company_from_glassdoor_html(html, title=title, url=url)
     if company:
         out["company"] = company
@@ -175,8 +180,8 @@ def parse_job_detail_html(html: str, *, source: str, title: str = "", url: str =
     if "glassdoor" in key:
         return parse_glassdoor_job_detail_html(html, title=title, url=url)
     if "linkedin" in key:
-        return parse_linkedin_job_detail_html(html)
+        return parse_linkedin_job_detail_html(html, url=url)
     if "indeed" in key:
-        return parse_indeed_job_detail_html(html)
+        return parse_indeed_job_detail_html(html, url=url)
     desc = _json_ld_description(html)
     return {"description": desc} if desc else {}

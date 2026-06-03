@@ -47,13 +47,7 @@ from agentzero.scrape.browser_linkedin import (
 from agentzero.scrape.browser_linkedin import (
     page_session_ready as linkedin_session_ready,
 )
-from agentzero.scrape.factory import (
-    build_scrape_source,
-    describe_scrape_stack,
-    list_source_names,
-    resolve_core_jobspy_sites,
-)
-from agentzero.scrape.jobspy_source import JobSpySource
+from agentzero.scrape.factory import build_scrape_source, list_source_names
 from agentzero.scrape.location import parse_search_location
 from agentzero.scrape.multi import MultiSource
 
@@ -134,65 +128,9 @@ def test_mosaic_remote_search_trusts_city_on_remote_query():
     assert records[1]["remote"] is False
 
 
-def test_jobspy_fetch_calls_sites_sequentially():
-    calls: list[str] = []
-
-    def fake_scrape(**kwargs):
-        site = kwargs["site_name"][0]
-        calls.append(site)
-        import pandas as pd
-
-        return pd.DataFrame(
-            [{"title": "Job", "company": "Co", "job_url": "https://x.com/1", "site": site}]
-        )
-
-    settings = Settings(
-        _env_file=None,
-        search_terms=["engineer"],
-        locations=["Remote"],
-        scrape_sites=["google", "indeed"],
-        scrape_browser_sites=[],
-        results_wanted=5,
-        hours_old=72,
-        country_indeed="usa",
-        scrape_delay_seconds=0,
-    )
-    source = JobSpySource(settings=settings, scraper=fake_scrape)
-    records = source.fetch()
-    assert calls == ["google", "indeed"]
-    assert len(records) == 2
-
-
-def test_build_scrape_source_combines_browser_and_jobspy():
-    settings = Settings(
-        _env_file=None,
-        scrape_sites=["google", "zip_recruiter"],
-        scrape_browser_sites=["indeed"],
-        search_terms=["x"],
-        locations=["Remote"],
-    )
-    source = build_scrape_source(settings)
-    assert isinstance(source, MultiSource)
-    assert len(source._sources) == 2
-
-
-def test_build_scrape_source_jobspy_only():
-    settings = Settings(
-        _env_file=None,
-        scrape_sites=["google", "zip_recruiter"],
-        scrape_browser_sites=[],
-        search_terms=["x"],
-        locations=["Remote"],
-    )
-    source = build_scrape_source(settings)
-
-    assert isinstance(source, JobSpySource)
-
-
 def test_build_scrape_source_no_list_pages():
     settings = Settings(
         _env_file=None,
-        scrape_sites=["google"],
         scrape_browser_sites=["indeed", "linkedin", "glassdoor"],
         search_terms=["x"],
         locations=["Remote"],
@@ -501,11 +439,6 @@ class TestLinkedInBrowserParse:
         assert gap["company"] in {"Gap Co", "Unknown"}
 
 
-def test_resolve_core_jobspy_sites_filters():
-    assert resolve_core_jobspy_sites(["indeed", "google"]) == ["google"]
-    assert resolve_core_jobspy_sites(["  ZIP_RECRUITER "]) == ["zip_recruiter"]
-
-
 def test_build_scrape_source_single_browser_returns_direct():
     settings = Settings(
         _env_file=None,
@@ -519,27 +452,9 @@ def test_build_scrape_source_single_browser_returns_direct():
     assert list_source_names(source) == ["indeed_browser"]
 
 
-def test_describe_scrape_stack_jobspy_only():
-    settings = Settings(
-        _env_file=None,
-        scrape_sites=["google", "zip_recruiter"],
-        scrape_browser_sites=[],
-        search_terms=["Security Engineer"],
-        locations=["remote - usa"],
-        remote_preferred=True,
-        scrape_delay_seconds=2.5,
-    )
-    source = build_scrape_source(settings)
-    info = describe_scrape_stack(source, settings)
-    assert info["sources"] == ["jobspy"]
-    assert set(info["jobspy_sites"]) == {"google", "zip_recruiter"}
-    assert info["delay_seconds"] == 2.5
-
-
 def test_build_scrape_source_with_llm_mock():
     settings = Settings(
         _env_file=None,
-        scrape_sites=["google"],
         scrape_browser_sites=["indeed"],
         search_terms=["x"],
         locations=["Remote"],
@@ -548,7 +463,10 @@ def test_build_scrape_source_with_llm_mock():
     effective = settings.model_copy(update={"search_terms": ["from-llm"]})
     with patch("agentzero.ingest.search_profile.get_effective_settings", return_value=effective):
         source = build_scrape_source(settings, llm=llm)
-    assert isinstance(source, MultiSource)
+    from agentzero.scrape.browser_board import BrowserJobBoardSource
+
+    assert isinstance(source, BrowserJobBoardSource)
+    assert source.name == "indeed_browser"
 
 
 def test_multi_source_requires_sources():

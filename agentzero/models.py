@@ -73,6 +73,9 @@ class JobPosting(BaseModel):
     remote: bool | None = None
     description: str | None = None
     careers_url: str | None = None
+    apply_url: str | None = None
+    easy_apply_url: str | None = None
+    easy_apply: bool | None = None
     match_score: float | None = None
     match_rationale: str | None = None
     status: ApplicationStatus = ApplicationStatus.NEW
@@ -90,9 +93,11 @@ class JobPosting(BaseModel):
             url=self.url,
         )
 
-    @field_validator("url")
+    @field_validator("url", "apply_url", "easy_apply_url", "careers_url")
     @classmethod
-    def url_is_http(cls, value: str) -> str:
+    def url_is_http(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         lowered = value.strip().lower()
         if not (lowered.startswith("http://") or lowered.startswith("https://")):
             raise ValueError("url must start with http:// or https://")

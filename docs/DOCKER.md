@@ -176,7 +176,7 @@ do not expose port 8080 on untrusted networks. See [SECURITY.md](SECURITY.md).
 | Connect fails; host `curl :9222` works | Restart `launch_chrome_cdp` so the proxy rewrites `Host: host.docker.internal` → `127.0.0.1` (Chrome rejects the Docker hostname) |
 | `UnsafeCDPURLError` for docker host | Set `AGENTZERO_CDP_ALLOW_DOCKER_HOST=true` in `.env` |
 | `Chromium distribution 'chrome' is not found` | Compose clears `AGENTZERO_SCRAPE_BROWSER_CHANNEL`; do not force `chrome` in container |
-| Playwright "Sync API inside asyncio loop" during full scrape | Known when JobSpy runs before browser boards in one process; use host venv for full scrape or scrape boards only via verify script until fixed |
+| Playwright "Sync API inside asyncio loop" during full scrape | Use host venv for full scrape; run `verify_browser_session.py` per board if the pipeline errors in Docker |
 | Build appears stuck | Check `data/.docker-build-status.json`; Playwright step often takes 5+ minutes (`SLOW` vs `STALL?`) |
 | Every code change re-runs pip/Playwright | Ensure BuildKit is on; pull P30+ Dockerfile; use override bind-mount for hot reload |
 | LinkedIn login | Use `scripts/import_browser_cookies.py` or interactive run with profile under `data/browser_profiles/` |
@@ -188,9 +188,9 @@ do not expose port 8080 on untrusted networks. See [SECURITY.md](SECURITY.md).
 
 | Component | Location |
 |-----------|----------|
-| Indeed / Glassdoor | Host Chrome via CDP |
-| LinkedIn | Container Playwright + mounted `data/browser_profiles/` |
-| Google Jobs / ZipRecruiter | Container HTTP (JobSpy) |
+| Indeed / Glassdoor | Host Chrome via CDP (recommended) |
+| LinkedIn | Container Playwright + mounted `data/browser_profiles/` (or host CDP when configured) |
+| All three boards | Production stack is browser-only — see [SCRAPING.md](SCRAPING.md) |
 | LLM rank | Container (keys from env) |
 | MCP server | Host `.venv` (not in Docker) |
 | Web job tracker | Container `web` service → http://localhost:8080 |

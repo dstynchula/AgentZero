@@ -262,6 +262,17 @@ Plan: [docs/web-chat-ux.plan.md](docs/web-chat-ux.plan.md)
 
 - [x] P39a Optimistic user echo + waiting indicator
 
+## P40 — Three-board scrape + apply links
+
+Plan: [docs/scrape-three-boards-apply.plan.md](docs/scrape-three-boards-apply.plan.md)
+
+- [x] P40a Three-board-only scrape stack
+- [x] P40b Drop JobSpy modules and doc drift
+- [x] P40c Listing quality gate
+- [x] P41a Apply URL fields + extraction
+- [x] P41b Job card Apply buttons
+- [x] P42 Job card Notes section
+
 ## Reference docs
 
 | Doc | Contents |
@@ -283,6 +294,7 @@ Plan: [docs/web-chat-ux.plan.md](docs/web-chat-ux.plan.md)
 | docs/web-job-card-cover-letter.plan.md | P37 cover letter + inline job card edits |
 | docs/web-chat.plan.md | P38 web chat (default landing, HITL tools) |
 | docs/web-chat-ux.plan.md | P39 chat send UX (optimistic echo, waiting) |
+| docs/scrape-three-boards-apply.plan.md | P40 three-board scrape, apply URLs, job card UX |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist
