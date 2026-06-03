@@ -139,10 +139,42 @@ def parse_glassdoor_from_text(text: str) -> tuple[float | None, int | None]:
     return rating, reviews
 
 
-def parse_public_company_from_text(text: str) -> tuple[bool | None, str | None]:
+def parse_public_company_from_text(
+    text: str,
+    *,
+    company: str | None = None,
+) -> tuple[bool | None, str | None]:
     """Return (is_public_company, stock_ticker) from search snippets; None when unknown."""
     if not text.strip():
         return None, None
+
+    def _parse_chunk(chunk: str) -> tuple[bool | None, str | None]:
+        if PRIVATE_COMPANY_RE.search(chunk):
+            return False, None
+        match = EXCHANGE_TICKER_RE.search(chunk)
+        if match:
+            return True, match.group("ticker")
+        if PUBLIC_COMPANY_RE.search(chunk):
+            return True, None
+        return None, None
+
+    if company and company.strip():
+        public: bool | None = None
+        ticker: str | None = None
+        for chunk in re.split(r"[\n.!?]+", text):
+            chunk = chunk.strip()
+            if not chunk or not snippet_mentions_company(chunk, company):
+                continue
+            is_public, found_ticker = _parse_chunk(chunk)
+            if is_public is False:
+                return False, None
+            if found_ticker and ticker is None:
+                ticker = found_ticker
+                public = True
+            elif is_public is True and public is None:
+                public = True
+        return public, ticker
+
     if PRIVATE_COMPANY_RE.search(text):
         return False, None
     match = EXCHANGE_TICKER_RE.search(text)
@@ -151,3 +183,19 @@ def parse_public_company_from_text(text: str) -> tuple[bool | None, str | None]:
     if PUBLIC_COMPANY_RE.search(text):
         return True, None
     return None, None
+
+
+def snippet_mentions_company(text: str, company: str) -> bool:
+    """True when free text plausibly refers to *company* (not an unrelated employer)."""
+    if not text.strip() or not company.strip():
+        return False
+    from agentzero.enrich.careers_urls import _company_slug
+
+    slug = _company_slug(company)
+    normalized = re.sub(r"[^a-z0-9]", "", text.lower())
+    if slug and len(slug) >= 3 and slug in normalized:
+        return True
+    stop = frozenset({"inc", "llc", "corp", "company", "the", "and", "for"})
+    tokens = [t for t in re.findall(r"[a-z0-9]{3,}", company.lower()) if t not in stop]
+    lowered = text.lower()
+    return bool(tokens) and any(token in lowered for token in tokens)

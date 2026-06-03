@@ -163,6 +163,7 @@ class EnrichRunner:
         from agentzero.config import Settings
         from agentzero.enrich.batch import run_enrich_batch
         from agentzero.loops.run_progress import (
+            DEFAULT_ENRICH_PLAN,
             attach_scrape_progress_logging,
             detach_scrape_progress_logging,
         )
@@ -172,16 +173,21 @@ class EnrichRunner:
         settings = Settings(_env_file=None, **settings_dict)
         progress = RunProgress(persist_path=progress_path, running=True)
         log_handler = attach_scrape_progress_logging(progress)
-        progress.begin_run()
+        progress.begin_run(plan=DEFAULT_ENRICH_PLAN)
         progress.enter_step(
-            "enrich.batch",
+            "enrich.queue",
             phase="enrich",
-            label="Enrich selected jobs",
+            label="Queueing enrich worker",
             total=len(job_ids),
             done=0,
+            next_step_id="enrich.parallel",
+            next_step_label="HTTP detail + web research",
         )
 
         try:
+            if progress.snapshot().cancelled:
+                progress.cancel("Enrich cancelled before start")
+                return
             result = run_enrich_batch(
                 db,
                 job_ids,
@@ -192,6 +198,7 @@ class EnrichRunner:
                 web_search=settings.enrich_web_search,
                 allow_browser=True,
                 browser_delay_seconds=settings.enrich_delay_seconds,
+                run_progress=progress,
             )
             message = (
                 f"Enrich complete: {result.improved}/{result.total} improved, "

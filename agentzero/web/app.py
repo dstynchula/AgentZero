@@ -395,6 +395,8 @@ def create_app(
         min_score: str | None = Query(default=None),
         min_comp: str | None = Query(default=None),
         max_comp: str | None = Query(default=None),
+        filter_key: str | None = Query(default=None),
+        filter_value: str | None = Query(default=None),
     ) -> list[dict[str, object]]:
         filters = JobListFilters.from_query(
             company=company,
@@ -404,6 +406,8 @@ def create_app(
             min_comp=min_comp,
             max_comp=max_comp,
         )
+        if filter_key and filter_value is not None:
+            filters = JobListFilters.merge_filter(filters, filter_key, filter_value)
         return list_jobs_for_ui(
             _db(request),
             include_rejected=include_rejected,
@@ -424,6 +428,8 @@ def create_app(
         min_score: str | None = Query(default=None),
         min_comp: str | None = Query(default=None),
         max_comp: str | None = Query(default=None),
+        filter_key: str | None = Query(default=None),
+        filter_value: str | None = Query(default=None),
     ) -> HTMLResponse:
         filters = JobListFilters.from_query(
             company=company,
@@ -433,6 +439,8 @@ def create_app(
             min_comp=min_comp,
             max_comp=max_comp,
         )
+        if filter_key and filter_value is not None:
+            filters = JobListFilters.merge_filter(filters, filter_key, filter_value)
         request.app.state.enrich_runner.reconcile(_db(request))
         ctx = list_context(show_rejected=show_rejected, filters=filters, sort=sort, order=order)
         jobs = jobs_for_table(
@@ -1066,6 +1074,21 @@ def create_app(
     def api_enrich_status(request: Request) -> dict[str, object]:
         request.app.state.enrich_runner.reconcile(_db(request))
         return request.app.state.enrich_runner.snapshot(db=_db(request))
+
+    @app.post("/api/enrich/stop")
+    def api_enrich_stop(request: Request) -> dict[str, object]:
+        db = _db(request)
+        ok, message = request.app.state.enrich_runner.stop(db=db)
+        snap = request.app.state.enrich_runner.snapshot(db=db)
+        return {"ok": ok, "message": message, **snap}
+
+    @app.post("/jobs/enrich/stop", response_model=None)
+    def post_enrich_stop_html(request: Request) -> RedirectResponse:
+        from urllib.parse import urlencode
+
+        db = _db(request)
+        request.app.state.enrich_runner.stop(db=db)
+        return RedirectResponse(f"/jobs?{urlencode({'enrich_stopped': '1'})}", status_code=303)
 
     @app.post("/api/jobs/enrich-selected")
     async def post_enrich_selected_api(request: Request) -> JSONResponse:

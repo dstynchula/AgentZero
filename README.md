@@ -6,20 +6,23 @@
 
 [![CI](https://github.com/dstynchula/AgentZero/actions/workflows/ci.yml/badge.svg)](https://github.com/dstynchula/AgentZero/actions/workflows/ci.yml)
 
-AgentZero is a **local, résumé-driven job search agent**. Drop your résumé in `resume/`, run a
-daily pipeline, and it will:
+**AgentZero** is a **local-first, résumé-driven job search agent** that turns noisy public web data into a clean, ranked, and fully operator-controlled pipeline.
 
-- Scrape **three job boards** (Indeed, LinkedIn, Glassdoor)
-- **Enrich** listings (comp, company size, Glassdoor, careers/company URLs, public-company signal)
-- **Rank** jobs against your résumé with an LLM
-- Mirror everything to **SQLite** and a **local web tracker** (Docker on port 8080)
-- Track applications you mark in the UI — it never auto-submits
+Drop your résumé in `resume/`, run the daily pipeline, and it will:
 
-Built as a working tool, AgentZero further serves as a working demonstration of agentic
-development techniques that produce reliable, well-tested code, alongside a secure and
-operator-controlled workflow for ingesting, validating, enriching, and distilling complex
-external data into actionable intelligence — an open-book example of agentic co-programming in
-Cursor (Ralph loop, TDD gates, human-in-the-loop where it matters).
+- Scrape **Indeed, LinkedIn, and Glassdoor** reliably (Playwright + Chrome CDP)
+- **Enrich** listings with compensation signals, company data, and context
+- **Rank** every opportunity against *your* résumé using an LLM
+- Store everything in **SQLite** with a local web tracker (Docker, port **8080**)
+- Keep you in control — it **never auto-applies**
+
+---
+
+## What this project shows
+
+Agentic workflows and modern LLM-integrated IDEs make it possible to rapidly prototype, iterate, and ship robust systems that safely ingest complex data from external sources, validate it, reason over it, and turn it into actionable intelligence — with strong operator oversight and quality gates.
+
+AgentZero is a practical example of production-minded agentic development: local trust boundaries, schema-driven validation, lead-gated workflows, comprehensive testing, and a clear separation between automation and human decision-making.
 
 ---
 
@@ -82,6 +85,7 @@ flowchart TB
 - **Local-first trust boundary**: data and credentials stay on your machine; MCP is stdio-only
 - **Lead-gated workflow**: new jobs land as `lead` in SQLite first; approve to promote to the web tracker
 - **Local tracker**: browse, edit status/notes, and soft-reject in the web UI — no external spreadsheet
+- **Fast scrape by default**: listings upsert as LEAD without inline detail fetch; enrich on demand
 - **Scrape reliability over elegance**: browser/CDP paths are explicit and operationally opinionated
 - **Security pragmatism**: SSRF defenses are strongest on enrichment HTTP; board scraping intentionally navigates board URLs
 
@@ -150,16 +154,16 @@ Or the classic non-gated pipeline:
 ```powershell
 python scripts/run_scrape.py          # scrape → validate → shallow enrich → SQLite
 python scripts/enrich_jobs.py         # deep enrich: detail pages, Glassdoor, web search
-python scripts/rank_jobs.py                 # LLM rank vs résumé
-docker compose up web                       # browse / edit tracker
+python scripts/rank_jobs.py           # LLM rank vs résumé
+docker compose up web                 # browse / edit tracker
 ```
 
 | Stage | What it does |
 |-------|----------------|
-| **Scrape** | Five boards, sequential; prompts for titles, locations, comp floor |
+| **Scrape** | Indeed, LinkedIn, Glassdoor; prompts for titles, locations, comp floor |
 | **Lead review** | New roles land as `lead` in SQLite; approve before they appear in the web tracker |
 | **Shallow enrich** | Parse comp/size/Glassdoor from fields on the job; filter by comp floor |
-| **Deep enrich** | Fetch posting URLs, Glassdoor lookup, DuckDuckGo company research |
+| **Deep enrich** | Per-job or **Enrich selected** batch — detail pages, Glassdoor, web research |
 | **Rank** | LLM fit score + rationale vs your résumé |
 | **Tracker** | Web UI on :8080 — edit status, notes, cover letters, soft-reject; CSV export optional |
 
@@ -168,8 +172,8 @@ docker compose up web                       # browse / edit tracker
 | URL | Purpose |
 |-----|---------|
 | http://localhost:8080/ | **Chat** — LLM assistant (read jobs/profile; Confirm before scrape, status, cover letter) |
-| http://localhost:8080/jobs | Sortable job table; job card — status, notes, **cover letter** (generate, edit, download .txt) |
-| http://localhost:8080/scraper | **Scraper** — scrape sources, load résumé, add/remove search titles, background scrape, Chrome CDP **Connect** (`/config` redirects here) |
+| http://localhost:8080/jobs | Sortable job table; **Enrich selected** with live progress/log; additive filters; job card |
+| http://localhost:8080/scraper | **Scraper** — scrape sources, load résumé, search titles, background scrape, CDP **Connect** |
 
 Scraper persists operator choices in `data/web_operator_config.json`; LLM search snapshots go to
 `data/search_profile.json` (see [Docker](docs/DOCKER.md) for host CDP + read-only `resume/` mount).

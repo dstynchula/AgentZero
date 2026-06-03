@@ -11,32 +11,94 @@
   <a href="/jobs?show_rejected=1&sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Show rejected</a>
   {% endif %}
   <form method="post" action="/jobs/enrich-selected" id="enrich-selected-form" class="inline-form">
-    <button type="submit" class="btn" {% if enrich.running %}disabled{% endif %}>Enrich selected</button>
+    <button type="submit" class="btn" id="enrich-start-btn" {% if enrich.running %}disabled{% endif %}>Enrich selected</button>
   </form>
-  {% if enrich.running %}
-  <span class="muted">Enriching {{ enrich.done }}/{{ enrich.total }}…</span>
-  {% endif %}
+  <form method="post" action="/jobs/enrich/stop" class="inline-form" style="margin-left:0.5rem;">
+    <button type="submit" class="btn btn-secondary" id="enrich-stop-btn" {% if not enrich.running %}disabled{% endif %}>Stop enrich</button>
+  </form>
 </div>
 
-<form method="get" action="/jobs" class="filter-bar">
+<section class="card" id="enrich-progress-section" {% if not enrich.running and not enrich.step_id and not enrich.logs %}style="display:none;"{% endif %}>
+  <h2>Enrich progress</h2>
+  <div id="enrich-progress">
+    <p id="enrich-progress-status">
+      {% if enrich.running %}
+      <span class="badge badge-warn">Running</span> {{ enrich.message or 'Enriching…' }}
+      {% else %}
+      <span class="muted">{{ enrich.message or 'No enrich batch running.' }}</span>
+      {% endif %}
+    </p>
+    <progress id="enrich-progress-bar" value="{{ enrich.done }}" max="{{ enrich.total if enrich.total > 0 else 1 }}" {% if not enrich.running or enrich.total <= 0 %}hidden{% endif %} style="width:100%;margin:0.35rem 0;"></progress>
+    <dl id="enrich-granular" class="muted" style="font-size:0.85rem;margin:0.35rem 0;display:grid;grid-template-columns:auto 1fr;gap:0.15rem 0.75rem;" {% if not enrich.running and not enrich.step_id %}hidden{% endif %}>
+      <dt>Step</dt><dd id="enrich-step-id">{{ enrich.step_id or '—' }}</dd>
+      <dt>Label</dt><dd id="enrich-step-label">{{ enrich.step_label or '—' }}</dd>
+      <dt>Step time</dt><dd id="enrich-step-elapsed">{% if enrich.step_elapsed_ms %}{{ (enrich.step_elapsed_ms // 1000) }}s{% else %}—{% endif %}</dd>
+      <dt>Run time</dt><dd id="enrich-run-elapsed">{% if enrich.run_elapsed_ms %}{{ (enrich.run_elapsed_ms // 1000) }}s{% else %}—{% endif %}</dd>
+      <dt>Next</dt><dd id="enrich-next">{{ enrich.next_step_label or enrich.next_step_id or '—' }}</dd>
+    </dl>
+    <div id="enrich-log-wrap" class="log-viewer-wrap">
+      <div class="log-viewer" id="enrich-log-viewer" role="region" aria-label="Enrich activity log">
+        <div class="log-viewer__toolbar">
+          <span class="log-viewer__title">Enrich log</span>
+          <span class="log-viewer__meta" id="enrich-log-meta">0 lines</span>
+          <div class="log-viewer__filters">
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="info" checked /> Info</label>
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="warn" checked /> Warn</label>
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="error" checked /> Error</label>
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="debug" /> Debug</label>
+          </div>
+          <span class="log-viewer__spacer"></span>
+          <label class="log-viewer__autoscroll">
+            <input type="checkbox" class="log-viewer__autoscroll-input" checked />
+            Auto-scroll
+          </label>
+          <button type="button" class="btn btn-secondary log-viewer__copy" id="enrich-log-copy">Copy</button>
+        </div>
+        <div class="log-viewer__body" id="enrich-log-body" role="log" aria-live="polite" aria-relevant="additions"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<form method="get" action="/jobs" class="filter-bar" id="jobs-filter-form">
   {% if show_rejected %}<input type="hidden" name="show_rejected" value="1" />{% endif %}
   <input type="hidden" name="sort" value="{{ sort }}" />
   <input type="hidden" name="order" value="{{ order }}" />
-  <label>Company <input type="text" name="company" value="{{ filters.company or '' }}" /></label>
-  <label>Title <input type="text" name="title" value="{{ filters.title or '' }}" /></label>
-  <label>Status
-    <select name="status">
-      <option value="">Any</option>
-      {% for s in status_choices %}
-      <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+  {% for key, value in filters.query_items() %}
+  <input type="hidden" name="{{ key }}" value="{{ value }}" />
+  {% endfor %}
+  {% if filter_chips %}
+  <div class="filter-chips" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.5rem;width:100%;">
+    {% for chip in filter_chips %}
+    <span class="badge" style="display:inline-flex;align-items:center;gap:0.35rem;">
+      {{ chip.label }}: {{ chip.value }}
+      <a href="{{ chip.remove_href }}" title="Remove filter" aria-label="Remove {{ chip.label }} filter">×</a>
+    </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <label>
+    Key
+    <select name="filter_key" id="filter-key">
+      {% for key, label in filter_key_choices %}
+      <option value="{{ key }}">{{ label }}</option>
       {% endfor %}
     </select>
   </label>
-  <label>Min score <input type="text" name="min_score" value="{{ filters.min_score if filters.min_score is not none else '' }}" /></label>
-  <label>Min comp <input type="text" name="min_comp" value="{{ filters.min_comp if filters.min_comp is not none else '' }}" /></label>
-  <label>Max comp <input type="text" name="max_comp" value="{{ filters.max_comp if filters.max_comp is not none else '' }}" /></label>
-  <button type="submit" class="btn btn-secondary">Filter</button>
-  <a href="/jobs" class="btn btn-secondary">Clear filters</a>
+  <label id="filter-value-text-wrap">
+    Value
+    <input type="text" name="filter_value" id="filter-value-text" placeholder="Filter value" />
+  </label>
+  <label id="filter-value-status-wrap" style="display:none;">
+    Value
+    <select name="filter_value" id="filter-value-status" disabled>
+      {% for s in status_choices %}
+      <option value="{{ s }}">{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit" class="btn btn-secondary">Add filter</button>
+  <a href="{{ clear_filters_href }}" class="btn btn-secondary">Clear filters</a>
 </form>
 
 <details class="column-picker" id="column-picker">
@@ -286,5 +348,107 @@ if (document.readyState === "loading") {
 } else {
   initTrackerColumns();
 }
+
+(function () {
+  var keySelect = document.getElementById("filter-key");
+  var textWrap = document.getElementById("filter-value-text-wrap");
+  var statusWrap = document.getElementById("filter-value-status-wrap");
+  var textInput = document.getElementById("filter-value-text");
+  var statusInput = document.getElementById("filter-value-status");
+  function syncFilterValueField() {
+    if (!keySelect || !textWrap || !statusWrap || !textInput || !statusInput) return;
+    var isStatus = keySelect.value === "status";
+    textWrap.style.display = isStatus ? "none" : "";
+    statusWrap.style.display = isStatus ? "" : "none";
+    textInput.disabled = isStatus;
+    statusInput.disabled = !isStatus;
+    if (isStatus) textInput.removeAttribute("name");
+    else textInput.setAttribute("name", "filter_value");
+    if (isStatus) statusInput.setAttribute("name", "filter_value");
+    else statusInput.removeAttribute("name");
+  }
+  if (keySelect) {
+    keySelect.addEventListener("change", syncFilterValueField);
+    syncFilterValueField();
+  }
+})();
+
+(function () {
+  var section = document.getElementById("enrich-progress-section");
+  var statusEl = document.getElementById("enrich-progress-status");
+  var barEl = document.getElementById("enrich-progress-bar");
+  var startBtn = document.getElementById("enrich-start-btn");
+  var stopBtn = document.getElementById("enrich-stop-btn");
+  var granularEl = document.getElementById("enrich-granular");
+  var logViewer = window.agentzeroLogViewer
+    ? window.agentzeroLogViewer(document.getElementById("enrich-log-viewer"))
+    : null;
+  var stepIdEl = document.getElementById("enrich-step-id");
+  var stepLabelEl = document.getElementById("enrich-step-label");
+  var stepElapsedEl = document.getElementById("enrich-step-elapsed");
+  var runElapsedEl = document.getElementById("enrich-run-elapsed");
+  var nextEl = document.getElementById("enrich-next");
+
+  function fmtSec(ms) {
+    if (!ms) return "—";
+    return Math.floor(ms / 1000) + "s";
+  }
+
+  function updateActivityLog(s) {
+    if (logViewer) logViewer.update(s.logs, s.running, s.errors);
+  }
+
+  function updateGranular(s) {
+    if (!granularEl) return;
+    var show = !!(s.running || s.step_id || (s.logs && s.logs.length));
+    granularEl.hidden = !show;
+    if (stepIdEl) stepIdEl.textContent = s.step_id || "—";
+    if (stepLabelEl) stepLabelEl.textContent = s.step_label || "—";
+    if (stepElapsedEl) stepElapsedEl.textContent = fmtSec(s.step_elapsed_ms);
+    if (runElapsedEl) runElapsedEl.textContent = fmtSec(s.run_elapsed_ms);
+    if (nextEl) nextEl.textContent = s.next_step_label || s.next_step_id || "—";
+  }
+
+  function updateEnrichUI(s) {
+    if (section && (s.running || s.step_id || (s.logs && s.logs.length) || s.message)) {
+      section.style.display = "";
+    }
+    if (statusEl) {
+      if (s.running) {
+        statusEl.innerHTML = '<span class="badge badge-warn">Running</span> ' + (s.message || "Enriching…");
+      } else {
+        statusEl.innerHTML = '<span class="muted">' + (s.message || "No enrich batch running.") + "</span>";
+      }
+    }
+    if (barEl) {
+      barEl.value = s.done || 0;
+      barEl.max = s.total > 0 ? s.total : 1;
+      barEl.hidden = !s.running || !(s.total > 0);
+    }
+    if (startBtn) startBtn.disabled = !!s.running;
+    if (stopBtn) stopBtn.disabled = !s.running;
+    updateGranular(s);
+    updateActivityLog(s);
+  }
+
+  updateEnrichUI({
+    logs: {{ enrich.logs | default([]) | tojson }},
+    running: {{ 'true' if enrich.running else 'false' }},
+    errors: {{ enrich.errors | default([]) | tojson }},
+    message: {{ (enrich.message or '') | tojson }},
+    done: {{ enrich.done | default(0) }},
+    total: {{ enrich.total | default(0) }},
+    step_id: {{ (enrich.step_id or '') | tojson }},
+    step_label: {{ (enrich.step_label or '') | tojson }},
+    step_elapsed_ms: {{ enrich.step_elapsed_ms | default(0) }},
+    run_elapsed_ms: {{ enrich.run_elapsed_ms | default(0) }},
+    next_step_label: {{ (enrich.next_step_label or '') | tojson }},
+    next_step_id: {{ (enrich.next_step_id or '') | tojson }},
+  });
+
+  if (typeof window.agentzeroPollEnrich === "function") {
+    window.agentzeroPollEnrich({ intervalMs: 500, onUpdate: updateEnrichUI });
+  }
+})();
 </script>
 {% endblock %}

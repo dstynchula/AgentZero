@@ -34,6 +34,13 @@ DEFAULT_SCRAPE_PLAN: tuple[tuple[str, str], ...] = (
     ("done", "Complete"),
 )
 
+DEFAULT_ENRICH_PLAN: tuple[tuple[str, str], ...] = (
+    ("enrich.queue", "Queue enrich batch"),
+    ("enrich.parallel", "HTTP detail + web research"),
+    ("enrich.browser", "Browser detail fallback"),
+    ("done", "Complete"),
+)
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -451,6 +458,18 @@ class RunProgress:
             self._cancelled = True
             self._append_log_locked("warn", message, step_id=self._step_id)
         self._persist()
+
+    def is_cancelled(self) -> bool:
+        with self._lock:
+            if self._cancelled or self._phase == "cancelled":
+                return True
+        if self._persist_path is not None:
+            file_snap = load_scrape_progress_file(self._persist_path)
+            if file_snap is not None and (
+                file_snap.cancelled or file_snap.phase == "cancelled"
+            ):
+                return True
+        return False
 
     def snapshot(self) -> RunProgressSnapshot:
         with self._lock:

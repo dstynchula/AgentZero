@@ -53,7 +53,13 @@ Listings are validated, filtered, and saved as **LEAD** rows in SQLite immediate
 only if you need the legacy serial detail loop during scrape (slow; not recommended).
 
 **Deep enrich** (operator-driven): Use the **Enrich** button on a job card, **Enrich selected** on the
-jobs list (~5 parallel browser workers), or `scripts/enrich_jobs.py` from the CLI.
+jobs list (~5 parallel browser workers), or `scripts/enrich_jobs.py` from the CLI. Batch enrich writes
+live progress to `data/enrich_progress.json`; the jobs tracker page shows a progress bar, step timing,
+filterable activity log, and **Stop enrich** (same pattern as the Scraper page).
+
+Web research for public-company/ticker fields only accepts exchange tickers from snippets that mention
+the job's employer (avoids attributing unrelated tickers such as JNJ from comparison articles).
+Re-enrich clears stale ticker data when scoped research finds no company-matched public signal.
 
 | Setting | Default | Role |
 |---------|---------|------|
