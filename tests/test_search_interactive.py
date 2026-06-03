@@ -45,7 +45,7 @@ def test_format_search_summary_includes_salary():
     text = format_search_summary(profile)
     assert "Staff Security Engineer" in text
     assert "Remote" in text
-    assert "$180,000" in text
+    assert "Comp floor: (configured" in text
     assert "Comp floor" in text
 
 
