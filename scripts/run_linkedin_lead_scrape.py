@@ -54,8 +54,6 @@ def main() -> int:
         update={
             "scrape_browser_sites": ["linkedin"],
             "scrape_sites": [],
-            # Use the logged-in Chrome window (same session where Garner showed up).
-            "scrape_cdp_sites": ["linkedin"],
         }
     )
 

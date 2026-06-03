@@ -41,14 +41,14 @@ SOURCE_ALIASES: dict[str, dict[str, str]] = {
 
 SALARY_RANGE_RE = re.compile(
     r"(?P<currency>[$€£])?\s*"
-    r"(?P<min>[\d,]+(?:\.\d+)?)\s*(?:k|K)?"
+    r"(?P<min>\d[\d,]*(?:\.\d+)?)\s*(?:k|K)?"
     r"\s*[-–—to]+\s*"
     r"(?:[$€£])?\s*"
-    r"(?P<max>[\d,]+(?:\.\d+)?)\s*(?:k|K)?",
+    r"(?P<max>\d[\d,]*(?:\.\d+)?)\s*(?:k|K)?",
     re.IGNORECASE,
 )
 SALARY_SINGLE_RE = re.compile(
-    r"(?P<currency>[$€£])?\s*(?P<amount>[\d,]+(?:\.\d+)?)\s*(?:k|K)?",
+    r"(?P<currency>[$€£])?\s*(?P<amount>\d[\d,]*(?:\.\d+)?)\s*(?:k|K)?",
     re.IGNORECASE,
 )
 CURRENCY_MAP = {"$": "USD", "€": "EUR", "£": "GBP"}
@@ -119,6 +119,15 @@ def apply_aliases(raw: RawRecord, *, source: str) -> RawRecord:
     return out
 
 
+def _looks_like_comp(text: str) -> bool:
+    """Reject bare numeric ranges (e.g. ``5-10 years``) that are not compensation."""
+    if any(sym in text for sym in ("$", "€", "£")):
+        return True
+    return bool(
+        re.search(r"\b(?:yr|year|hour|hr|salary|pay|usd|eur|gbp)\b", text, re.IGNORECASE)
+    )
+
+
 def parse_comp_from_text(text: str) -> tuple[float | None, float | None, str | None]:
     """Parse a salary string into min/max/currency (best effort)."""
     cleaned = text.strip()
@@ -130,12 +139,20 @@ def parse_comp_from_text(text: str) -> tuple[float | None, float | None, str | N
         currency = _currency_symbol(match.group("currency"))
         low = _parse_amount(match.group("min"))
         high = _parse_amount(match.group("max"))
+        if low is None and high is None:
+            return None, None, None
+        if currency is None and not _looks_like_comp(cleaned):
+            return None, None, None
         return low, high, currency
 
     match = SALARY_SINGLE_RE.search(cleaned)
     if match:
         currency = _currency_symbol(match.group("currency"))
         amount = _parse_amount(match.group("amount"))
+        if amount is None:
+            return None, None, None
+        if currency is None and not _looks_like_comp(cleaned):
+            return None, None, None
         return amount, amount, currency
 
     return None, None, None
@@ -147,8 +164,18 @@ def _currency_symbol(symbol: str | None) -> str | None:
     return CURRENCY_MAP.get(symbol, symbol)
 
 
-def _parse_amount(raw: str) -> float:
-    value = float(raw.replace(",", ""))
+def _parse_amount(raw: str | None) -> float | None:
+    if raw is None:
+        return None
+    cleaned = str(raw).replace(",", "").strip()
+    if not cleaned or not any(ch.isdigit() for ch in cleaned):
+        return None
+    try:
+        value = float(cleaned)
+    except ValueError:
+        return None
+    if value <= 0:
+        return None
     if value < 1000:
         return value * 1000
     return value

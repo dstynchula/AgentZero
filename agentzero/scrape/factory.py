@@ -39,7 +39,13 @@ def build_scrape_source(
     sources: list[JobSource] = []
 
     for site in CORE_BROWSER_SITES:
-        if site in browser_enabled:
+        if site not in browser_enabled:
+            continue
+        if site == "linkedin":
+            from agentzero.scrape.linkedin_source import LinkedInJobSource
+
+            sources.append(LinkedInJobSource(cfg))
+        else:
             sources.append(BrowserJobBoardSource(cfg, site=site))
 
     if not sources:

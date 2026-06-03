@@ -11,6 +11,18 @@
 <p class="muted">{{ job.company }} · {{ job.source }}</p>
 
 <section class="card">
+  <h2>Enrich</h2>
+  <p class="muted">Fetch detail pages, comp, and company facts (may open LinkedIn in the browser).</p>
+  <form method="post" action="/jobs/{{ job_id }}/enrich" class="detail-form">
+    <input type="hidden" name="return_to" value="detail" />
+    {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+    <input type="hidden" name="sort" value="{{ sort }}" />
+    <input type="hidden" name="order" value="{{ order }}" />
+    <button type="submit">Enrich</button>
+  </form>
+</section>
+
+<section class="card">
   <h2>Tracker</h2>
   <form method="post" action="/jobs/{{ job_id }}/status" class="detail-form">
     <input type="hidden" name="return_to" value="detail" />

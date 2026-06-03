@@ -5,6 +5,44 @@ from agentzero.web.jobs import job_detail_for_ui, jobs_for_table, list_jobs_for_
 from tests.test_db import _job
 
 
+def test_list_jobs_filters_by_company_title_status_score_comp_min(tmp_path):
+    db = Database(tmp_path / "t.db")
+    db.upsert_job(
+        _job(
+            title="Staff Security Engineer",
+            company="SecureCo",
+            match_score=0.92,
+            comp_min=220_000,
+            comp_max=260_000,
+            status=ApplicationStatus.LEAD,
+        )
+    )
+    db.upsert_job(
+        _job(
+            title="Account Executive",
+            company="SalesCo",
+            url="https://jobs.example.com/sales",
+            match_score=0.4,
+            comp_min=90_000,
+            comp_max=110_000,
+            status=ApplicationStatus.NEW,
+        )
+    )
+    from agentzero.web.jobs import JobListFilters, list_jobs_for_ui
+
+    filters = JobListFilters(
+        company="secure",
+        title="security",
+        status="lead",
+        min_score=0.9,
+        min_comp=200_000,
+    )
+    rows = list_jobs_for_ui(db, filters=filters)
+    assert len(rows) == 1
+    assert rows[0]["company"] == "SecureCo"
+    db.close()
+
+
 def test_list_excludes_rejected_by_default(tmp_path):
     db = Database(tmp_path / "t.db")
     db.upsert_job(_job(title="Active"))

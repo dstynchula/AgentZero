@@ -463,3 +463,14 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     accept: pytest -q && ruff check agentzero tests scripts tools -> green
     branch: feat/web-P38-chat
     PR: https://github.com/dstynchula/AgentZero/pull/38
+
+[2026-06-03T12:00:00Z] LinkedIn scrape reliability T01-T07 DONE — fix/linkedin-scrape-reliability.
+    Root cause: launch_browser_page returns 4-tuple (browser) but LinkedInJobsService unpacked 3;
+    preflight ran before wait_for_html (false login_required on loading shell).
+    files: agentzero/scrape/linkedin_jobs.py, linkedin_source.py, factory.py, browser_linkedin.py,
+           scripts/debug_linkedin_search.py, run_linkedin_lead_scrape.py, docs/SCRAPING.md,
+           tests/scrape/test_linkedin_{jobs,live}.py, tests/scripts/test_debug_linkedin_search.py,
+           tests/conftest.py (skip external by default)
+    accept: verify_browser_session linkedin exit 0; debug_linkedin_search --live after_title_filter=60;
+            pytest -q -> green (live skipped in CI)
+    prep-pr: pending user invocation on fix/linkedin-scrape-reliability

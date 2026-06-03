@@ -135,7 +135,8 @@ class Database:
             )
             self._conn.commit()
 
-    def get_job(self, job_id: str) -> JobPosting | None:
+    def get_job_by_stored_id(self, job_id: str) -> JobPosting | None:
+        """Load a job by SQLite primary key."""
         with self._lock:
             row = self._conn.execute(
                 "SELECT payload FROM jobs WHERE job_id = ?", (job_id,)
@@ -144,6 +145,75 @@ class Database:
             return None
         data = json.loads(row["payload"])
         return JobPosting.model_validate(data)
+
+    def iter_jobs_with_stored_ids(self) -> list[tuple[str, JobPosting]]:
+        """Return ``(stored_job_id, job)`` for every row."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT job_id, payload FROM jobs ORDER BY job_id"
+            ).fetchall()
+        out: list[tuple[str, JobPosting]] = []
+        for row in rows:
+            job = JobPosting.model_validate(json.loads(row["payload"]))
+            out.append((row["job_id"], job))
+        return out
+
+    def find_stored_id_for_canonical(self, canonical_id: str) -> str | None:
+        """Map a computed ``JobPosting.job_id`` to the row's stored primary key."""
+        for stored_id, job in self.iter_jobs_with_stored_ids():
+            if job.job_id == canonical_id:
+                return stored_id
+        return None
+
+    def get_job(self, job_id: str) -> JobPosting | None:
+        """Load by stored id, then by canonical ``JobPosting.job_id``."""
+        job = self.get_job_by_stored_id(job_id)
+        if job is not None:
+            return job
+        stored_id = self.find_stored_id_for_canonical(job_id)
+        if stored_id is None:
+            return None
+        return self.get_job_by_stored_id(stored_id)
+
+    def rekey_job(self, old_id: str, new_id: str, job: JobPosting) -> bool:
+        """Move a row to *new_id* preserving pipeline columns. Returns False if *old_id* missing."""
+        if old_id == new_id:
+            return True
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM jobs WHERE job_id = ?", (old_id,)
+            ).fetchone()
+            if row is None:
+                return False
+            payload = job.model_dump(mode="json")
+            payload["job_id"] = new_id
+            now = _utc_now_iso()
+            self._conn.execute("DELETE FROM jobs WHERE job_id = ?", (old_id,))
+            self._conn.execute(
+                """
+                INSERT INTO jobs (
+                    job_id, source, company, title, url, payload, status,
+                    scrape_status, enrich_status, rank_status, draft_status,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    new_id,
+                    job.source,
+                    job.company,
+                    job.title,
+                    job.url,
+                    json.dumps(payload, default=_json_default),
+                    job.status.value,
+                    row["scrape_status"],
+                    row["enrich_status"],
+                    row["rank_status"],
+                    row["draft_status"],
+                    now,
+                ),
+            )
+            self._conn.commit()
+        return True
 
     def count_jobs(self) -> int:
         with self._lock:

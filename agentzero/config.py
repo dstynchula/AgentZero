@@ -108,12 +108,16 @@ class Settings(BaseSettings):
     # Fail fast when login wall detected before scrape (skip long CAPTCHA wait).
     scrape_session_preflight: bool = False
     linkedin_fetch_description: bool = False
+    # When false (default), scrape skips per-row LinkedIn detail pages; operators enrich later.
+    scrape_inline_detail_enrich: bool = False
     # Secondary enrichment: fetch job detail URLs + optional Glassdoor company lookup.
     enrich_fetch_details: bool = True
     enrich_glassdoor_lookup: bool = True
     enrich_delay_seconds: float = 2.0
-    # Parallel HTTP + Glassdoor lookups in scripts/enrich_jobs.py (browser fallback stays sequential).
+    # Parallel HTTP + Glassdoor lookups in scripts/enrich_jobs.py and web batch enrich.
     enrich_max_concurrency: int = 6
+    # Parallel Playwright browser contexts for detail-page fallback in batch enrich.
+    enrich_browser_max_concurrency: int = 5
     # Web search (DuckDuckGo) for company size, Glassdoor snippets, careers pages.
     enrich_web_search: bool = True
     enrich_web_search_max_results: int = 8

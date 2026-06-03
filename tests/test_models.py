@@ -108,6 +108,24 @@ def test_job_posting_optional_fields_nullable():
     assert job.glassdoor_rating is None
 
 
+def test_stable_job_id_linkedin_uses_numeric_posting_id_only():
+    slug_url = "https://www.linkedin.com/jobs/view/staff-security-engineer-4328174567"
+    numeric_url = "https://www.linkedin.com/jobs/view/4328174567"
+    a = stable_job_id(
+        source="linkedin",
+        company="Garner Health",
+        title="Staff Security Engineer",
+        url=slug_url,
+    )
+    b = stable_job_id(
+        source="linkedin",
+        company="Garner",
+        title="Different Title Text",
+        url=numeric_url,
+    )
+    assert a == b
+
+
 def test_job_posting_job_id_matches_stable_job_id():
     job = JobPosting(
         title="Data Engineer",

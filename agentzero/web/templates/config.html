@@ -140,13 +140,44 @@
       {% endif %}
     </p>
     <progress id="scrape-progress-bar" value="{{ scrape.done }}" max="{{ scrape.total if scrape.total > 0 else 1 }}" {% if not scrape.running or scrape.total <= 0 %}hidden{% endif %} style="width:100%;margin:0.35rem 0;"></progress>
+    <dl id="scrape-granular" class="muted" style="font-size:0.85rem;margin:0.35rem 0;display:grid;grid-template-columns:auto 1fr;gap:0.15rem 0.75rem;" {% if not scrape.running and not scrape.step_id %}hidden{% endif %}>
+      <dt>Step</dt><dd id="scrape-step-id">{{ scrape.step_id or '—' }}</dd>
+      <dt>Label</dt><dd id="scrape-step-label">{{ scrape.step_label or '—' }}</dd>
+      <dt>Step time</dt><dd id="scrape-step-elapsed">{% if scrape.step_elapsed_ms %}{{ (scrape.step_elapsed_ms // 1000) }}s{% else %}—{% endif %}</dd>
+      <dt>Run time</dt><dd id="scrape-run-elapsed">{% if scrape.run_elapsed_ms %}{{ (scrape.run_elapsed_ms // 1000) }}s{% else %}—{% endif %}</dd>
+      <dt>Next</dt><dd id="scrape-next">{{ scrape.next_step_label or scrape.next_step_id or '—' }}</dd>
+      <dt>Worker</dt><dd id="scrape-pid">{% if scrape.pid %}pid {{ scrape.pid }}{% else %}—{% endif %}{% if scrape.stale %} · stale{% endif %}</dd>
+    </dl>
     <p id="scrape-last-run" class="muted" {% if scrape.running or scrape.scraped is none %}hidden{% endif %}>
       Last run: {{ scrape.scraped }} scraped, {{ scrape.leads }} new lead(s).
     </p>
-    <pre id="scrape-errors" class="hint" {% if scrape.running or not scrape.errors %}hidden{% endif %}>{{ scrape.errors|join('\n') if scrape.errors else '' }}</pre>
+    <div id="scrape-log-wrap" class="log-viewer-wrap">
+      <div class="log-viewer" id="scrape-log-viewer" role="region" aria-label="Scrape activity log">
+        <div class="log-viewer__toolbar">
+          <span class="log-viewer__title">Scrape log</span>
+          <span class="log-viewer__meta" id="scrape-log-meta">0 lines</span>
+          <div class="log-viewer__filters">
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="info" checked /> Info</label>
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="warn" checked /> Warn</label>
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="error" checked /> Error</label>
+            <label class="log-viewer__filter"><input type="checkbox" class="log-viewer__filter" data-level="debug" /> Debug</label>
+          </div>
+          <span class="log-viewer__spacer"></span>
+          <label class="log-viewer__autoscroll">
+            <input type="checkbox" class="log-viewer__autoscroll-input" checked />
+            Auto-scroll
+          </label>
+          <button type="button" class="btn btn-secondary log-viewer__copy" id="scrape-log-copy">Copy</button>
+        </div>
+        <div class="log-viewer__body" id="scrape-log-body" role="log" aria-live="polite" aria-relevant="additions"></div>
+      </div>
+    </div>
   </div>
-  <form method="post" action="/scraper/scrape" class="toolbar">
+  <form method="post" action="/scraper/scrape" class="toolbar" style="display:inline;">
     <button type="submit" class="btn" id="scrape-start-btn" {% if scrape.running %}disabled{% endif %}>Start background scrape</button>
+  </form>
+  <form method="post" action="/scraper/scrape/stop" class="toolbar" style="display:inline;margin-left:0.5rem;">
+    <button type="submit" class="btn btn-secondary" id="scrape-stop-btn" {% if not scrape.running %}disabled{% endif %}>Stop scrape</button>
   </form>
 </section>
 
@@ -210,16 +241,53 @@
   var statusEl = document.getElementById("scrape-progress-status");
   var barEl = document.getElementById("scrape-progress-bar");
   var startBtn = document.getElementById("scrape-start-btn");
+  var stopBtn = document.getElementById("scrape-stop-btn");
   var lastRunEl = document.getElementById("scrape-last-run");
-  var errorsEl = document.getElementById("scrape-errors");
+  var granularEl = document.getElementById("scrape-granular");
+  var logViewer = window.agentzeroLogViewer
+    ? window.agentzeroLogViewer(document.getElementById("scrape-log-viewer"))
+    : null;
+  var stepIdEl = document.getElementById("scrape-step-id");
+  var stepLabelEl = document.getElementById("scrape-step-label");
+  var stepElapsedEl = document.getElementById("scrape-step-elapsed");
+  var runElapsedEl = document.getElementById("scrape-run-elapsed");
+  var nextEl = document.getElementById("scrape-next");
+  var pidEl = document.getElementById("scrape-pid");
+  function fmtSec(ms) {
+    if (!ms) return "—";
+    return Math.floor(ms / 1000) + "s";
+  }
+
+  function updateActivityLog(s) {
+    if (logViewer) logViewer.update(s.logs, s.running, s.errors);
+  }
+
+  function updateGranular(s) {
+    if (!granularEl) return;
+    var show = s.running || s.step_id || s.stale;
+    granularEl.hidden = !show;
+    if (stepIdEl) stepIdEl.textContent = s.step_id || "—";
+    if (stepLabelEl) stepLabelEl.textContent = s.step_label || "—";
+    if (stepElapsedEl) stepElapsedEl.textContent = fmtSec(s.step_elapsed_ms);
+    if (runElapsedEl) runElapsedEl.textContent = fmtSec(s.run_elapsed_ms);
+    if (nextEl) nextEl.textContent = s.next_step_label || s.next_step_id || "—";
+    if (pidEl) {
+      var w = s.pid ? "pid " + s.pid : "—";
+      if (s.stale) w += " · stale";
+      pidEl.textContent = w;
+    }
+  }
 
   function updateScrapeUI(s) {
     if (!statusEl) return;
+    updateGranular(s);
+    updateActivityLog(s);
     if (s.running) {
       statusEl.innerHTML =
         '<span class="badge badge-warn">Running</span> ' +
         (s.message || s.phase || "Scraping…");
       if (startBtn) startBtn.disabled = true;
+      if (stopBtn) stopBtn.disabled = false;
       if (barEl) {
         if (s.total > 0) {
           barEl.hidden = false;
@@ -230,11 +298,11 @@
         }
       }
       if (lastRunEl) lastRunEl.hidden = true;
-      if (errorsEl) errorsEl.hidden = true;
     } else {
       statusEl.innerHTML =
         '<span class="muted">' + (s.message || "No scrape run yet from the web UI.") + "</span>";
       if (startBtn) startBtn.disabled = false;
+      if (stopBtn) stopBtn.disabled = true;
       if (barEl) barEl.hidden = true;
       if (lastRunEl) {
         if (s.scraped != null) {
@@ -245,19 +313,18 @@
           lastRunEl.hidden = true;
         }
       }
-      if (errorsEl) {
-        if (s.errors && s.errors.length) {
-          errorsEl.textContent = s.errors.join("\n");
-          errorsEl.hidden = false;
-        } else {
-          errorsEl.hidden = true;
-        }
-      }
+      updateActivityLog(s);
     }
   }
 
+  updateActivityLog({
+    logs: {{ scrape.logs | default([]) | tojson }},
+    running: {{ 'true' if scrape.running else 'false' }},
+    errors: {{ scrape.errors | default([]) | tojson }},
+  });
+
   if (typeof window.agentzeroPollScrape === "function") {
-    window.agentzeroPollScrape({ onUpdate: updateScrapeUI });
+    window.agentzeroPollScrape({ intervalMs: 500, onUpdate: updateScrapeUI });
   }
 })();
 </script>

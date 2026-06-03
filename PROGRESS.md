@@ -343,6 +343,27 @@ Plan: [docs/docker-web-scrape-fix.plan.md](docs/docker-web-scrape-fix.plan.md)
 | docs/docker-web-scrape-fix.plan.md | P48 Docker web scrape (CDP WS rewrite, subprocess runner) |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
+## LinkedIn scrape reliability (T01–T07)
+
+- [x] T01 — Track service stack + debug telemetry
+- [x] T02 — Debug harness + session matrix
+- [x] T03 — Parser / marker hardening
+- [x] T04 — Title-filter diagnostics
+- [x] T05 — Navigation reliability
+- [x] T06 — Unify factory on LinkedInJobsService
+- [x] T07 — Live gate + prep-pr
+
+## P50 — Scrape durability + selective enrich
+
+- [x] T01 Comp parser hardening
+- [x] T02 Fast pipeline + early LEAD upsert
+- [x] T03 Skip known job_ids on re-scrape
+- [x] T04 Per-job Enrich button + API
+- [x] T05 Parallel batch enrich + Enrich selected
+- [x] T06 Jobs list filters
+- [x] T07 Docker/docs defaults
+- [x] T08 Acceptance tests
+
 ## Pre-public release checklist
 
 - [ ] Rotate OpenAI key and Google OAuth tokens before first public push

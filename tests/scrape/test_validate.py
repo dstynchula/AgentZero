@@ -116,6 +116,16 @@ def test_parse_comp_empty_returns_none():
     assert parse_comp_from_text("not a salary") == (None, None, None)
 
 
+def test_parse_comp_rejects_comma_only_junk():
+    assert parse_comp_from_text(", - ,") == (None, None, None)
+    assert parse_comp_from_text(",000/yr - ") == (None, None, None)
+
+
+def test_parse_comp_does_not_treat_bare_years_as_salary():
+    low, high, _currency = parse_comp_from_text("Senior AI Security Engineer 5-10 years")
+    assert low is None and high is None
+
+
 def test_currency_symbol_mapping():
     from agentzero.scrape.validate import _currency_symbol
 

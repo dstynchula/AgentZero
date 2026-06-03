@@ -47,6 +47,23 @@ Press **Enter** to keep a default; type **n** at the final prompt to cancel the 
 
 ## Enrichment and backfill
 
+**Fast scrape (default):** Web and lead-session scrapes **do not** open LinkedIn detail pages per row.
+Listings are validated, filtered, and saved as **LEAD** rows in SQLite immediately. Shallow parse
+(`enrich_job`) runs on fields already in the listing. Set `AGENTZERO_SCRAPE_INLINE_DETAIL_ENRICH=true`
+only if you need the legacy serial detail loop during scrape (slow; not recommended).
+
+**Deep enrich** (operator-driven): Use the **Enrich** button on a job card, **Enrich selected** on the
+jobs list (~5 parallel browser workers), or `scripts/enrich_jobs.py` from the CLI.
+
+| Setting | Default | Role |
+|---------|---------|------|
+| `AGENTZERO_SCRAPE_INLINE_DETAIL_ENRICH` | `false` | Serial detail fetch during scrape |
+| `AGENTZERO_ENRICH_MAX_CONCURRENCY` | `6` | Parallel HTTP/Glassdoor/web in batch enrich |
+| `AGENTZERO_ENRICH_BROWSER_MAX_CONCURRENCY` | `5` | Parallel Playwright detail pages in batch enrich |
+
+Re-scrapes **skip** `job_id`s already in SQLite (any status). Use per-job **Enrich** to refresh comp
+from a detail page.
+
 After scrape, shallow enrich runs in the pipeline (comp/size/Glassdoor from fields already on the job).
 **Deep enrich** (`enrich_jobs.py`) fetches posting URLs, looks up Glassdoor, and runs DuckDuckGo company research.
 
@@ -62,8 +79,26 @@ After scrape, shallow enrich runs in the pipeline (comp/size/Glassdoor from fiel
 ```powershell
 python scripts/backfill_linkedin_comp.py          # fetch comp from LinkedIn detail pages + sync
 python scripts/backfill_glassdoor_companies.py    # resolve Unknown Glassdoor employers + sync
-python scripts/run_linkedin_lead_scrape.py        # LinkedIn-only lead scrape (requires CDP Chrome)
+python scripts/run_linkedin_lead_scrape.py        # LinkedIn-only lead scrape (Playwright profile)
 ```
+
+### Debug LinkedIn search locally
+
+When search returns zero rows, use the debug harness (Playwright profile by default; pass `--cdp` to use CDP Chrome):
+
+```powershell
+$env:AGENTZERO_SCRAPE_BROWSER_HEADLESS = 'false'
+$env:AGENTZERO_SCRAPE_BROWSER_PAUSE_FOR_CAPTCHA = 'true'
+python scripts/verify_browser_session.py --site linkedin
+python scripts/debug_linkedin_search.py --dry-run --use-operator-config
+python scripts/debug_linkedin_search.py --live --use-operator-config --snapshot
+# Or explicit titles (comma-separated = all queries in one browser session):
+python scripts/debug_linkedin_search.py --live --terms "Staff Security Engineer,Principal Security Engineer,Senior Security Engineer" --remote
+```
+
+JSON output includes `queries_planned`, `scrape_primary_query_only`, `parsed_raw`, and `after_title_filter`. HTML snapshots go to `data/debug/` (gitignored). Live pytest smoke: `AGENTZERO_LINKEDIN_LIVE=1 pytest tests/scrape/test_linkedin_live.py -q`.
+
+**All selected Scraper titles:** the web UI saves checkboxes to `data/web_operator_config.json`. With **two or more** titles selected, `scrape_primary_query_only` is set to `false` and `LinkedInJobsService` runs one search per title (deduped by posting id). For CLI/MCP without the web UI, set `AGENTZERO_SCRAPE_PRIMARY_QUERY_ONLY=false` and list every title in `AGENTZERO_SEARCH_TERMS` (comma-separated in `.env`), or use `python scripts/run_lead_session.py --all-titles`.
 
 Re-run Glassdoor ratings after fixing company names: clear is not needed — run `enrich_jobs.py` (web search
 fills missing `glassdoor_rating`/`glassdoor_reviews`). Direct Glassdoor HTTP refresh alone often fails without

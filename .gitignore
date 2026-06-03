@@ -41,6 +41,7 @@ data/backups/
 data/pytest-bisect.json
 data/scrape_progress.json
 data/scrape_worker_result.json
+data/debug/
 
 # Personal résumé (never commit; folder kept via .gitkeep only)
 resume/**

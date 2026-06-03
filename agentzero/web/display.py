@@ -103,6 +103,7 @@ def build_list_query(
     show_rejected: bool = False,
     sort: str | None = None,
     order: str | None = None,
+    filters: object | None = None,
 ) -> str:
     """Query string for list index and back links (leading ``?`` when non-empty)."""
     parts: list[str] = []
@@ -111,6 +112,11 @@ def build_list_query(
     sort_column, descending = parse_sort_params(sort, order)
     parts.append(f"sort={sort_column}")
     parts.append(f"order={'desc' if descending else 'asc'}")
+    if filters is not None and hasattr(filters, "query_items"):
+        for key, value in filters.query_items():
+            from urllib.parse import quote
+
+            parts.append(f"{key}={quote(str(value))}")
     if not parts:
         return ""
     return "?" + "&".join(parts)
@@ -122,10 +128,16 @@ def sort_link_for_column(
     current_sort: str,
     current_descending: bool,
     show_rejected: bool,
+    filters: object | None = None,
 ) -> str:
     """Relative query string for sorting by *column* (toggle order when active)."""
     if column == current_sort and current_descending:
         next_order = "asc"
     else:
         next_order = "desc"
-    return build_list_query(show_rejected=show_rejected, sort=column, order=next_order)
+    return build_list_query(
+        show_rejected=show_rejected,
+        sort=column,
+        order=next_order,
+        filters=filters,
+    )
