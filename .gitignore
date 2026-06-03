@@ -11,6 +11,7 @@ venv/
 # Test / coverage / lint
 .pytest_cache/
 .ruff_cache/
+.codeql/
 .coverage
 .coverage.*
 htmlcov/

@@ -39,6 +39,31 @@ AGENTZERO_LOCATIONS=Remote
 
 Put your résumé in `resume/` (`.docx`, `.pdf`, `.txt`, or `.md`).
 
+### Pre-commit hooks (recommended)
+
+Catch ruff, encoding, and **CodeQL** issues before they reach GitHub:
+
+```powershell
+pip install -e ".[dev]"
+pre-commit install
+pre-commit install --hook-type pre-push
+```
+
+- **Every commit:** ruff + UTF-8 encoding check (matches CI)
+- **Every push:** CodeQL Python security scan (same class of alerts as the GitHub PR check)
+
+Install the [CodeQL CLI](https://github.com/github/codeql-cli-binaries/releases) once and add
+`codeql.exe` to PATH (or set `CODEQL_CLI` to its full path). The pre-push hook takes about 1–3
+minutes. Emergency only: `AGENTZERO_SKIP_CODEQL=1 git push`.
+
+Manual run:
+
+```powershell
+pre-commit run --all-files
+pre-commit run codeql --hook-stage pre-push
+python tools/codeql_check.py
+```
+
 ---
 
 ## 2. Browser setup (CAPTCHA / login)
