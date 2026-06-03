@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 800 300" height="300" width="800">
+  
+  
+  <defs>
+    
+    <linearGradient y2="100%" x2="100%" y1="0%" x1="0%" id="aGradient">
+      <stop stop-color="#4A9FFF" offset="0%"></stop>
+      <stop stop-color="#1E7BFF" offset="50%"></stop>
+      <stop stop-color="#0A4FBF" offset="100%"></stop>
+    </linearGradient>
+    
+    
+    <radialGradient fy="40%" fx="40%" r="50%" cy="50%" cx="50%" id="targetGradient">
+      <stop stop-color="#FFFFFF" offset="0%"></stop>
+      <stop stop-color="#1E7BFF" offset="70%"></stop>
+      <stop stop-color="#0A4FBF" offset="100%"></stop>
+    </radialGradient>
+  </defs>
+
+  
+  
+  <polygon stroke-width="12" stroke="#0A3A8A" fill="url(#aGradient)" points="80,220 150,50 220,220"></polygon>
+  
+  
+  <path stroke-width="35" stroke="#1E7BFF" fill="none" d="M120 140 Q170 120 210 145"></path>
+  
+  
+  <circle stroke-width="8" stroke="#FFFFFF" fill="url(#targetGradient)" r="45" cy="155" cx="175"></circle>
+  
+  
+  <circle fill="#0A3A8A" r="12" cy="155" cx="175"></circle>
+  
+  
+  <circle fill="#4A9FFF" r="18" cy="95" cx="235"></circle>
+  <circle fill="#FFFFFF" r="9" cy="95" cx="235"></circle>
+  
+  
+  <text letter-spacing="-2px" fill="#1E7BFF" font-weight="900" font-size="92" font-family="Arial Black, sans-serif" y="195" x="290">AgentZero</text>
+</svg>

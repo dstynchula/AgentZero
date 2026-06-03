@@ -54,6 +54,9 @@ web = [
 [tool.setuptools.packages.find]
 include = ["agentzero*"]
 
+[tool.setuptools.package-data]
+agentzero = ["web/templates/*.html", "web/static/*.svg"]
+
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 testpaths = ["tests"]

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="AgentZero.svg" alt="AgentZero" width="480" />
+</p>
+
 # AgentZero
 
 [![CI](https://github.com/dstynchula/AgentZero/actions/workflows/ci.yml/badge.svg)](https://github.com/dstynchula/AgentZero/actions/workflows/ci.yml)
