@@ -10,7 +10,7 @@ class FakeSource(JobSource):
     def __init__(self, records: list[RawRecord]) -> None:
         self._records = records
 
-    def fetch(self) -> list[RawRecord]:
+    def fetch(self, *, progress=None) -> list[RawRecord]:
         return list(self._records)
 
 

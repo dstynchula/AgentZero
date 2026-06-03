@@ -111,46 +111,57 @@
       overflow-y: auto;
     }
     .chat-sidebar .session-list li { margin-bottom: 0.35rem; }
-    .session-row {
-      display: flex;
-      gap: 0.35rem;
-      align-items: stretch;
+    .session-item {
+      position: relative;
     }
-    .session-row .session-open {
-      flex: 1;
-      min-width: 0;
-    }
-    .session-row .session-delete {
-      flex: 0 0 auto;
-      padding: 0.35rem 0.5rem;
-      font-size: 0.75rem;
-      line-height: 1.2;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--muted);
-      cursor: pointer;
-    }
-    .session-row .session-delete:hover {
-      border-color: var(--danger, #c44);
-      color: var(--text);
-    }
-    .chat-sidebar .session-list button {
+    .session-item .session-open {
       width: 100%;
       text-align: left;
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 0.4rem 0.55rem;
+      padding: 0.4rem 1.35rem 0.4rem 0.55rem;
       color: var(--text);
       cursor: pointer;
       font-size: 0.8rem;
     }
-    .chat-sidebar .session-list button:hover,
-    .chat-sidebar .session-list button.active {
+    .session-item .session-open:hover,
+    .session-item .session-open.active {
       border-color: var(--accent);
       background: color-mix(in srgb, var(--accent) 12%, var(--surface));
     }
+    .session-item .session-delete {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 1rem;
+      height: 1rem;
+      padding: 0;
+      line-height: 1;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      border-radius: 2px;
+      color: color-mix(in srgb, var(--danger, #c44) 55%, var(--muted));
+      cursor: pointer;
+      opacity: 0.45;
+    }
+    .session-item .session-delete:hover {
+      opacity: 1;
+      color: var(--danger, #c44);
+      background: color-mix(in srgb, var(--danger, #c44) 12%, transparent);
+    }
+    .scrape-status-strip {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+      padding: 0.35rem 0.5rem;
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--warn) 10%, var(--surface));
+      border: 1px solid var(--border);
+    }
+    .scrape-status-strip[hidden] { display: none !important; }
     .hitl-card {
       border: 1px solid var(--warn);
       background: color-mix(in srgb, var(--warn) 12%, var(--surface));
@@ -196,6 +207,7 @@
     <div class="toolbar" style="margin-top:0">
       <button type="button" class="btn" id="new-chat">New chat</button>
     </div>
+    <div id="scrape-status" class="scrape-status-strip" hidden aria-live="polite"></div>
     <h2>History</h2>
     <ul class="session-list" id="session-list"></ul>
   </aside>
@@ -307,8 +319,8 @@
     sessionList.innerHTML = "";
     sessions.forEach(function (s) {
       var li = document.createElement("li");
-      var row = document.createElement("div");
-      row.className = "session-row";
+      var item = document.createElement("div");
+      item.className = "session-item";
       var btn = document.createElement("button");
       btn.type = "button";
       btn.className = "session-open";
@@ -323,14 +335,14 @@
       del.setAttribute("data-action", "delete-session");
       del.setAttribute("aria-label", "Delete chat");
       del.title = "Delete chat from history";
-      del.textContent = "Delete";
+      del.textContent = "\u00d7";
       del.addEventListener("click", function (ev) {
         ev.stopPropagation();
         deleteSession(s.session_id);
       });
-      row.appendChild(btn);
-      row.appendChild(del);
-      li.appendChild(row);
+      item.appendChild(btn);
+      item.appendChild(del);
+      li.appendChild(item);
       sessionList.appendChild(li);
     });
   }
@@ -417,6 +429,24 @@
   });
 
   loadSessions();
+
+  var scrapeStatusEl = document.getElementById("scrape-status");
+  function updateChatScrapeStatus(s) {
+    if (!scrapeStatusEl) return;
+    if (s.running) {
+      scrapeStatusEl.hidden = false;
+      var line = "Scraping";
+      if (s.phase) line += " · " + s.phase;
+      if (s.total > 0) line += " " + s.done + "/" + s.total;
+      if (s.detail) line += " — " + s.detail;
+      scrapeStatusEl.textContent = line;
+    } else {
+      scrapeStatusEl.hidden = true;
+    }
+  }
+  if (typeof window.agentzeroPollScrape === "function") {
+    window.agentzeroPollScrape({ onUpdate: updateChatScrapeStatus });
+  }
 })();
 </script>
 {% endblock %}

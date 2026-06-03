@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from agentzero.config import Settings
     from agentzero.ingest.resume import ResumeProfile
     from agentzero.llm.provider import LLMProvider
+    from agentzero.loops.run_progress import RunProgress
     from agentzero.scrape.session_probe import SessionProbeResult
     from agentzero.storage.db import Database
 
@@ -154,6 +155,7 @@ def run_lead_scrape(
     *,
     llm: LLMProvider | None,
     profile: ResumeProfile | None,
+    progress: RunProgress | None = None,
 ) -> LeadRunResult:
     """Scrape, enrich, rank; new listings land as ``LEAD`` (review in web UI before promoting)."""
     from agentzero.scrape.factory import build_scrape_source
@@ -167,7 +169,7 @@ def run_lead_scrape(
         llm=llm,
         max_workers=settings.max_concurrency,
     )
-    result = pipeline.run(profile=profile, new_status=ApplicationStatus.LEAD)
+    result = pipeline.run(profile=profile, new_status=ApplicationStatus.LEAD, progress=progress)
     leads = [
         job
         for job in db.list_jobs()

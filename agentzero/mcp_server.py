@@ -55,14 +55,20 @@ def build_server():
 
     @mcp.tool
     def scrape_status() -> dict:
-        """Return job counts from the local database."""
+        """Return job counts and live scrape progress when a run is active."""
+        from agentzero.loops.run_progress import load_scrape_progress_file, scrape_progress_path
+
         db = _db()
         try:
             leads = list_pending_leads(db)
-            return {
+            payload: dict = {
                 "jobs": db.count_jobs(),
                 "pending_leads": len(leads),
             }
+            progress = load_scrape_progress_file(scrape_progress_path(settings.db_path))
+            if progress is not None and progress.running:
+                payload["progress"] = progress.to_dict()
+            return payload
         finally:
             db.close()
 
@@ -137,9 +143,23 @@ def build_server():
             primary_query_only=primary_query_only,
         )
         resume = ingest_resume(llm=llm, refresh_search=False)
+        from agentzero.loops.run_progress import RunProgress, scrape_progress_path
+
+        progress = RunProgress(
+            persist_path=scrape_progress_path(settings.db_path),
+            running=True,
+        )
+        progress.set_phase("starting", total=1, done=0)
         db = _db()
         try:
-            run = run_lead_scrape(db, effective, llm=llm, profile=resume)
+            run = run_lead_scrape(
+                db,
+                effective,
+                llm=llm,
+                profile=resume,
+                progress=progress,
+            )
+            progress.finish()
             return {
                 "scraped": run.pipeline.scraped,
                 "ranked": run.pipeline.ranked,
@@ -151,6 +171,7 @@ def build_server():
                 "next_step": "Present preview to the user; ask which job_ids to commit_leads.",
             }
         finally:
+            progress.set_running(False)
             db.close()
 
     @mcp.tool
