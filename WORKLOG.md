@@ -447,3 +447,8 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
            README.md, docs/{GETTING_STARTED,DOCKER,COST_AND_MODELS}.md, docs/web-job-card-cover-letter.plan.md, PROGRESS.md, .env.example
     accept: pytest tests/test_cover_letter.py tests/test_web_cover_letter.py tests/test_web_job_card.py tests/test_docs_web.py -q && ruff check agentzero/generate agentzero/web/cover_letter_runner.py agentzero/web/cover_letter_io.py agentzero/config.py agentzero/llm/provider.py -> green
     branch: feat/web-P37-cover-letter
+
+[2026-06-02T18:30:00Z] P37 ship — prep-pr commit and PR opened.
+    commit: 11b9aed
+    PR: https://github.com/dstynchula/AgentZero/pull/36
+    accept: ruff + pytest --cov + encoding_check -> green
