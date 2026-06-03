@@ -1,7 +1,7 @@
 from agentzero.ingest.resume import ResumeProfile
 from agentzero.loops.pipeline import Pipeline, PipelineResult
 from agentzero.loops.ralph import run_parallel
-from agentzero.models import JobPosting, RawRecord
+from agentzero.models import ApplicationStatus, JobPosting, RawRecord
 from agentzero.scrape.base import JobSource
 from agentzero.storage.db import Database
 
@@ -71,9 +71,87 @@ def test_pipeline_idempotent_scrape(tmp_path, pipeline_test_settings):
     r1 = pipeline.run()
     assert r1.scraped == 1
     r2 = pipeline.run()
-    assert r2.scraped == 1
+    assert r2.scraped == 0
+    assert r2.skipped_known == 1
     assert db.count_jobs() == 1
     assert source.fetch_count == 2
+    db.close()
+
+
+def test_pipeline_upserts_lead_before_rank_without_detail_fetch(
+    tmp_path, pipeline_test_settings, monkeypatch
+):
+    db = Database(tmp_path / "jobs.db")
+    raw = {
+        "title": "Staff Security Engineer",
+        "company": "SecureCo",
+        "url": "https://www.linkedin.com/jobs/view/999",
+        "source": "linkedin",
+        "remote": True,
+        "location": "Remote",
+        "description": "Build secure platforms.",
+    }
+    source = FakeSource([raw])
+    settings = pipeline_test_settings(
+        scrape_inline_detail_enrich=False,
+        search_terms=[],
+    )
+    fetch_calls: list[str] = []
+
+    def _fetch_detail(job, *, settings, allow_browser):
+        fetch_calls.append(job.job_id)
+        return job
+
+    monkeypatch.setattr(
+        "agentzero.enrich.detail_fetch.fetch_and_merge_detail",
+        _fetch_detail,
+    )
+    pipeline = Pipeline(db, source, settings=settings, llm=None)
+    pipeline.run(new_status=ApplicationStatus.LEAD)
+    assert fetch_calls == []
+    assert db.get_job(db.list_jobs()[0].job_id) is not None
+    assert db.list_jobs()[0].status == ApplicationStatus.LEAD
+    db.close()
+
+
+def test_pipeline_skips_existing_job_ids_during_scrape(tmp_path, pipeline_test_settings):
+    db = Database(tmp_path / "jobs.db")
+    existing = JobPosting(
+        title="Existing Role",
+        company="KnownCo",
+        url="https://x.com/existing",
+        source="fake",
+        location="Remote",
+        remote=True,
+    )
+    db.upsert_job(existing)
+    raw = {
+        "title": "Existing Role",
+        "company": "KnownCo",
+        "url": "https://x.com/existing",
+        "source": "fake",
+        "remote": True,
+        "location": "Remote",
+    }
+    raw_new = {
+        "title": "New Role",
+        "company": "FreshCo",
+        "url": "https://x.com/new",
+        "source": "fake",
+        "remote": True,
+        "location": "Remote",
+    }
+    source = FakeSource([raw, raw_new])
+    pipeline = Pipeline(
+        db,
+        source,
+        settings=pipeline_test_settings(search_terms=[]),
+        llm=None,
+    )
+    result = pipeline.run()
+    assert result.skipped_known == 1
+    assert result.scraped == 1
+    assert db.count_jobs() == 2
     db.close()
 
 
@@ -92,7 +170,7 @@ def test_pipeline_enrich_rank(tmp_path, pipeline_test_settings):
     profile = ResumeProfile(raw_text="x", skills=["Python"], experience=[], source_path="")
     pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=llm)
     result = pipeline.run(profile=profile)
-    assert result.enriched >= 1
+    assert result.scraped >= 1
     assert result.ranked >= 1
     job = db.list_jobs()[0]
     assert job.match_score == 0.75
@@ -234,7 +312,7 @@ def test_pipeline_backfill_enrich_uses_run_settings(tmp_path, pipeline_test_sett
         description="Build reliable systems.",
     )
     db.upsert_job(job)
-    settings = pipeline_test_settings()
+    settings = pipeline_test_settings(scrape_inline_detail_enrich=True)
     seen: list[object] = []
 
     def _track_enrich(job, *, settings=None):
@@ -262,7 +340,12 @@ def test_pipeline_pending_enrich_backfill(tmp_path, pipeline_test_settings):
     assert db.list_pending("enrich_status") == [job.job_id]
 
     source = FakeSource([])
-    pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=None)
+    pipeline = Pipeline(
+        db,
+        source,
+        settings=pipeline_test_settings(scrape_inline_detail_enrich=True),
+        llm=None,
+    )
     result = pipeline.run()
     assert result.enriched >= 1
     assert db.list_pending("enrich_status") == []

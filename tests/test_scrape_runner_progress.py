@@ -24,7 +24,7 @@ def scrape_env(tmp_path: Path):
 
 
 def test_scrape_runner_snapshot_includes_progress_fields(scrape_env):
-    _db, _settings, runner, _db_path = scrape_env
+    db, _settings, runner, _db_path = scrape_env
     runner.state.running = True
     runner.state.phase = "enrich"
     runner.state.done = 2
@@ -32,9 +32,10 @@ def test_scrape_runner_snapshot_includes_progress_fields(scrape_env):
     runner.state.detail = "Dev @ Co"
     runner.state.last_message = "Enriching jobs (2/5)"
 
-    snap = runner.snapshot()
+    snap = runner.snapshot(db=db)
     assert snap["running"] is True
     assert snap["phase"] == "enrich"
+    assert "step_id" in snap
     assert snap["done"] == 2
     assert snap["total"] == 5
     assert snap["detail"] == "Dev @ Co"
@@ -87,7 +88,7 @@ def test_scrape_runner_persists_progress_file(scrape_env):
     loaded = load_scrape_progress_file(path)
     assert loaded is not None
     assert loaded.running is False
-    assert runner.snapshot()["phase"] in ("done", "scrape", "idle")
+    assert runner.snapshot(db=db)["phase"] in ("done", "scrape", "idle")
 
 
 def test_scrape_worker_writes_progress_file(scrape_env, tmp_path):
@@ -161,7 +162,7 @@ def test_start_uses_process_and_polls_progress(scrape_env):
     while runner.state.running and time.monotonic() < deadline:
         time.sleep(0.05)
 
-    snap = runner.snapshot()
+    snap = runner.snapshot(db=db)
     assert snap["running"] is False
     assert snap["scraped"] == 2
     assert snap["leads"] == 1

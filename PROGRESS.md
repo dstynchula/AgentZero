@@ -353,6 +353,17 @@ Plan: [docs/docker-web-scrape-fix.plan.md](docs/docker-web-scrape-fix.plan.md)
 - [x] T06 — Unify factory on LinkedInJobsService
 - [x] T07 — Live gate + prep-pr
 
+## P50 — Scrape durability + selective enrich
+
+- [x] T01 Comp parser hardening
+- [x] T02 Fast pipeline + early LEAD upsert
+- [x] T03 Skip known job_ids on re-scrape
+- [x] T04 Per-job Enrich button + API
+- [x] T05 Parallel batch enrich + Enrich selected
+- [x] T06 Jobs list filters
+- [x] T07 Docker/docs defaults
+- [x] T08 Acceptance tests
+
 ## Pre-public release checklist
 
 - [ ] Rotate OpenAI key and Google OAuth tokens before first public push

@@ -28,9 +28,11 @@ from agentzero.web.cover_letter_io import (
 )
 from agentzero.web.cover_letter_runner import CoverLetterRunner
 from agentzero.web.display import build_list_query
+from agentzero.web.enrich_runner import EnrichRunner
 from agentzero.web.jobs import (
     LIST_VIEW_DEFAULT_COLUMNS,
     UI_COLUMNS,
+    JobListFilters,
     job_detail_for_ui,
     jobs_for_table,
     list_context,
@@ -44,6 +46,8 @@ from agentzero.web.legacy_redirect import (
 )
 from agentzero.web.mutations import (
     JobNotFoundError,
+    enrich_job_record,
+    enrich_job_record_payload,
     reject_job,
     update_job_notes,
     update_job_status,
@@ -81,6 +85,7 @@ _JOB_DETAIL_FLASH_KEYS = frozenset(
         "status_saved",
         "notes_saved",
         "rejected",
+        "enriched",
     }
 )
 
@@ -106,7 +111,8 @@ def create_app(
     app = FastAPI(title="AgentZero Job Tracker", lifespan=lifespan)
     app.state.settings = cfg
     app.state.operator_config_path = operator_config_path(path)
-    app.state.scrape_runner = ScrapeRunner()
+    app.state.scrape_runner = ScrapeRunner(db_path=path)
+    app.state.enrich_runner = EnrichRunner(db_path=path)
     app.state.resume_loader = ResumeLoader()
     app.state.cover_letter_runner = CoverLetterRunner()
     app.state.cover_letters_dir = COVER_LETTER_DIR
@@ -126,6 +132,7 @@ def create_app(
 
         settings: Settings = request.app.state.settings
         operator = _operator(request)
+        request.app.state.scrape_runner.reconcile(_db(request))
         snapshot = load_search_profile()
         profile_terms = list(snapshot.search_terms) if snapshot else []
         return {
@@ -133,7 +140,7 @@ def create_app(
             "sources": source_catalog(settings, operator),
             "active_sources": active_source_names(settings, operator),
             "cdp": cdp_status_payload(settings, operator),
-            "scrape": request.app.state.scrape_runner.snapshot(),
+            "scrape": request.app.state.scrape_runner.snapshot(db=_db(request)),
             "search_profile": search_profile_summary(snapshot),
             "search_targets": effective_search_targets_form(snapshot, operator, settings=settings),
             "title_rows": title_rows(profile_terms, operator),
@@ -196,6 +203,8 @@ def create_app(
             return "Notes saved.", True
         if params.get("rejected") == "1":
             return "Marked as rejected.", True
+        if params.get("enriched") == "1":
+            return "Job enriched.", True
         return "", True
 
     def _job_detail_context(
@@ -296,7 +305,7 @@ def create_app(
                 session_id,
                 content,
                 db=_db(request),
-                scrape_snapshot=request.app.state.scrape_runner.snapshot(),
+                scrape_snapshot=request.app.state.scrape_runner.snapshot(db=_db(request)),
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -380,10 +389,25 @@ def create_app(
         include_rejected: bool = Query(default=False),
         sort: str | None = Query(default=None),
         order: str | None = Query(default=None),
+        company: str | None = Query(default=None),
+        title: str | None = Query(default=None),
+        status: str | None = Query(default=None),
+        min_score: str | None = Query(default=None),
+        min_comp: str | None = Query(default=None),
+        max_comp: str | None = Query(default=None),
     ) -> list[dict[str, object]]:
+        filters = JobListFilters.from_query(
+            company=company,
+            title=title,
+            status=status,
+            min_score=min_score,
+            min_comp=min_comp,
+            max_comp=max_comp,
+        )
         return list_jobs_for_ui(
             _db(request),
             include_rejected=include_rejected,
+            filters=filters,
             sort=sort,
             order=order,
         )
@@ -394,11 +418,27 @@ def create_app(
         show_rejected: bool = Query(default=False),
         sort: str | None = Query(default=None),
         order: str | None = Query(default=None),
+        company: str | None = Query(default=None),
+        title: str | None = Query(default=None),
+        status: str | None = Query(default=None),
+        min_score: str | None = Query(default=None),
+        min_comp: str | None = Query(default=None),
+        max_comp: str | None = Query(default=None),
     ) -> HTMLResponse:
-        ctx = list_context(show_rejected=show_rejected, sort=sort, order=order)
+        filters = JobListFilters.from_query(
+            company=company,
+            title=title,
+            status=status,
+            min_score=min_score,
+            min_comp=min_comp,
+            max_comp=max_comp,
+        )
+        request.app.state.enrich_runner.reconcile(_db(request))
+        ctx = list_context(show_rejected=show_rejected, filters=filters, sort=sort, order=order)
         jobs = jobs_for_table(
             _db(request),
             include_rejected=show_rejected,
+            filters=filters,
             sort=sort,
             order=order,
         )
@@ -418,6 +458,7 @@ def create_app(
                 ),
                 "status_choices": _STATUS_CHOICES,
                 "show_rejected": show_rejected,
+                "enrich": request.app.state.enrich_runner.snapshot(db=_db(request)),
                 **ctx,
             },
         )
@@ -717,6 +758,21 @@ def create_app(
         query = "scrape_started=1" if ok else "scrape_busy=1"
         return RedirectResponse(url=f"/scraper?{query}", status_code=303)
 
+    @app.post("/scraper/scrape/stop", response_model=None)
+    def post_scraper_scrape_stop(request: Request) -> RedirectResponse:
+        ok, _message = request.app.state.scrape_runner.stop(db=_db(request))
+        query = "scrape_stopped=1" if ok else "scrape_not_running=1"
+        return RedirectResponse(url=f"/scraper?{query}", status_code=303)
+
+    @app.post("/api/scraper/stop")
+    def api_scraper_stop(request: Request) -> dict[str, object]:
+        ok, message = request.app.state.scrape_runner.stop(db=_db(request))
+        return {
+            "ok": ok,
+            "message": message,
+            "scrape": request.app.state.scrape_runner.snapshot(db=_db(request)),
+        }
+
     @app.get("/config", include_in_schema=False)
     @app.get("/config/", include_in_schema=False)
     def redirect_config_root(request: Request) -> RedirectResponse:
@@ -947,5 +1003,115 @@ def create_app(
     def post_reject_api(request: Request, job_id: JobId) -> JSONResponse:
         _apply_reject(request, job_id)
         return JSONResponse({"job_id": job_id, "status": ApplicationStatus.REJECTED.value})
+
+    def _enrich_with_optional_rank(request: Request, job_id: str) -> JobPosting:
+        from agentzero.ingest.resume import ingest_resume
+        from agentzero.llm.provider import build_llm_provider
+
+        settings: Settings = request.app.state.settings
+        llm = None
+        profile = None
+        try:
+            llm = build_llm_provider(settings)
+            profile = ingest_resume(llm=llm, refresh_search=False)
+        except (ValueError, FileNotFoundError, OSError):
+            llm = None
+            profile = None
+        return enrich_job_record(
+            _db(request),
+            job_id,
+            settings=settings,
+            llm=llm,
+            profile=profile,
+            rank=profile is not None and llm is not None,
+        )
+
+    @app.post("/jobs/{job_id}/enrich", response_model=None)
+    def post_job_enrich_html(
+        request: Request,
+        job_id: JobId,
+        show_rejected: Annotated[bool, Form()] = False,
+        sort: Annotated[str, Form()] = "",
+        order: Annotated[str, Form()] = "",
+    ) -> RedirectResponse:
+        _require_job(request, job_id)
+        try:
+            updated = _enrich_with_optional_rank(request, job_id)
+        except JobNotFoundError:
+            raise HTTPException(status_code=404, detail="job not found") from None
+        return _redirect_job_detail(
+            request,
+            updated,
+            show_rejected,
+            sort=sort or None,
+            order=order or None,
+            flag="enriched=1",
+        )
+
+    @app.post("/api/jobs/{job_id}/enrich", response_model=None)
+    def post_job_enrich_api(request: Request, job_id: JobId) -> JSONResponse:
+        try:
+            updated = _enrich_with_optional_rank(request, job_id)
+        except JobNotFoundError:
+            raise HTTPException(status_code=404, detail="job not found") from None
+        return JSONResponse(
+            {
+                "ok": True,
+                "message": "Job enriched.",
+                "job": enrich_job_record_payload(updated),
+            }
+        )
+
+    @app.get("/api/enrich")
+    def api_enrich_status(request: Request) -> dict[str, object]:
+        request.app.state.enrich_runner.reconcile(_db(request))
+        return request.app.state.enrich_runner.snapshot(db=_db(request))
+
+    @app.post("/api/jobs/enrich-selected")
+    async def post_enrich_selected_api(request: Request) -> JSONResponse:
+        body: dict[str, object] = {}
+        if request.headers.get("content-type", "").startswith("application/json"):
+            try:
+                body = await request.json()
+            except json.JSONDecodeError:
+                body = {}
+        raw_ids = body.get("job_ids")
+        if not isinstance(raw_ids, list):
+            raise HTTPException(status_code=400, detail="job_ids required")
+        job_ids = [str(item).strip() for item in raw_ids if str(item).strip()]
+        db = _db(request)
+        for jid in job_ids:
+            if db.get_job(jid) is None:
+                raise HTTPException(status_code=404, detail=f"job not found: {jid}")
+        ok, message = request.app.state.enrich_runner.start(
+            db=db,
+            settings=request.app.state.settings,
+            job_ids=job_ids,
+        )
+        if not ok:
+            return JSONResponse({"ok": False, "message": message}, status_code=409)
+        snap = request.app.state.enrich_runner.snapshot(db=db)
+        return JSONResponse({"ok": True, "message": message, **snap}, status_code=202)
+
+    @app.post("/jobs/enrich-selected", response_model=None)
+    async def post_enrich_selected_html(request: Request) -> RedirectResponse:
+        form = await request.form()
+        raw_ids = form.getlist("job_ids")
+        job_ids = [str(item).strip() for item in raw_ids if str(item).strip()]
+        db = _db(request)
+        ok, message = request.app.state.enrich_runner.start(
+            db=db,
+            settings=request.app.state.settings,
+            job_ids=job_ids,
+        )
+        from urllib.parse import urlencode
+
+        params: dict[str, str] = {}
+        if ok:
+            params["enrich_started"] = "1"
+        else:
+            params["enrich_busy"] = "1"
+            params["msg"] = message[:500]
+        return RedirectResponse(f"/jobs?{urlencode(params)}", status_code=303)
 
     return app

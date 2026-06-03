@@ -75,8 +75,8 @@ class LinkedInJobsService:
         self._input_fn = input_fn or _default_input
 
     def search(self, *, progress: object | None = None) -> LinkedInSearchResult:
-        _ = progress
-        queries = iter_scrape_queries(self._settings)
+        queries = list(iter_scrape_queries(self._settings))
+        query_total = len(queries)
         pause = (
             not self._settings.scrape_browser_headless
             and self._settings.scrape_browser_pause_for_captcha
@@ -97,7 +97,35 @@ class LinkedInJobsService:
             playwright, context, page, browser = launch_browser_page(
                 self._settings, site="linkedin"
             )
-            for term, parsed in queries:
+            for query_index, (term, parsed) in enumerate(queries, start=1):
+                if progress is not None and hasattr(progress, "enter_step"):
+                    next_id = (
+                        f"scrape.linkedin.query_{query_index + 1}"
+                        if query_index < query_total
+                        else "validate.batch"
+                    )
+                    next_label = (
+                        f"LinkedIn: {queries[query_index][0]}"
+                        if query_index < query_total
+                        else "Validate listings"
+                    )
+                    progress.enter_step(
+                        f"scrape.linkedin.query_{query_index}",
+                        phase="scrape",
+                        label=f"LinkedIn search ({query_index}/{query_total})",
+                        total=query_total,
+                        done=query_index - 1,
+                        detail=term,
+                        step_index=query_index,
+                        next_step_id=next_id,
+                        next_step_label=next_label,
+                        extra={
+                            "board": "linkedin",
+                            "term": term,
+                            "query_index": query_index,
+                            "query_total": query_total,
+                        },
+                    )
                 batch, stats, meta = self._search_query_on_page(
                     page,
                     term=term,
@@ -127,6 +155,11 @@ class LinkedInJobsService:
                         continue
                     seen.add(key)
                     combined.append(canonical)
+                if progress is not None and hasattr(progress, "step"):
+                    progress.step(
+                        detail=f"{term}: {len(batch)} parsed, {len(combined)} unique so far",
+                        done=query_index,
+                    )
 
             if (
                 self._settings.scrape_session_preflight

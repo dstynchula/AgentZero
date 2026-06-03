@@ -34,16 +34,35 @@ class MultiSource(JobSource):
         records: list[RawRecord] = []
         total = len(self._sources)
         if progress is not None:
-            progress.set_phase("scrape", total=total, done=0)
+            progress.enter_step(
+                "scrape.boards",
+                phase="scrape",
+                label="Scrape job boards",
+                total=total,
+                done=0,
+                next_step_id=f"scrape.{self._sources[0].name}" if self._sources else "",
+                next_step_label=self._sources[0].name if self._sources else "",
+            )
         with sync_playwright() as pw:
             for index, source in enumerate(self._sources, start=1):
                 assert isinstance(source, BrowserJobBoardSource)
                 if progress is not None:
-                    progress.set_phase(
-                        "scrape",
+                    next_src = (
+                        self._sources[index].name if index < total else "validate.batch"
+                    )
+                    progress.enter_step(
+                        f"scrape.{source.name}",
+                        phase="scrape",
+                        label=f"Scrape {source.name} ({index}/{total})",
                         total=total,
                         done=index - 1,
                         detail=source.name,
+                        step_index=index,
+                        next_step_id=f"scrape.{next_src}"
+                        if index < total
+                        else "validate.batch",
+                        next_step_label=next_src if index < total else "Validate listings",
+                        extra={"board": source.name, "board_index": index, "board_total": total},
                     )
                 print(
                     f"Scrape [{index}/{total}] {source.name} — starting…",
@@ -51,11 +70,9 @@ class MultiSource(JobSource):
                 )
                 batch = list(source.fetch_with_playwright(pw, progress=progress))
                 if progress is not None:
-                    progress.set_phase(
-                        "scrape",
-                        total=total,
+                    progress.step(
+                        detail=f"{source.name}: {len(batch)} listing(s)",
                         done=index,
-                        detail=source.name,
                     )
                 print(
                     f"Scrape [{index}/{total}] {source.name} — {len(batch)} listing(s)",
@@ -68,14 +85,27 @@ class MultiSource(JobSource):
         records: list[RawRecord] = []
         total = len(self._sources)
         if progress is not None:
-            progress.set_phase("scrape", total=total, done=0)
+            progress.enter_step(
+                "scrape.boards",
+                phase="scrape",
+                label="Scrape job boards",
+                total=total,
+                done=0,
+            )
         for index, source in enumerate(self._sources, start=1):
             if progress is not None:
-                progress.set_phase(
-                    "scrape",
+                next_src = self._sources[index].name if index < total else "validate.batch"
+                progress.enter_step(
+                    f"scrape.{source.name}",
+                    phase="scrape",
+                    label=f"Scrape {source.name} ({index}/{total})",
                     total=total,
                     done=index - 1,
                     detail=source.name,
+                    step_index=index,
+                    next_step_id=f"scrape.{next_src}" if index < total else "validate.batch",
+                    next_step_label=next_src if index < total else "Validate listings",
+                    extra={"board": source.name, "board_index": index, "board_total": total},
                 )
             print(
                 f"Scrape [{index}/{total}] {source.name} — starting…",
@@ -83,11 +113,9 @@ class MultiSource(JobSource):
             )
             batch = list(source.fetch(progress=progress))
             if progress is not None:
-                progress.set_phase(
-                    "scrape",
-                    total=total,
+                progress.step(
+                    detail=f"{source.name}: {len(batch)} listing(s)",
                     done=index,
-                    detail=source.name,
                 )
             print(
                 f"Scrape [{index}/{total}] {source.name} — {len(batch)} listing(s)",

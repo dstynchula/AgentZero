@@ -7,6 +7,7 @@ from agentzero.storage.db import Database
 from agentzero.web import mutations
 from agentzero.web.mutations import (
     JobNotFoundError,
+    enrich_job_record,
     reject_job,
     update_job_notes,
     update_job_status,
@@ -78,3 +79,21 @@ def test_notes_too_long_raises(tmp_path):
 def test_mutations_module_does_not_delete_jobs():
     source = inspect.getsource(mutations)
     assert "delete_jobs" not in source
+
+
+def test_enrich_job_record_persists(tmp_path, monkeypatch):
+    from agentzero.config import Settings
+
+    db = Database(tmp_path / "t.db")
+    job = _job(status=ApplicationStatus.LEAD)
+    db.upsert_job(job)
+    settings = Settings(_env_file=None, enrich_web_search=False)
+
+    def _deep(j, **kwargs):
+        return j.model_copy(update={"comp_min": 200_000, "comp_max": 250_000})
+
+    monkeypatch.setattr("agentzero.web.mutations.enrich_job_deep", _deep)
+    updated = enrich_job_record(db, job.job_id, settings=settings, rank=False)
+    assert updated.comp_min == 200_000
+    assert db.get_job(job.job_id).comp_min == 200_000
+    db.close()

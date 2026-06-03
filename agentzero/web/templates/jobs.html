@@ -10,7 +10,34 @@
   {% else %}
   <a href="/jobs?show_rejected=1&sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Show rejected</a>
   {% endif %}
+  <form method="post" action="/jobs/enrich-selected" id="enrich-selected-form" class="inline-form">
+    <button type="submit" class="btn" {% if enrich.running %}disabled{% endif %}>Enrich selected</button>
+  </form>
+  {% if enrich.running %}
+  <span class="muted">Enriching {{ enrich.done }}/{{ enrich.total }}…</span>
+  {% endif %}
 </div>
+
+<form method="get" action="/jobs" class="filter-bar">
+  {% if show_rejected %}<input type="hidden" name="show_rejected" value="1" />{% endif %}
+  <input type="hidden" name="sort" value="{{ sort }}" />
+  <input type="hidden" name="order" value="{{ order }}" />
+  <label>Company <input type="text" name="company" value="{{ filters.company or '' }}" /></label>
+  <label>Title <input type="text" name="title" value="{{ filters.title or '' }}" /></label>
+  <label>Status
+    <select name="status">
+      <option value="">Any</option>
+      {% for s in status_choices %}
+      <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Min score <input type="text" name="min_score" value="{{ filters.min_score if filters.min_score is not none else '' }}" /></label>
+  <label>Min comp <input type="text" name="min_comp" value="{{ filters.min_comp if filters.min_comp is not none else '' }}" /></label>
+  <label>Max comp <input type="text" name="max_comp" value="{{ filters.max_comp if filters.max_comp is not none else '' }}" /></label>
+  <button type="submit" class="btn btn-secondary">Filter</button>
+  <a href="/jobs" class="btn btn-secondary">Clear filters</a>
+</form>
 
 <details class="column-picker" id="column-picker">
   <summary>Columns — show, hide, or drag header edges to resize</summary>
@@ -28,6 +55,7 @@
 <table class="data-table" id="jobs-table">
   <thead>
     <tr>
+      <th class="select-col"><input type="checkbox" id="select-all-jobs" title="Select all visible rows" /></th>
       {% for col in columns %}
       <th class="{% if col == sort %}sorted{% endif %}{% if col not in default_columns %} col-hidden{% endif %}" data-col="{{ col }}">
         <a class="th-sort-link" href="{{ sort_links[col] }}" title="Sort by {{ col }}">
@@ -43,6 +71,9 @@
   <tbody>
     {% for job in jobs %}
     <tr class="job-row" data-href="/jobs/{{ job.job_id }}{{ list_query }}">
+      <td class="select-col" onclick="event.stopPropagation()">
+        <input type="checkbox" class="job-select" name="job_ids" value="{{ job.job_id }}" form="enrich-selected-form" />
+      </td>
       {% for col in columns %}
       <td class="data-cell{% if col not in default_columns %} col-hidden{% endif %}" data-col="{{ col }}">
         {% set cell = job.cells[col] %}
@@ -81,7 +112,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="{{ columns|length + 1 }}">No jobs in database. <a href="/scraper">Configure sources</a> and run a scrape.</td></tr>
+    <tr><td colspan="{{ columns|length + 2 }}">No jobs in database. <a href="/scraper">Configure sources</a> and run a scrape.</td></tr>
     {% endfor %}
   </tbody>
 </table>
@@ -239,6 +270,14 @@ function initTrackerColumns() {
       startW = th.getBoundingClientRect().width;
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+var selectAll = document.getElementById("select-all-jobs");
+if (selectAll) {
+  selectAll.addEventListener("change", function () {
+    document.querySelectorAll(".job-select").forEach(function (cb) {
+      cb.checked = selectAll.checked;
     });
   });
 }

@@ -137,13 +137,13 @@ cannot reach `127.0.0.1` on the host). Then use **Connect** on Scraper.
 | Action | Effect |
 |--------|--------|
 | **Chat** (`/`) | LLM assistant — read tracker/profile; Confirm before mutations |
-| **Jobs** (`/jobs`) | Sortable table; soft-reject filter; job card on row click |
+| **Jobs** (`/jobs`) | Sortable table; filters (company, title, status, score, comp); **Enrich selected** batch; soft-reject filter; job card on row click |
 | **Save status** | Updates SQLite (e.g. `lead` → `new`) |
 | **Save notes** | Updates `notes` on the row |
 | **Nope** | Sets `status=rejected` (row stays in DB for dedupe; hidden by default) |
 | **Show rejected** | Lists noped roles |
 | **Column headers** | Sort asc/desc (default: `match_score` desc) |
-| **Row click** | Opens a **job card** — rationale, description, status, notes, **cover letter** (generate, edit, download .txt) |
+| **Row click** | Opens a **job card** — rationale, description, status, notes, **Enrich**, **cover letter** (generate, edit, download .txt) |
 | **Scraper** (`/scraper`) | Enable/disable scrape sources, start a background scrape, CDP setup instructions (`/config` redirects) |
 
 **Cover letters** use `AGENTZERO_COVER_LETTER_MODEL` (default `gpt-5.5`; OpenAI only). Files land in
@@ -151,14 +151,27 @@ cannot reach `127.0.0.1` on the host). Then use **Connect** on Scraper.
 
 **Scraper** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
 scrapes use `data/search_profile.json` (beside the DB; résumé files stay in read-only `resume/`)
-and need an LLM API key; new rows land as `lead`. Scrapes run in a **child process** so sync
+and need an LLM API key; new rows land as `lead`. **Fast scrape** (default) skips per-row LinkedIn
+detail pages — LEAD rows persist immediately; use **Enrich** / **Enrich selected** for detail fetch
+(~5 parallel browser workers; `AGENTZERO_ENRICH_BROWSER_MAX_CONCURRENCY`). Re-scrapes skip `job_id`s
+already in SQLite. Scrapes run in a **child process** so sync
 Playwright is not blocked by Uvicorn's asyncio loop; live progress is written to
-`data/scrape_progress.json` and polled by the UI (~500ms).
+`data/scrape_progress.json` and polled by the UI (~500ms). Each poll includes granular fields:
+`step_id`, `step_label`, `step_elapsed_ms`, `run_elapsed_ms`, `next_step_id`, `next_step_label`,
+`plan` (pipeline checklist), `extra` (query/board metadata), `pid`, and `logs` (activity log:
+timestamped info/warn/error lines from pipeline steps and Python logging). Stale runs (worker died but
+progress still says `running`) are flagged with `stale: true` on `GET /api/scraper`.
+
+Stop a background scrape: **Stop scrape** on `/scraper`, `POST /scraper/scrape/stop`, or
+`POST /api/scraper/stop` (JSON includes updated `scrape` status).
+
 Chrome CDP must run on the **host** — Scraper shows PS1, Python, and shell launch commands plus env vars.
 When Chrome returns a loopback WebSocket URL (`127.0.0.1:9223`), the scraper rewrites it to
 `host.docker.internal:9222` and attaches with Playwright `connect_over_cdp(rewritten_ws)`.
 
-Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/scraper`.
+Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/scraper`, `GET /api/enrich`.
+
+Batch enrich progress is written to `data/enrich_progress.json` (same shape as scrape progress).
 
 Long table cells are truncated; hover for the full value, or open the job card.
 

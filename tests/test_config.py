@@ -93,3 +93,13 @@ def test_cdp_docker_host_rejected_without_flag(monkeypatch):
             scrape_cdp_url="http://host.docker.internal:9222",
             cdp_allow_docker_host=False,
         )
+
+
+def test_settings_scrape_inline_detail_default_false():
+    s = Settings(_env_file=None)
+    assert s.scrape_inline_detail_enrich is False
+
+
+def test_settings_enrich_browser_max_concurrency_default():
+    s = Settings(_env_file=None)
+    assert s.enrich_browser_max_concurrency == 5

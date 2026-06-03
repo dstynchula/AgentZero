@@ -141,8 +141,9 @@ def test_api_scraper_json(client):
     assert "detail" in scrape
 
 
-def test_api_scraper_reflects_runner_progress(client):
+def test_api_scraper_reflects_runner_progress(client, monkeypatch):
     c, _ = client
+    monkeypatch.setattr(c.app.state.scrape_runner, "_process_alive", lambda: True)
     c.app.state.scrape_runner.state.running = True
     c.app.state.scrape_runner.state.phase = "scrape"
     c.app.state.scrape_runner.state.done = 1

@@ -156,18 +156,30 @@ def run_enrich_batch(
     if not browser_ids:
         return EnrichBatchResult(improved=improved, total=len(job_ids), failed=failed)
 
+    browser_workers = min(
+        len(browser_ids),
+        max(1, settings.enrich_browser_max_concurrency),
+    )
     print(
         f"\nBrowser detail fallback for {len(browser_ids)} job(s) "
-        f"(sequential — avoids profile conflicts)…",
+        f"({browser_workers} parallel browser worker(s))…",
         flush=True,
     )
     browser_progress = Progress(len(browser_ids), label="Browser detail")
     browser_progress.announce()
+    launch_lock = threading.Lock()
+    launch_index = 0
 
-    for job_id in browser_ids:
+    def browser_worker(job_id: str) -> None:
+        nonlocal failed, improved, launch_index
+        with launch_lock:
+            slot = launch_index
+            launch_index += 1
+        if slot > 0 and browser_delay_seconds > 0:
+            time.sleep(browser_delay_seconds * slot * 0.25)
         job = db.get_job(job_id)
         if job is None:
-            continue
+            raise ValueError(f"job not found: {job_id}")
         before = enrichment_gaps(job)
         try:
             updated = enrich_job_deep(
@@ -183,17 +195,25 @@ def run_enrich_batch(
             log.exception("Browser enrich failed for %s", job_id)
             db.mark_pipeline(job_id, "enrich_status", "failed")
             failed += 1
-            browser_progress.step(f"FAILED {job.title} @ {job.company}")
-            continue
+            raise
         db.upsert_job(updated)
         db.mark_pipeline(job_id, "enrich_status", "done")
-        browser_progress.step(
-            f"{job.title} @ {job.company} -> {enrichment_summary(updated, before=before)}"
-        )
         if len(enrichment_gaps(updated)) < len(before):
             improved += 1
-        if browser_delay_seconds > 0:
-            time.sleep(browser_delay_seconds)
 
+    def browser_label(job_id: str) -> str:
+        job = db.get_job(job_id)
+        if job is None:
+            return job_id
+        return f"{job.title} @ {job.company} -> pending"
+
+    browser_failures = run_parallel(
+        browser_ids,
+        browser_worker,
+        max_workers=browser_workers,
+        progress=browser_progress,
+        item_label=browser_label,
+    )
+    failed += len(browser_failures)
     browser_progress.finish()
     return EnrichBatchResult(improved=improved, total=len(job_ids), failed=failed)

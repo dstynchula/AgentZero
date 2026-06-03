@@ -18,15 +18,25 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Debug LinkedIn search scrape")
     parser.add_argument(
         "--terms",
-        default="Staff Security Engineer",
-        help="Search term (first term if multiple)",
+        default=None,
+        help="One title, or comma-separated list (ignored with --use-operator-config)",
     )
     parser.add_argument(
         "--locations",
         default="Remote - USA",
-        help="Location string for search",
+        help="Location string for search (ignored with --use-operator-config)",
     )
     parser.add_argument("--remote", action="store_true", help="Add LinkedIn remote filter f_WT=2")
+    parser.add_argument(
+        "--use-operator-config",
+        action="store_true",
+        help="Use data/web_operator_config.json + search profile (same as web Scraper scrape)",
+    )
+    parser.add_argument(
+        "--all-titles",
+        action="store_true",
+        help="Run every AGENTZERO_SEARCH_TERMS entry (sets scrape_primary_query_only=false)",
+    )
     parser.add_argument(
         "--cdp",
         action="store_true",
@@ -50,37 +60,58 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _parse_terms_arg(raw: str | None) -> list[str]:
+    if not raw:
+        return ["Staff Security Engineer"]
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
     from agentzero.config import get_settings
+    from agentzero.scrape.scrape_query_params import iter_scrape_queries
 
     base = get_settings()
-    updates: dict = {
-        "search_terms": [args.terms],
-        "locations": [args.locations],
-        "remote_only": args.remote,
-        "scrape_browser_sites": ["linkedin"],
-        "scrape_session_preflight": True,
-    }
-    if args.cdp:
-        updates["scrape_cdp_sites"] = ["linkedin"]
+
+    if args.use_operator_config:
+        from agentzero.web.scrape_settings import build_web_scrape_settings
+
+        settings = build_web_scrape_settings(base)
     else:
-        updates["scrape_cdp_sites"] = [
-            s for s in base.scrape_cdp_sites if s.lower() != "linkedin"
-        ]
-    settings = base.model_copy(update=updates)
+        terms = _parse_terms_arg(args.terms)
+        updates: dict = {
+            "search_terms": terms,
+            "locations": [args.locations],
+            "remote_only": args.remote,
+            "scrape_browser_sites": ["linkedin"],
+            "scrape_session_preflight": True,
+            "scrape_primary_query_only": False if (args.all_titles or len(terms) > 1) else True,
+        }
+        if args.cdp:
+            updates["scrape_cdp_sites"] = ["linkedin"]
+        else:
+            updates["scrape_cdp_sites"] = [
+                s for s in base.scrape_cdp_sites if s.lower() != "linkedin"
+            ]
+        settings = base.model_copy(update=updates)
 
     from agentzero.scrape.browser_common import browser_profile_dir
 
+    queries = iter_scrape_queries(settings)
     summary: dict = {
         "terms": settings.search_terms,
+        "queries_planned": [{"term": t, "location": p.raw} for t, p in queries],
+        "scrape_primary_query_only": settings.scrape_primary_query_only,
         "locations": settings.locations,
         "remote_only": settings.remote_only,
+        "salary_min": settings.salary_min,
+        "results_wanted": settings.results_wanted,
         "headless": settings.scrape_browser_headless,
         "cdp_sites": settings.scrape_cdp_sites,
         "cdp_url": settings.scrape_cdp_url or "",
         "profile_dir": str(browser_profile_dir(settings, "linkedin")),
+        "use_operator_config": args.use_operator_config,
     }
 
     if args.dry_run:

@@ -32,6 +32,13 @@ services:
       AGENTZERO_SCRAPE_CDP_URL: http://host.docker.internal:9222
       AGENTZERO_SCRAPE_CDP_AUTO_LAUNCH: "false"
       AGENTZERO_CDP_ALLOW_DOCKER_HOST: "true"
+      # Image has Chromium only — override host .env chrome channel
+      AGENTZERO_SCRAPE_BROWSER_CHANNEL: ""
+      AGENTZERO_SCRAPE_BROWSER_HEADLESS: "true"
+      AGENTZERO_RESULTS_WANTED: "100"
+      AGENTZERO_SCRAPE_INLINE_DETAIL_ENRICH: "false"
+      AGENTZERO_ENRICH_MAX_CONCURRENCY: "5"
+      AGENTZERO_ENRICH_BROWSER_MAX_CONCURRENCY: "5"
     volumes:
       - ./data:/app/data
       - ./resume:/app/resume:ro

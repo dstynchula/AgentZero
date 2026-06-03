@@ -53,7 +53,10 @@ def test_search_jobs_parses_fixture_html(tmp_path):
         result = service.search()
     assert not result.login_required
     assert len(result.records) >= 1
-    assert "linkedin.com" in result.url
+    from urllib.parse import urlparse
+
+    host = (urlparse(result.url).hostname or "").lower()
+    assert host in {"www.linkedin.com", "linkedin.com"}
     assert (result.after_title_filter or 0) >= 1
 
 

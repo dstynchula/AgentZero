@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from agentzero.config import Settings
@@ -27,6 +26,7 @@ def test_debug_cli_prints_json_summary_mocked():
         search_terms=["Engineer"],
         locations=["Remote"],
         scrape_cdp_sites=[],
+        scrape_primary_query_only=True,
     )
 
     with (
@@ -46,17 +46,34 @@ def test_debug_cli_live_flag_requires_explicit(capsys):
     assert "--live" in err
 
 
+def test_debug_cli_dry_run_use_operator_config_lists_queries(capsys):
+    settings = Settings(
+        _env_file=None,
+        search_terms=["Staff Security Engineer", "Principal Security Engineer"],
+        locations=["remote - usa"],
+        scrape_primary_query_only=False,
+        remote_only=True,
+    )
+    with (
+        patch("agentzero.config.get_settings", return_value=settings),
+        patch("agentzero.web.scrape_settings.build_web_scrape_settings", return_value=settings),
+    ):
+        code = main(["--dry-run", "--use-operator-config"])
+    assert code == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["scrape_primary_query_only"] is False
+    assert len(out["queries_planned"]) == 2
+
+
 def test_debug_cli_dry_run_prints_settings(capsys):
-    with patch("agentzero.config.get_settings") as mock_settings:
-        mock_settings.return_value.model_copy.return_value = MagicMock(
-            search_terms=["Engineer"],
-            locations=["Remote"],
-            remote_only=False,
-            scrape_browser_headless=True,
-            scrape_cdp_sites=[],
-            scrape_cdp_url="",
-            scrape_browser_profile_dir=Path("data/browser_profiles"),
-        )
+    settings = Settings(
+        _env_file=None,
+        search_terms=["Engineer"],
+        locations=["Remote"],
+        scrape_primary_query_only=True,
+        scrape_cdp_sites=[],
+    )
+    with patch("agentzero.config.get_settings", return_value=settings):
         code = main(["--dry-run"])
     assert code == 0
     out = json.loads(capsys.readouterr().out)

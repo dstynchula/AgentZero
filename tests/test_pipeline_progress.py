@@ -47,10 +47,14 @@ def test_pipeline_finishes_with_done_phase(tmp_path, pipeline_test_settings):
         "company": "Acme",
         "url": "https://example.com/1",
         "source": "fake",
+        "location": "Remote",
     }
     source = FakeSource([raw])
     progress = RunProgress(running=True)
     pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=None)
     pipeline.run(progress=progress)
-    assert progress.snapshot().phase == "done"
+    snap = progress.snapshot()
+    assert snap.phase == "done"
+    step_ids = [step["step_id"] for step in snap.plan]
+    assert "filter.enrich_comp" not in step_ids
     db.close()
