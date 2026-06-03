@@ -452,3 +452,13 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     commit: 11b9aed
     PR: https://github.com/dstynchula/AgentZero/pull/36
     accept: ruff + pytest --cov + encoding_check -> green
+
+[2026-06-02T22:00:00Z] P38 DONE — Web chat default landing (/), Jobs at /jobs; SQLite session history;
+    OpenAI tool-calling agent with HITL Confirm before scrape/status/cover letter/leads.
+    files: agentzero/storage/db.py, agentzero/web/chat/{store,llm,tools,agent,hitl}.py,
+           agentzero/web/{app.py,templates/{chat,base,jobs,job_card}.html}, agentzero/config.py,
+           tests/test_web_chat_{store,agent,hitl,api,ui}.py, tests/test_web_app_{read,write,config}.py,
+           tests/test_docs_web.py, docs/{web-chat.plan,GETTING_STARTED,DOCKER,COST_AND_MODELS,SECURITY}.md,
+           README.md, .env.example, PROGRESS.md
+    accept: pytest -q && ruff check agentzero tests scripts tools -> green
+    branch: feat/web-P38-chat

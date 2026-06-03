@@ -57,3 +57,27 @@ def test_security_warns_no_auth():
     text = Path("docs/SECURITY.md").read_text(encoding="utf-8")
     assert "web" in text.lower()
     assert "auth" in text.lower() or "unauthenticated" in text.lower()
+
+
+def test_readme_mentions_chat_default_route():
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "AGENTZERO_CHAT_MODEL" in text
+    assert "/jobs" in text
+
+
+def test_getting_started_mentions_chat_hitl():
+    text = Path("docs/GETTING_STARTED.md").read_text(encoding="utf-8")
+    assert "AGENTZERO_CHAT_MODEL" in text
+    assert "Confirm" in text
+
+
+def test_docker_doc_mentions_chat_landing():
+    text = Path("docs/DOCKER.md").read_text(encoding="utf-8")
+    assert "Chat" in text
+    assert "/jobs" in text
+
+
+def test_cost_doc_mentions_chat_model():
+    text = Path("docs/COST_AND_MODELS.md").read_text(encoding="utf-8")
+    assert "AGENTZERO_CHAT_MODEL" in text
+

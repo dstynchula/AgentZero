@@ -115,7 +115,7 @@ class Pipeline:
             result.comp_filtered = len(rejected)
             if rejected and salary_floor is not None:
                 print(
-                    f"Comp filter (${salary_floor:,.0f} floor, upper bound of range): "
+                    "Comp filter (salary floor configured): "
                     f"skipped {len(rejected)} listing(s) below minimum.",
                     flush=True,
                 )

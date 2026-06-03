@@ -60,10 +60,7 @@ def _print_search_settings(settings, source=None, *, verbose: bool = False) -> N
         )
     print(f"Results cap:   {settings.results_wanted}")
     if settings.salary_min is not None:
-        print(
-            f"Comp floor:    ${settings.salary_min:,.0f} USD/year "
-            f"(keep when posted range top >= floor)"
-        )
+        print("Comp floor:    (configured — keep when posted range top meets floor)")
 
 
 def run(

@@ -117,8 +117,12 @@ Browse and edit jobs in SQLite from the browser. **Rejected** rows are hidden by
 
 ```powershell
 docker compose up web
-# Open http://localhost:8080
+# Open http://localhost:8080 — Chat (default); Jobs at /jobs
 ```
+
+**Chat** (`/`) is the default landing page: an LLM assistant with SQLite session history.
+It reads jobs and your search profile; mutating tools (scrape, status, cover letter, leads)
+require **Confirm** in the UI (`AGENTZERO_CHAT_MODEL`, default `gpt-5.5`, OpenAI only).
 
 The `web` service uses the same host CDP settings as `agentzero`:
 
@@ -132,6 +136,8 @@ cannot reach `127.0.0.1` on the host). Then use **Connect** on Scraper.
 
 | Action | Effect |
 |--------|--------|
+| **Chat** (`/`) | LLM assistant — read tracker/profile; Confirm before mutations |
+| **Jobs** (`/jobs`) | Sortable table; soft-reject filter; job card on row click |
 | **Save status** | Updates SQLite (e.g. `lead` → `new`) |
 | **Save notes** | Updates `notes` on the row |
 | **Nope** | Sets `status=rejected` (row stays in DB for dedupe; hidden by default) |

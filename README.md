@@ -165,13 +165,16 @@ docker compose up web                       # browse / edit tracker
 
 | URL | Purpose |
 |-----|---------|
-| http://localhost:8080/ | Sortable job table; job card — status, notes, **cover letter** (generate, edit, download .txt) |
+| http://localhost:8080/ | **Chat** — LLM assistant (read jobs/profile; Confirm before scrape, status, cover letter) |
+| http://localhost:8080/jobs | Sortable job table; job card — status, notes, **cover letter** (generate, edit, download .txt) |
 | http://localhost:8080/scraper | **Scraper** — scrape sources, load résumé, add/remove search titles, background scrape, Chrome CDP **Connect** (`/config` redirects here) |
 
 Scraper persists operator choices in `data/web_operator_config.json`; LLM search snapshots go to
 `data/search_profile.json` (see [Docker](docs/DOCKER.md) for host CDP + read-only `resume/` mount).
 
 **Cover letters** on the job card use `AGENTZERO_COVER_LETTER_MODEL` (default `gpt-5.5`, OpenAI only).
+**Chat** at `/` uses `AGENTZERO_CHAT_MODEL` (default `gpt-5.5`, OpenAI tool-calling). Mutating actions
+(status, notes, reject, scrape, cover letter, lead approve/reject) require **Confirm** in the UI.
 Drafts are saved under `output/cover_letters/` (gitignored); edit in the browser and download as `.txt`.
 
 **Backfill** (repair existing DB rows without a full re-scrape):

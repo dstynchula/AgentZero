@@ -57,11 +57,34 @@ def safe_flash_query(request: Request) -> str:
     return "?" + urlencode(items)
 
 
+def legacy_scraper_redirect_base(path: str = "") -> str:
+    """Return a fixed relative /scraper URL for a legacy /config path segment.
+
+    Uses only literal targets so redirect URLs are not built from user input
+    (CodeQL py/unsafe-redirect).
+    """
+    match safe_legacy_scraper_path(path):
+        case "sources":
+            return "/scraper/sources"
+        case "resume/load":
+            return "/scraper/resume/load"
+        case "search-titles":
+            return "/scraper/search-titles"
+        case "search-titles/add":
+            return "/scraper/search-titles/add"
+        case "search-titles/remove":
+            return "/scraper/search-titles/remove"
+        case "cdp/connect":
+            return "/scraper/cdp/connect"
+        case "scrape":
+            return "/scraper/scrape"
+        case _:
+            return "/scraper"
+
+
 def legacy_scraper_redirect_url(request: Request, path: str = "") -> str:
     """Relative redirect target for legacy /config bookmarks."""
-    safe_path = safe_legacy_scraper_path(path)
-    suffix = f"/{safe_path}" if safe_path else ""
-    return f"/scraper{suffix}{safe_flash_query(request)}"
+    return legacy_scraper_redirect_base(path) + safe_flash_query(request)
 
 
 def legacy_api_scraper_redirect_url(request: Request) -> str:

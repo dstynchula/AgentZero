@@ -97,6 +97,8 @@ This is **best-effort** for app-controlled logs. Do not run `docker compose conf
 
 - **Unauthenticated** HTTP on port **8080** (default). Anyone who can reach the port can list
   and edit jobs in the mounted SQLite database (status, notes, soft-reject).
+- **Chat** (`/`) calls OpenAI with job/résumé context when you send messages (`AGENTZERO_CHAT_MODEL`).
+  Mutating tool calls (scrape, status, cover letter, leads) execute only after you click **Confirm**.
 - Intended for **local operator** use only. Do not publish 8080 to the public internet.
 - The web layer does **not** hard-delete rows; **Nope** sets `rejected` (same as MCP `reject_leads`).
 ### Docker secrets

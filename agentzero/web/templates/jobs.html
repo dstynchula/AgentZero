@@ -6,9 +6,9 @@
 
 <div class="toolbar">
   {% if show_rejected %}
-  <a href="/?sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Hide rejected</a>
+  <a href="/jobs?sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Hide rejected</a>
   {% else %}
-  <a href="/?show_rejected=1&sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Show rejected</a>
+  <a href="/jobs?show_rejected=1&sort={{ sort }}&order={{ order }}" class="btn btn-secondary">Show rejected</a>
   {% endif %}
 </div>
 

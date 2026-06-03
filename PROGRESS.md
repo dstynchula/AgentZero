@@ -245,6 +245,17 @@ Plan: [docs/web-job-card-cover-letter.plan.md](docs/web-job-card-cover-letter.pl
 - [x] P37e Docs
 - [x] P37f Ledger + gate
 
+## P38 — Web chat interface
+
+Plan: [docs/web-chat.plan.md](docs/web-chat.plan.md)
+
+- [x] P38a Chat SQLite store + session API
+- [x] P38b Chat LLM + read-only tools
+- [x] P38c Message API + HITL pending actions
+- [x] P38d Chat UI (default landing)
+- [x] P38e Docs
+- [x] P38f Ledger + gate
+
 ## Reference docs
 
 | Doc | Contents |
@@ -264,6 +275,7 @@ Plan: [docs/web-job-card-cover-letter.plan.md](docs/web-job-card-cover-letter.pl
 | docs/web-ui-ux-spike.plan.md | P34 tracker layout + Settings CDP UX |
 | docs/web-job-card-nav.plan.md | P35 job card description + Scraper routes |
 | docs/web-job-card-cover-letter.plan.md | P37 cover letter + inline job card edits |
+| docs/web-chat.plan.md | P38 web chat (default landing, HITL tools) |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

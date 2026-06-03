@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-5-nano"
     # Cover letters use a separate model (natural tone; higher cost than rank/scrape).
     cover_letter_model: str = "gpt-5.5"
+    # Web chat assistant (tool-calling; OpenAI v1).
+    chat_model: str = "gpt-5.5"
     # Truncate job descriptions in rank prompts to control per-run LLM cost.
     rank_description_max_chars: int = 2_500
     openai_api_key: str | None = Field(

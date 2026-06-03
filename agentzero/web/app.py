@@ -17,6 +17,9 @@ from agentzero.generate.cover_letter import COVER_LETTER_DIR, save_cover_letter
 from agentzero.models import ApplicationStatus, JobPosting
 from agentzero.storage.db import Database
 from agentzero.web.cdp_status import cdp_status_payload, retry_cdp_connection
+from agentzero.web.chat.agent import run_agent_turn
+from agentzero.web.chat.hitl import confirm_pending, reject_pending
+from agentzero.web.chat.store import ChatStore
 from agentzero.web.cover_letter_io import (
     cover_letter_download_filename,
     cover_letters_dir,
@@ -34,7 +37,9 @@ from agentzero.web.jobs import (
 )
 from agentzero.web.legacy_redirect import (
     legacy_api_scraper_redirect_url,
+    legacy_scraper_redirect_base,
     legacy_scraper_redirect_url,
+    safe_flash_query,
 )
 from agentzero.web.mutations import (
     JobNotFoundError,
@@ -60,6 +65,7 @@ from agentzero.web.search_titles import (
 from agentzero.web.sources import active_source_names, source_catalog
 
 JobId = Annotated[str, FPath(pattern=r"^[a-f0-9]{16}$", min_length=16, max_length=16)]
+ChatSessionId = Annotated[str, FPath(pattern=r"^[a-f0-9]{32}$", min_length=32, max_length=32)]
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 _STATUS_CHOICES = [status.value for status in ApplicationStatus]
@@ -105,6 +111,9 @@ def create_app(
 
     def _db(request: Request) -> Database:
         return request.app.state.db
+
+    def _chat(request: Request) -> ChatStore:
+        return ChatStore(_db(request))
 
     def _operator(request: Request):
         return load_operator_config(request.app.state.operator_config_path)
@@ -210,6 +219,126 @@ def create_app(
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/api/chat/sessions")
+    def api_chat_sessions(request: Request) -> list[dict[str, object]]:
+        return [row.to_dict() for row in _chat(request).list_sessions()]
+
+    @app.post("/api/chat/sessions")
+    async def api_chat_create_session(request: Request) -> JSONResponse:
+        body: dict[str, object] = {}
+        if request.headers.get("content-type", "").startswith("application/json"):
+            try:
+                body = await request.json()
+            except json.JSONDecodeError:
+                body = {}
+        title = str(body.get("title", "") or "")
+        session_id = _chat(request).create_session(title=title)
+        session = _chat(request).get_session(session_id)
+        assert session is not None
+        return JSONResponse(session.to_dict(), status_code=201)
+
+    @app.get("/api/chat/sessions/{session_id}")
+    def api_chat_session(request: Request, session_id: ChatSessionId) -> JSONResponse:
+        store = _chat(request)
+        session = store.get_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        pending = store.get_pending_action(session_id)
+        return JSONResponse(
+            {
+                **session.to_dict(),
+                "messages": [msg.to_dict() for msg in store.list_messages(session_id)],
+                "pending_action": pending.to_dict() if pending else None,
+            }
+        )
+
+    @app.delete("/api/chat/sessions/{session_id}")
+    def api_chat_delete_session(request: Request, session_id: ChatSessionId) -> JSONResponse:
+        store = _chat(request)
+        archived = store.archive_session(session_id)
+        if not archived and not store.delete_session(session_id):
+            raise HTTPException(status_code=404, detail="session not found")
+        return JSONResponse({"session_id": session_id, "archived": archived})
+
+    @app.post("/api/chat/sessions/{session_id}/messages")
+    async def api_chat_post_message(
+        request: Request,
+        session_id: ChatSessionId,
+    ) -> JSONResponse:
+        store = _chat(request)
+        if store.get_session(session_id) is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        if store.get_pending_action(session_id) is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Resolve the pending action before sending another message.",
+            )
+        try:
+            body = await request.json()
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="invalid JSON body") from exc
+        content = str(body.get("content", "") or "").strip()
+        if not content:
+            raise HTTPException(status_code=400, detail="content required")
+        try:
+            turn = run_agent_turn(
+                store,
+                session_id,
+                content,
+                db=_db(request),
+                scrape_snapshot=request.app.state.scrape_runner.snapshot(),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        pending = turn.pending_action or store.get_pending_action(session_id)
+        return JSONResponse(
+            {
+                "assistant_text": turn.assistant_text,
+                "pending_action": pending.to_dict() if pending else None,
+            }
+        )
+
+    @app.post("/api/chat/sessions/{session_id}/confirm")
+    def api_chat_confirm(request: Request, session_id: ChatSessionId) -> JSONResponse:
+        store = _chat(request)
+        if store.get_session(session_id) is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        try:
+            result = confirm_pending(
+                store,
+                session_id,
+                db=_db(request),
+                settings=request.app.state.settings,
+                scrape_runner=request.app.state.scrape_runner,
+                cover_letter_runner=request.app.state.cover_letter_runner,
+                operator_config_path=request.app.state.operator_config_path,
+                cover_letters_dir=_letters_dir(request),
+            )
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (JobNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return JSONResponse(result)
+
+    @app.post("/api/chat/sessions/{session_id}/reject")
+    def api_chat_reject_pending(request: Request, session_id: ChatSessionId) -> JSONResponse:
+        store = _chat(request)
+        if store.get_session(session_id) is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        try:
+            result = reject_pending(store, session_id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return JSONResponse(result)
+
+    @app.get("/", response_class=HTMLResponse)
+    def chat_page(request: Request) -> HTMLResponse:
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "chat.html",
+            {"nav_active": "chat"},
+        )
+
     @app.get("/api/jobs")
     def api_jobs(
         request: Request,
@@ -224,8 +353,8 @@ def create_app(
             order=order,
         )
 
-    @app.get("/", response_class=HTMLResponse)
-    def index(
+    @app.get("/jobs", response_class=HTMLResponse, name="jobs_list")
+    def jobs_list(
         request: Request,
         show_rejected: bool = Query(default=False),
         sort: str | None = Query(default=None),
@@ -523,17 +652,13 @@ def create_app(
 
     @app.get("/config/{path:path}", include_in_schema=False)
     def redirect_config_get(request: Request, path: str) -> RedirectResponse:
-        return RedirectResponse(
-            url=legacy_scraper_redirect_url(request, path),
-            status_code=307,
-        )
+        base = legacy_scraper_redirect_base(path)
+        return RedirectResponse(url=base + safe_flash_query(request), status_code=307)
 
     @app.post("/config/{path:path}", include_in_schema=False)
     def redirect_config_post(request: Request, path: str) -> RedirectResponse:
-        return RedirectResponse(
-            url=legacy_scraper_redirect_url(request, path),
-            status_code=307,
-        )
+        base = legacy_scraper_redirect_base(path)
+        return RedirectResponse(url=base + safe_flash_query(request), status_code=307)
 
     @app.get("/api/config", include_in_schema=False)
     def redirect_api_config(request: Request) -> RedirectResponse:
@@ -548,7 +673,7 @@ def create_app(
         order: str | None = None,
     ) -> RedirectResponse:
         query = build_list_query(show_rejected=show_rejected, sort=sort, order=order)
-        return RedirectResponse(url=f"/{query}", status_code=303)
+        return RedirectResponse(url=f"/jobs{query}", status_code=303)
 
     def _apply_status(request: Request, job_id: JobId, status: str) -> JobPosting:
         try:
