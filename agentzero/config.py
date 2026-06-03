@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # --- LLM ---
     llm_provider: LLMProvider = "openai"
     llm_model: str = "gpt-5-nano"
+    # Cover letters use a separate model (natural tone; higher cost than rank/scrape).
+    cover_letter_model: str = "gpt-5.5"
     # Truncate job descriptions in rank prompts to control per-run LLM cost.
     rank_description_max_chars: int = 2_500
     openai_api_key: str | None = Field(

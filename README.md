@@ -159,17 +159,20 @@ docker compose up web                       # browse / edit tracker
 | **Shallow enrich** | Parse comp/size/Glassdoor from fields on the job; filter by comp floor |
 | **Deep enrich** | Fetch posting URLs, Glassdoor lookup, DuckDuckGo company research |
 | **Rank** | LLM fit score + rationale vs your résumé |
-| **Tracker** | Web UI on :8080 — edit status, notes, soft-reject; CSV export optional |
+| **Tracker** | Web UI on :8080 — edit status, notes, cover letters, soft-reject; CSV export optional |
 
 ### Web tracker and Scraper
 
 | URL | Purpose |
 |-----|---------|
-| http://localhost:8080/ | Sortable job table, job card detail, soft-reject |
+| http://localhost:8080/ | Sortable job table; job card — status, notes, **cover letter** (generate, edit, download .txt) |
 | http://localhost:8080/scraper | **Scraper** — scrape sources, load résumé, add/remove search titles, background scrape, Chrome CDP **Connect** (`/config` redirects here) |
 
 Scraper persists operator choices in `data/web_operator_config.json`; LLM search snapshots go to
 `data/search_profile.json` (see [Docker](docs/DOCKER.md) for host CDP + read-only `resume/` mount).
+
+**Cover letters** on the job card use `AGENTZERO_COVER_LETTER_MODEL` (default `gpt-5.5`, OpenAI only).
+Drafts are saved under `output/cover_letters/` (gitignored); edit in the browser and download as `.txt`.
 
 **Backfill** (repair existing DB rows without a full re-scrape):
 

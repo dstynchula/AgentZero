@@ -98,3 +98,18 @@ def build_llm_provider(settings: Settings | None = None) -> LLMProvider:
     if cfg.llm_provider == "openai":
         return OpenAIProvider(api_key=key, model=cfg.llm_model)
     return AnthropicProvider(api_key=key, model=cfg.llm_model)
+
+
+def build_cover_letter_provider(settings: Settings | None = None) -> LLMProvider:
+    """OpenAI provider for cover letter generation (dedicated model setting)."""
+    cfg = settings or get_settings()
+    if cfg.llm_provider != "openai":
+        raise ValueError(
+            "Cover letter generation requires AGENTZERO_LLM_PROVIDER=openai "
+            f"(got {cfg.llm_provider!r})."
+        )
+    if not cfg.openai_api_key:
+        raise ValueError(
+            "Missing API key for cover letters. Set OPENAI_API_KEY."
+        )
+    return OpenAIProvider(api_key=cfg.openai_api_key, model=cfg.cover_letter_model)

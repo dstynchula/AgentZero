@@ -123,8 +123,9 @@ docker compose up web
 | Action | Effect |
 |--------|--------|
 | Column headers | Sort asc/desc |
-| Row click | Job card with full details |
-| Save status / notes | Updates SQLite |
+| Row click | Job card — description, match rationale, status, notes |
+| Save status / notes | Updates SQLite (on list or job card) |
+| Cover letter | Generate from `resume/` + job (GPT-5.5), edit in pane, Save, Download .txt |
 | Nope | Soft-reject (`status=rejected`, hidden by default) |
 
 **Tracker columns** (13 in the web table; full schema in CSV/SQLite export):

@@ -439,3 +439,11 @@ smoke_test PII redaction; rank_and_sync --yes; browser scrape SSRF guard on fina
     accept: pytest -q && ruff check agentzero tests scripts tools -> green
     branch: feat/web-P35-job-card-nav
     PR: https://github.com/dstynchula/AgentZero/pull/35
+
+[2026-06-02T12:00:00Z] P37 DONE — Job card cover letter (GPT-5.5), editable pane, Save, Download .txt; inline status/notes on detail page.
+    files: agentzero/generate/cover_letter.py, agentzero/config.py, agentzero/llm/provider.py,
+           agentzero/web/{app.py,cover_letter_runner.py,cover_letter_io.py}, agentzero/web/templates/{job_card,base}.html,
+           tests/test_cover_letter.py, tests/test_web_cover_letter.py, tests/test_web_job_card.py, tests/test_docs_web.py,
+           README.md, docs/{GETTING_STARTED,DOCKER,COST_AND_MODELS}.md, docs/web-job-card-cover-letter.plan.md, PROGRESS.md, .env.example
+    accept: pytest tests/test_cover_letter.py tests/test_web_cover_letter.py tests/test_web_job_card.py tests/test_docs_web.py -q && ruff check agentzero/generate agentzero/web/cover_letter_runner.py agentzero/web/cover_letter_io.py agentzero/config.py agentzero/llm/provider.py -> green
+    branch: feat/web-P37-cover-letter

@@ -137,8 +137,11 @@ cannot reach `127.0.0.1` on the host). Then use **Connect** on Scraper.
 | **Nope** | Sets `status=rejected` (row stays in DB for dedupe; hidden by default) |
 | **Show rejected** | Lists noped roles |
 | **Column headers** | Sort asc/desc (default: `match_score` desc) |
-| **Row click** | Opens a **job card** with full details (rationale, description, links) |
+| **Row click** | Opens a **job card** — rationale, description, status, notes, **cover letter** (generate, edit, download .txt) |
 | **Scraper** (`/scraper`) | Enable/disable scrape sources, start a background scrape, CDP setup instructions (`/config` redirects) |
+
+**Cover letters** use `AGENTZERO_COVER_LETTER_MODEL` (default `gpt-5.5`; OpenAI only). Files land in
+`output/cover_letters/` on the mounted project tree (gitignored).
 
 **Scraper** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
 scrapes use `data/search_profile.json` (beside the DB; résumé files stay in read-only `resume/`)

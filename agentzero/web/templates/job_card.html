@@ -2,13 +2,54 @@
 {% block title %}{{ job.title }} — {{ job.company }}{% endblock %}
 {% block body %}
 <p class="toolbar"><a href="/{{ list_query }}" class="btn btn-secondary">← Back to list</a></p>
+
+{% if flash %}
+<div class="flash {% if flash_ok %}flash-ok{% else %}flash-err{% endif %}">{{ flash }}</div>
+{% endif %}
+
 <h1>{{ job.title }}</h1>
 <p class="muted">{{ job.company }} · {{ job.source }}</p>
 
 <section class="card">
+  <h2>Tracker</h2>
+  <form method="post" action="/jobs/{{ job_id }}/status" class="detail-form">
+    <input type="hidden" name="return_to" value="detail" />
+    {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+    <input type="hidden" name="sort" value="{{ sort }}" />
+    <input type="hidden" name="order" value="{{ order }}" />
+    <label class="detail-label">Status</label>
+    <div class="detail-form-row">
+      <select name="status">
+        {% for s in status_choices %}
+        <option value="{{ s }}" {% if s == job.status %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Save status</button>
+    </div>
+  </form>
+  <form method="post" action="/jobs/{{ job_id }}/notes" class="detail-form">
+    <input type="hidden" name="return_to" value="detail" />
+    {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+    <input type="hidden" name="sort" value="{{ sort }}" />
+    <input type="hidden" name="order" value="{{ order }}" />
+    <label class="detail-label" for="job-notes">Notes</label>
+    <div class="detail-form-row">
+      <input id="job-notes" type="text" name="notes" value="{{ job.notes or '' }}" class="detail-notes-input" />
+      <button type="submit">Save notes</button>
+    </div>
+  </form>
+  <form method="post" action="/jobs/{{ job_id }}/reject" class="detail-form" onsubmit="return confirm('Mark this role as rejected (nope)?');">
+    <input type="hidden" name="return_to" value="detail" />
+    {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+    <input type="hidden" name="sort" value="{{ sort }}" />
+    <input type="hidden" name="order" value="{{ order }}" />
+    <button type="submit" class="btn-danger">Nope (reject)</button>
+  </form>
+</section>
+
+<section class="card">
   <h2>Overview</h2>
   <dl class="detail-grid">
-    <dt>Status</dt><dd>{{ job.status }}</dd>
     <dt>Match score</dt><dd>{{ job.match_score }}{% if job.match_tier %} ({{ job.match_tier }}){% endif %}</dd>
     <dt>Location</dt><dd>{{ job.location or "—" }}{% if job.remote %} · remote{% endif %}</dd>
     <dt>Comp</dt>
@@ -22,7 +63,6 @@
     <dd>{% if job.glassdoor_rating %}{{ job.glassdoor_rating }}{% if job.glassdoor_reviews %} ({{ job.glassdoor_reviews }} reviews){% endif %}{% else %}—{% endif %}</dd>
     <dt>Posted</dt><dd>{{ job.date_posted or "—" }}{% if job.posting_age_days is not none %} ({{ job.posting_age_days }}d ago){% endif %}</dd>
     <dt>Applied</dt><dd>{{ job.date_applied or "—" }}</dd>
-    <dt>Notes</dt><dd>{{ job.notes or "—" }}</dd>
   </dl>
 </section>
 
@@ -52,4 +92,32 @@
   <div class="rationale">{{ job.match_rationale }}</div>
 </section>
 {% endif %}
+
+<section class="card" id="cover-letter">
+  <h2>Cover letter</h2>
+  <div class="cover-letter-toolbar">
+    <form method="post" action="/jobs/{{ job_id }}/cover-letter/generate" class="inline-form"
+          {% if has_cover_letter %}onsubmit="return confirm('Replace existing cover letter?');"{% endif %}>
+      {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+      <input type="hidden" name="sort" value="{{ sort }}" />
+      <input type="hidden" name="order" value="{{ order }}" />
+      <button type="submit" {% if cover_letter_running %}disabled{% endif %}>Generate</button>
+    </form>
+    {% if has_cover_letter %}
+    <a href="/jobs/{{ job_id }}/cover-letter/download" class="btn btn-secondary">Download .txt</a>
+    {% endif %}
+  </div>
+  {% if cover_letter_running %}
+  <p class="muted">Generating cover letter… refresh this page when finished.</p>
+  {% endif %}
+  <form method="post" action="/jobs/{{ job_id }}/cover-letter/save" class="cover-letter-form">
+    {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+    <input type="hidden" name="sort" value="{{ sort }}" />
+    <input type="hidden" name="order" value="{{ order }}" />
+    <textarea name="text" class="cover-letter-textarea" rows="16" placeholder="Generate a cover letter or paste your draft here.">{{ cover_letter_text }}</textarea>
+    <div class="detail-form-row">
+      <button type="submit">Save cover letter</button>
+    </div>
+  </form>
+</section>
 {% endblock %}

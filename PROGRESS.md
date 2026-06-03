@@ -234,6 +234,17 @@ Plan: [docs/web-job-card-nav.plan.md](docs/web-job-card-nav.plan.md)
 - [x] P35b Remove sort-by toolbar (header sort only)
 - [x] P35c Settings → Scraper (/scraper + /config redirects)
 
+## P37 — Job card cover letter + inline edits
+
+Plan: [docs/web-job-card-cover-letter.plan.md](docs/web-job-card-cover-letter.plan.md)
+
+- [x] P37a Cover letter core (gpt-5.5 + prompt)
+- [x] P37b Job card status/notes/reject
+- [x] P37c Cover letter web runner + routes
+- [x] P37d Job card cover letter UI (editable pane + save + download)
+- [x] P37e Docs
+- [x] P37f Ledger + gate
+
 ## Reference docs
 
 | Doc | Contents |
@@ -252,6 +263,7 @@ Plan: [docs/web-job-card-nav.plan.md](docs/web-job-card-nav.plan.md)
 | docs/web-search-titles.plan.md | P33 résumé load path + add/remove titles |
 | docs/web-ui-ux-spike.plan.md | P34 tracker layout + Settings CDP UX |
 | docs/web-job-card-nav.plan.md | P35 job card description + Scraper routes |
+| docs/web-job-card-cover-letter.plan.md | P37 cover letter + inline job card edits |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist
