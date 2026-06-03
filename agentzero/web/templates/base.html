@@ -56,7 +56,19 @@
       padding-bottom: 0.75rem;
       border-bottom: 1px solid var(--border);
     }
-    .brand { font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .brand:hover { text-decoration: none; }
+    .brand-logo {
+      display: block;
+      height: 2.25rem;
+      width: auto;
+      max-width: min(12rem, 42vw);
+    }
     nav.main-nav { display: flex; gap: 0.5rem; flex: 1; }
     nav.main-nav a {
       padding: 0.35rem 0.75rem;
@@ -360,7 +372,16 @@
 <body>
   <div class="shell">
     <header class="site-header">
-      <a class="brand" href="/">AgentZero</a>
+      <a class="brand" href="/" aria-label="AgentZero home">
+        <img
+          class="brand-logo"
+          src="/static/brand/agentzero.svg"
+          alt="AgentZero"
+          width="240"
+          height="90"
+          decoding="async"
+        />
+      </a>
       <nav class="main-nav">
         <a href="/" class="{% if nav_active == 'chat' %}active{% endif %}">Chat</a>
         <a href="/jobs" class="{% if nav_active == 'jobs' %}active{% endif %}">Jobs</a>

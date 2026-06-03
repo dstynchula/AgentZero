@@ -68,6 +68,7 @@ JobId = Annotated[str, FPath(pattern=r"^[a-f0-9]{16}$", min_length=16, max_lengt
 ChatSessionId = Annotated[str, FPath(pattern=r"^[a-f0-9]{32}$", min_length=32, max_length=32)]
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+_BRAND_SVG_PATH = Path(__file__).resolve().parent / "static" / "AgentZero.svg"
 _STATUS_CHOICES = [status.value for status in ApplicationStatus]
 _JOB_DETAIL_FLASH_KEYS = frozenset(
     {
@@ -218,6 +219,12 @@ def create_app(
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/static/brand/agentzero.svg")
+    def brand_logo() -> FileResponse:
+        if not _BRAND_SVG_PATH.is_file():
+            raise HTTPException(status_code=404, detail="brand asset not found")
+        return FileResponse(_BRAND_SVG_PATH, media_type="image/svg+xml")
 
     @app.get("/api/chat/sessions")
     def api_chat_sessions(request: Request) -> list[dict[str, object]]:

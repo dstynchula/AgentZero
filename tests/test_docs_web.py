@@ -13,6 +13,12 @@ def test_readme_mentions_cover_letter_model():
     assert "gpt-5.5" in text
 
 
+def test_readme_includes_agentzero_svg():
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "AgentZero.svg" in text
+    assert Path("AgentZero.svg").is_file()
+
+
 def test_cost_doc_mentions_cover_letter_model():
     text = Path("docs/COST_AND_MODELS.md").read_text(encoding="utf-8")
     assert "AGENTZERO_COVER_LETTER_MODEL" in text
