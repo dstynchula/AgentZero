@@ -95,6 +95,30 @@ def test_chat_agent_includes_resume_search_profile(chat_agent_env, monkeypatch):
     assert result["profile"]["terms"] == ["engineer"]
 
 
+def test_get_scraper_status_includes_progress(chat_agent_env):
+    db, _store, _settings, _job = chat_agent_env
+    scrape_snapshot = {
+        "running": True,
+        "message": "Scraping job boards (1/3) — indeed",
+        "phase": "scrape",
+        "done": 1,
+        "total": 3,
+        "detail": "indeed",
+        "scraped": None,
+        "leads": None,
+        "errors": [],
+    }
+    result = execute_read_tool(
+        "get_scraper_status",
+        {},
+        db=db,
+        scrape_snapshot=scrape_snapshot,
+    )
+    assert result["scrape"]["phase"] == "scrape"
+    assert result["scrape"]["done"] == 1
+    assert result["scrape"]["total"] == 3
+
+
 def test_chat_uses_chat_model_setting():
     settings = Settings(
         _env_file=None,

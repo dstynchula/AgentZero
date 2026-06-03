@@ -13,7 +13,7 @@ class FakeSource(JobSource):
         self._records = records
         self.fetch_count = 0
 
-    def fetch(self):
+    def fetch(self, *, progress=None):
         self.fetch_count += 1
         return list(self._records)
 

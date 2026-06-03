@@ -84,7 +84,10 @@ def openai_tool_specs() -> list[dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "get_scraper_status",
-                "description": "Background scrape runner state and job counts.",
+                "description": (
+                    "Background scrape runner state with live phase/progress "
+                    "(phase, done, total, detail) plus job counts."
+                ),
                 "parameters": {"type": "object", "properties": {}},
             },
         },

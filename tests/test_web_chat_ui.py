@@ -41,8 +41,10 @@ def test_chat_history_row_has_delete_control(web_client):
     r = web_client.get("/")
     assert r.status_code == 200
     assert "session-delete" in r.text
+    assert "session-item" in r.text
     assert "deleteSession" in r.text
-    assert "Delete chat from history" in r.text
+    assert "Delete chat" in r.text
+    assert "agentzeroPollScrape" in r.text
 
 
 def test_nav_includes_chat_jobs_scraper(web_client):

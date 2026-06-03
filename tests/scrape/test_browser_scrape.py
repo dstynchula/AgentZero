@@ -480,7 +480,7 @@ def test_multi_source_fetch_merges_batches(capsys):
             self.name = name
             self._n = n
 
-        def fetch(self):
+        def fetch(self, *, progress=None):
             return [
                 RawRecord(title=f"{self.name}-{i}", company="Co", url=f"https://x/{i}", source=self.name)
                 for i in range(self._n)

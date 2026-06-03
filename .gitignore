@@ -39,6 +39,7 @@ data/browser_storage_state/
 data/search_profile.json
 data/backups/
 data/pytest-bisect.json
+data/scrape_progress.json
 
 # Personal résumé (never commit; folder kept via .gitkeep only)
 resume/**

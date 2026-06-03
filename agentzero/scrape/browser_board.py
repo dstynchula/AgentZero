@@ -117,7 +117,7 @@ class BrowserJobBoardSource(JobSource):
     def name(self) -> str:
         return f"{self._site_key}_browser"
 
-    def fetch(self) -> Sequence[RawRecord]:
+    def fetch(self, *, progress: object | None = None) -> Sequence[RawRecord]:
         display, needs_human, has_results, build_url, parse_html, consent = self._cfg
         term, parsed = primary_scrape_query(self._settings)
         url = build_url(term=term, parsed=parsed)

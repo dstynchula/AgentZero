@@ -88,6 +88,8 @@ def test_scraper_page_renders(client):
     assert "launch_chrome_cdp.ps1" in r.text
     assert "launch_chrome_cdp.py" in r.text
     assert "Start Chrome on the host" in r.text
+    assert 'id="scrape-progress"' in r.text
+    assert "agentzeroPollScrape" in r.text
 
 
 def test_jobs_page_defaults_to_dark_theme(client):
@@ -130,6 +132,26 @@ def test_api_scraper_json(client):
     assert "sources" in body
     assert "cdp" in body
     assert len(body["sources"]) == 3
+    scrape = body["scrape"]
+    assert "phase" in scrape
+    assert "done" in scrape
+    assert "total" in scrape
+    assert "detail" in scrape
+
+
+def test_api_scraper_reflects_runner_progress(client):
+    c, _ = client
+    c.app.state.scrape_runner.state.running = True
+    c.app.state.scrape_runner.state.phase = "scrape"
+    c.app.state.scrape_runner.state.done = 1
+    c.app.state.scrape_runner.state.total = 3
+    c.app.state.scrape_runner.state.detail = "linkedin"
+    r = c.get("/api/scraper")
+    scrape = r.json()["scrape"]
+    assert scrape["running"] is True
+    assert scrape["phase"] == "scrape"
+    assert scrape["done"] == 1
+    assert scrape["total"] == 3
 
 
 def test_cdp_connect_redirect(client, monkeypatch):

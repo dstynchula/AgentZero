@@ -84,19 +84,22 @@
 <section class="card">
   <h2>Run scrape</h2>
   <p class="muted">Uses saved titles/sources and your LLM key. New listings land as <strong>lead</strong> for review.</p>
-  {% if scrape.running %}
-  <p><span class="badge badge-warn">Running</span> {{ scrape.message }}</p>
-  {% else %}
-  <p class="muted">{{ scrape.message or 'No scrape run yet from the web UI.' }}</p>
-  {% if scrape.scraped is not none %}
-  <p class="muted">Last run: {{ scrape.scraped }} scraped, {{ scrape.leads }} new lead(s).</p>
-  {% endif %}
-  {% if scrape.errors %}
-  <pre class="hint">{{ scrape.errors|join('\n') }}</pre>
-  {% endif %}
-  {% endif %}
+  <div id="scrape-progress">
+    <p id="scrape-progress-status">
+      {% if scrape.running %}
+      <span class="badge badge-warn">Running</span> {{ scrape.message }}
+      {% else %}
+      <span class="muted">{{ scrape.message or 'No scrape run yet from the web UI.' }}</span>
+      {% endif %}
+    </p>
+    <progress id="scrape-progress-bar" value="{{ scrape.done }}" max="{{ scrape.total if scrape.total > 0 else 1 }}" {% if not scrape.running or scrape.total <= 0 %}hidden{% endif %} style="width:100%;margin:0.35rem 0;"></progress>
+    <p id="scrape-last-run" class="muted" {% if scrape.running or scrape.scraped is none %}hidden{% endif %}>
+      Last run: {{ scrape.scraped }} scraped, {{ scrape.leads }} new lead(s).
+    </p>
+    <pre id="scrape-errors" class="hint" {% if scrape.running or not scrape.errors %}hidden{% endif %}>{{ scrape.errors|join('\n') if scrape.errors else '' }}</pre>
+  </div>
   <form method="post" action="/scraper/scrape" class="toolbar">
-    <button type="submit" class="btn" {% if scrape.running %}disabled{% endif %}>Start background scrape</button>
+    <button type="submit" class="btn" id="scrape-start-btn" {% if scrape.running %}disabled{% endif %}>Start background scrape</button>
   </form>
 </section>
 
@@ -137,4 +140,62 @@
   {% endif %}
 </section>
 {% endif %}
+{% endblock %}
+{% block page_scripts %}
+<script>
+(function () {
+  var statusEl = document.getElementById("scrape-progress-status");
+  var barEl = document.getElementById("scrape-progress-bar");
+  var startBtn = document.getElementById("scrape-start-btn");
+  var lastRunEl = document.getElementById("scrape-last-run");
+  var errorsEl = document.getElementById("scrape-errors");
+
+  function updateScrapeUI(s) {
+    if (!statusEl) return;
+    if (s.running) {
+      statusEl.innerHTML =
+        '<span class="badge badge-warn">Running</span> ' +
+        (s.message || s.phase || "Scraping…");
+      if (startBtn) startBtn.disabled = true;
+      if (barEl) {
+        if (s.total > 0) {
+          barEl.hidden = false;
+          barEl.max = s.total;
+          barEl.value = s.done;
+        } else {
+          barEl.hidden = true;
+        }
+      }
+      if (lastRunEl) lastRunEl.hidden = true;
+      if (errorsEl) errorsEl.hidden = true;
+    } else {
+      statusEl.innerHTML =
+        '<span class="muted">' + (s.message || "No scrape run yet from the web UI.") + "</span>";
+      if (startBtn) startBtn.disabled = false;
+      if (barEl) barEl.hidden = true;
+      if (lastRunEl) {
+        if (s.scraped != null) {
+          lastRunEl.textContent =
+            "Last run: " + s.scraped + " scraped, " + (s.leads || 0) + " new lead(s).";
+          lastRunEl.hidden = false;
+        } else {
+          lastRunEl.hidden = true;
+        }
+      }
+      if (errorsEl) {
+        if (s.errors && s.errors.length) {
+          errorsEl.textContent = s.errors.join("\n");
+          errorsEl.hidden = false;
+        } else {
+          errorsEl.hidden = true;
+        }
+      }
+    }
+  }
+
+  if (typeof window.agentzeroPollScrape === "function") {
+    window.agentzeroPollScrape({ onUpdate: updateScrapeUI });
+  }
+})();
+</script>
 {% endblock %}

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from agentzero.config import Settings
     from agentzero.ingest.resume import ResumeProfile
     from agentzero.llm.provider import LLMProvider
+    from agentzero.loops.run_progress import RunProgress
     from agentzero.scrape.base import JobSource
     from agentzero.storage.db import Database
 
@@ -57,17 +58,37 @@ class Pipeline:
         *,
         profile: ResumeProfile | None = None,
         new_status: ApplicationStatus = ApplicationStatus.NEW,
+        progress: RunProgress | None = None,
     ) -> PipelineResult:
         result = PipelineResult()
         from agentzero.config import get_settings
+        from agentzero.scrape.factory import list_source_names
 
         cfg = self._run_settings or get_settings()
+        if progress is not None:
+            boards = list_source_names(self._source)
+            progress.set_phase("scrape", total=len(boards), done=0)
         print("Scraping job boards (may take several minutes)…", flush=True)
-        raw_records = list(self._source.fetch())
+        raw_records = list(self._source.fetch(progress=progress))
+        if progress is not None:
+            from agentzero.scrape.multi import MultiSource
+
+            if not isinstance(self._source, MultiSource):
+                boards = list_source_names(self._source)
+                progress.set_phase(
+                    "scrape",
+                    total=len(boards),
+                    done=len(boards),
+                    detail=boards[0] if boards else "",
+                )
+        if progress is not None:
+            progress.set_phase("validate", total=1, done=0)
         print(f"Fetched {len(raw_records)} raw listing(s). Validating…", flush=True)
         jobs, quarantined, metrics = validate_batch(
             raw_records, source=self._source.name, llm=self._llm
         )
+        if progress is not None:
+            progress.step(detail=f"{len(jobs)} valid")
 
         source_healthy = True
         try:
@@ -85,6 +106,9 @@ class Pipeline:
 
         if source_healthy:
             from agentzero.scrape.remote_policy import job_is_remote
+
+            if progress is not None:
+                progress.set_phase("filter", total=1, done=0)
 
             if cfg.remote_only:
                 from agentzero.scrape.remote_policy import format_remote_filter_skips
@@ -128,13 +152,25 @@ class Pipeline:
                 self._db.mark_pipeline(job.job_id, "enrich_status", "done")
             result.scraped = len(kept)
             result.enriched = len(kept)
+            if progress is not None:
+                progress.step(detail=f"{len(kept)} kept")
 
         pending_enrich = self._db.list_pending("enrich_status")
         if pending_enrich:
             print(f"Enriching {len(pending_enrich)} backfill job(s)…", flush=True)
-            from agentzero.loops.progress import Progress
+            if progress is not None:
+                from agentzero.loops.run_progress import RunProgressAdapter
 
-            enrich_progress = Progress(len(pending_enrich), label="Enrich")
+                enrich_progress = RunProgressAdapter(
+                    len(pending_enrich),
+                    label="Enrich",
+                    run_progress=progress,
+                    phase="enrich",
+                )
+            else:
+                from agentzero.loops.progress import Progress
+
+                enrich_progress = Progress(len(pending_enrich), label="Enrich")
             enrich_progress.announce()
 
             def enrich_one(job_id: str) -> None:
@@ -184,15 +220,25 @@ class Pipeline:
 
             pending_rank = self._db.list_pending("rank_status")
             if pending_rank:
-                from agentzero.loops.progress import Progress
-
                 rank_workers = cfg.rank_max_concurrency
                 print(
                     f"Ranking {len(pending_rank)} job(s) vs résumé "
                     f"({rank_workers} parallel LLM workers)…",
                     flush=True,
                 )
-                rank_progress = Progress(len(pending_rank), label="Rank")
+                if progress is not None:
+                    from agentzero.loops.run_progress import RunProgressAdapter
+
+                    rank_progress = RunProgressAdapter(
+                        len(pending_rank),
+                        label="Rank",
+                        run_progress=progress,
+                        phase="rank",
+                    )
+                else:
+                    from agentzero.loops.progress import Progress
+
+                    rank_progress = Progress(len(pending_rank), label="Rank")
                 rank_progress.announce()
 
                 def rank_label(job_id: str) -> str:
@@ -211,6 +257,9 @@ class Pipeline:
                 rank_progress.finish()
                 result.errors.extend(failures)
                 result.ranked = len(pending_rank) - len(failures)
+
+        if progress is not None:
+            progress.finish()
 
         return result
 

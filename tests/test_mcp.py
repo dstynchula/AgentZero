@@ -265,7 +265,10 @@ def test_run_scrape_handler_mocked(monkeypatch, mcp_settings):
         lambda llm, force_refresh=False: targets,
     )
     monkeypatch.setattr("agentzero.ingest.resume.ingest_resume", lambda **kwargs: MagicMock())
-    monkeypatch.setattr("agentzero.leads.session.run_lead_scrape", lambda db, effective, llm, profile: run_result)
+    monkeypatch.setattr(
+        "agentzero.leads.session.run_lead_scrape",
+        lambda db, effective, llm, profile, progress=None: run_result,
+    )
     server = build_server()
 
     payload = _run(

@@ -366,6 +366,29 @@
       var href = row.getAttribute("data-href");
       if (href) window.location = href;
     });
+    window.agentzeroPollScrape = function (opts) {
+      var intervalMs = (opts && opts.intervalMs) || 2000;
+      var timer = null;
+      function poll() {
+        fetch("/api/scraper")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var s = (data && data.scrape) || {};
+            if (opts && opts.onUpdate) opts.onUpdate(s);
+            if (s.running) timer = setTimeout(poll, intervalMs);
+          })
+          .catch(function () {
+            if (opts && opts.onError) opts.onError();
+          });
+      }
+      poll();
+      return {
+        stop: function () {
+          if (timer) clearTimeout(timer);
+          timer = null;
+        }
+      };
+    };
   </script>
   {% block head %}{% endblock %}
 </head>

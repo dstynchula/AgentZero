@@ -14,5 +14,5 @@ class JobSource(ABC):
     name: str
 
     @abstractmethod
-    def fetch(self) -> Sequence[RawRecord]:
+    def fetch(self, *, progress: object | None = None) -> Sequence[RawRecord]:
         """Return unvalidated records as plain dicts (see ``RawRecord``)."""
