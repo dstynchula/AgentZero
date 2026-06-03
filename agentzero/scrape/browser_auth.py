@@ -114,13 +114,15 @@ def login_site(settings: Settings, site: str) -> str:
         raise ValueError(f"Unknown site {site!r}; choose from: {', '.join(LOGIN_URLS)}")
 
     display, login_url = LOGIN_URLS[key]
-    playwright = context = None
+    playwright = context = browser = None
     try:
-        playwright, context, page = launch_browser_page(settings, site=key)
+        playwright, context, page, browser = launch_browser_page(settings, site=key)
         page.goto(login_url, wait_until="domcontentloaded", timeout=60_000)  # type: ignore[union-attr]
         return wait_for_login(page, site=key, display=display)
     finally:
-        close_browser_session(playwright, context, settings, site=key)
+        close_browser_session(
+            playwright, context, settings, site=key, browser=browser, stop_playwright=True
+        )
 
 
 def login_sites(settings: Settings, sites: list[str]) -> dict[str, str]:

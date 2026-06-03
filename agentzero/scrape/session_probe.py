@@ -49,9 +49,9 @@ def probe_browser_session(settings: Settings, site: str) -> SessionProbeResult:
     term, parsed = primary_scrape_query(settings)
     url = build_url(term=term, parsed=parsed)
 
-    playwright = context = None
+    playwright = context = browser = None
     try:
-        playwright, context, page = launch_browser_page(settings, site=key)
+        playwright, context, page, browser = launch_browser_page(settings, site=key)
         page.goto(url, wait_until="domcontentloaded", timeout=60_000)
         if not validate_browser_page_url(page):
             return SessionProbeResult(
@@ -77,4 +77,6 @@ def probe_browser_session(settings: Settings, site: str) -> SessionProbeResult:
     except Exception as exc:
         return SessionProbeResult(site=key, state=SessionState.UNKNOWN, url=url, error=str(exc))
     finally:
-        close_browser_session(playwright, context, settings, site=key)
+        close_browser_session(
+            playwright, context, settings, site=key, browser=browser, stop_playwright=True
+        )

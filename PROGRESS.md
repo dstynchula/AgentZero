@@ -308,6 +308,15 @@ Plan: [docs/pytest-hang-diagnosis.plan.md](docs/pytest-hang-diagnosis.plan.md)
 - [x] T05 pytest-timeout
 - [x] T06 Full gate + docs
 
+## P48 — Docker web scrape fix (branch feat/docker-web-scrape-fix)
+
+Plan: [docs/docker-web-scrape-fix.plan.md](docs/docker-web-scrape-fix.plan.md)
+
+- [x] P48a T01 CDP WebSocket rewrite
+- [x] P48b T02 ScrapeRunner subprocess
+- [x] P48c T03 DOCKER.md
+- [ ] P48 ship prep-pr + babysit
+
 ## Reference docs
 
 | Doc | Contents |
@@ -331,6 +340,7 @@ Plan: [docs/pytest-hang-diagnosis.plan.md](docs/pytest-hang-diagnosis.plan.md)
 | docs/web-chat-ux.plan.md | P39 chat send UX (optimistic echo, waiting) |
 | docs/scrape-three-boards-apply.plan.md | P40 three-board scrape, apply URLs, job card UX |
 | docs/chat-data-enrich-docs.plan.md | P41–P46 chat delete, data backup, enrichment, docs |
+| docs/docker-web-scrape-fix.plan.md | P48 Docker web scrape (CDP WS rewrite, subprocess runner) |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist

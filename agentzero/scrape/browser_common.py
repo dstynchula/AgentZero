@@ -53,6 +53,83 @@ def cdp_endpoint_reachable(cdp_url: str, *, timeout_sec: float = 2.0) -> bool:
         return False
 
 
+def fetch_cdp_version_json(cdp_url: str, *, timeout_sec: float = 5.0) -> dict | None:
+    """Return parsed ``/json/version`` payload or None when unreachable."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    base = cdp_url.rstrip("/")
+    try:
+        with urllib.request.urlopen(f"{base}/json/version", timeout=timeout_sec) as resp:
+            data = json.loads(resp.read())
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+_LOCAL_WS_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_DOCKER_CDP_HOSTS = frozenset({"host.docker.internal"})
+
+
+def _is_loopback_host(host: str | None) -> bool:
+    return (host or "").lower() in _LOCAL_WS_HOSTS
+
+
+def rewrite_cdp_ws_url_for_client(
+    ws_url: str,
+    *,
+    cdp_http_url: str,
+    allow_docker_host: bool,
+) -> str | None:
+    """Rewrite loopback WS URLs so Docker clients attach via the HTTP proxy host/port."""
+    from urllib.parse import urlparse, urlunparse
+
+    from agentzero.net.cdp_safety import allowed_cdp_hosts
+
+    if not allow_docker_host:
+        return None
+    http = urlparse(cdp_http_url.strip())
+    http_host = (http.hostname or "").lower()
+    if http_host not in _DOCKER_CDP_HOSTS:
+        return None
+    ws = urlparse(ws_url.strip())
+    if ws.scheme not in ("ws", "wss") or not _is_loopback_host(ws.hostname):
+        return None
+    proxy_port = http.port or (443 if http.scheme == "https" else 80)
+    rewritten = urlunparse(ws._replace(netloc=f"{http_host}:{proxy_port}"))
+    ws_host = (urlparse(rewritten).hostname or "").lower()
+    if ws_host not in allowed_cdp_hosts(allow_docker_host=True):
+        return None
+    return rewritten
+
+
+def resolve_cdp_ws_endpoint(cdp_url: str, *, allow_docker_host: bool = False) -> str | None:
+    """Return a Playwright ``ws_endpoint`` when Docker bridge rewrite is required."""
+    version = fetch_cdp_version_json(cdp_url)
+    if version is None:
+        return None
+    raw_ws = version.get("webSocketDebuggerUrl")
+    if not isinstance(raw_ws, str) or not raw_ws.strip():
+        return None
+    return rewrite_cdp_ws_url_for_client(
+        raw_ws,
+        cdp_http_url=cdp_url,
+        allow_docker_host=allow_docker_host,
+    )
+
+
+def connect_cdp_browser(playwright: object, cdp_url: str, *, allow_docker_host: bool):
+    """Attach Chromium to CDP, rewriting the WS URL for Docker when needed."""
+    ws = resolve_cdp_ws_endpoint(cdp_url, allow_docker_host=allow_docker_host)
+    chromium = playwright.chromium  # type: ignore[union-attr]
+    if ws is not None:
+        log.info("Connecting to Chrome over CDP via %s", ws)
+        return chromium.connect_over_cdp(ws)
+    log.info("Connecting to Chrome over CDP at %s", cdp_url)
+    return chromium.connect_over_cdp(cdp_url)
+
+
 def cdp_setup_hint(settings: Settings) -> str:
     from agentzero.scrape.cdp_launch import build_launch_commands
 
@@ -220,8 +297,18 @@ def validate_browser_page_url(page: BrowserPage) -> bool:
     return True
 
 
-def launch_browser_page(settings: Settings, *, site: str, headless: bool | None = None):
-    """Return (playwright, context, page) — caller must close context."""
+def launch_browser_page(
+    settings: Settings,
+    *,
+    site: str,
+    headless: bool | None = None,
+    playwright: object | None = None,
+):
+    """Return ``(playwright, context, page, browser)`` — caller must close session.
+
+    When *playwright* is supplied, reuse it (multi-board scrape). *browser* is set
+    for CDP attach and ``None`` for persistent-context launches.
+    """
     from playwright.sync_api import sync_playwright
 
     from agentzero.scrape.browser_session import (
@@ -235,7 +322,8 @@ def launch_browser_page(settings: Settings, *, site: str, headless: bool | None 
     profile_dir = browser_profile_dir(settings, site)
     profile_dir.mkdir(parents=True, exist_ok=True)
 
-    playwright = sync_playwright().start()
+    if playwright is None:
+        playwright = sync_playwright().start()
     launch_args = build_launch_args(settings, headless=headless_val)
     context_kwargs: dict = {
         "user_agent": user_agent,
@@ -247,14 +335,17 @@ def launch_browser_page(settings: Settings, *, site: str, headless: bool | None 
         cdp_url = settings.scrape_cdp_url
         assert cdp_url is not None
         ensure_cdp_ready(settings, site=site)
-        log.info("Connecting to Chrome over CDP at %s for %s", cdp_url, site)
-        browser = playwright.chromium.connect_over_cdp(cdp_url)
+        browser = connect_cdp_browser(
+            playwright,
+            cdp_url,
+            allow_docker_host=settings.cdp_allow_docker_host,
+        )
         context = browser.contexts[0] if browser.contexts else browser.new_context(**context_kwargs)
         page = context.new_page()
         state = load_storage_state(storage_state_path(settings, site))
         if state:
             apply_storage_state(context, state)
-        return playwright, context, page
+        return playwright, context, page, browser
 
     persistent_kwargs = persistent_context_kwargs(
         settings,
@@ -278,7 +369,7 @@ def launch_browser_page(settings: Settings, *, site: str, headless: bool | None 
         apply_storage_state(context, state)
 
     page = context.pages[0] if context.pages else context.new_page()
-    return playwright, context, page
+    return playwright, context, page, None
 
 
 def close_browser_session(
@@ -287,15 +378,27 @@ def close_browser_session(
     settings: Settings,
     *,
     site: str | None = None,
+    browser: object | None = None,
+    stop_playwright: bool = True,
 ) -> None:
     """Close Playwright resources; CDP attach disconnects without closing user Chrome."""
     if site is not None and settings.use_cdp_for_site(site):
-        if playwright is not None:
+        if browser is not None:
+            try:
+                browser.close()  # type: ignore[union-attr]
+            except Exception:
+                pass
+        elif context is not None:
+            try:
+                context.close()  # type: ignore[union-attr]
+            except Exception:
+                pass
+        if stop_playwright and playwright is not None:
             playwright.stop()  # type: ignore[union-attr]
         return
     if context is not None:
         context.close()  # type: ignore[union-attr]
-    if playwright is not None:
+    if stop_playwright and playwright is not None:
         playwright.stop()  # type: ignore[union-attr]
 
 

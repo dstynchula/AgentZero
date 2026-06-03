@@ -35,7 +35,13 @@ def test_preflight_skips_fetch_on_login_wall(tmp_path):
 
     with patch(
         "agentzero.scrape.browser_board.launch_browser_page",
-        return_value=(mock_pw, mock_context, mock_page),
+        return_value=(mock_pw, mock_context, mock_page, None),
+    ), patch(
+        "playwright.sync_api.sync_playwright",
+        return_value=MagicMock(
+            __enter__=MagicMock(return_value=mock_pw),
+            __exit__=MagicMock(return_value=False),
+        ),
     ), patch(
         "agentzero.scrape.browser_board.close_browser_session",
     ), patch(

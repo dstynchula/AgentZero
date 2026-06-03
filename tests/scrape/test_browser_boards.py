@@ -22,6 +22,18 @@ from agentzero.scrape.validate import validate_raw
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
+def _sync_playwright_cm(mock_pw: MagicMock | None = None) -> tuple[MagicMock, MagicMock]:
+    pw = mock_pw or MagicMock()
+    cm = MagicMock()
+    cm.__enter__ = MagicMock(return_value=pw)
+    cm.__exit__ = MagicMock(return_value=False)
+    return cm, pw
+
+
+def _launch_return(page: MagicMock) -> tuple[MagicMock, MagicMock, MagicMock, None]:
+    return (MagicMock(), MagicMock(), page, None)
+
+
 def test_parse_linkedin_search_html():
     html = (FIXTURES / "linkedin_search.html").read_text(encoding="utf-8")
     records = parse_linkedin_search_html(html)
@@ -136,8 +148,9 @@ def test_browser_job_board_invalid_url_returns_empty(tmp_path):
     with (
         patch(
             "agentzero.scrape.browser_board.launch_browser_page",
-            return_value=(MagicMock(), MagicMock(), mock_page),
+            return_value=_launch_return(mock_page),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
         patch(
             "agentzero.scrape.browser_board.validate_browser_page_url",
@@ -167,8 +180,9 @@ def test_browser_job_board_indeed_fetch_happy_path(tmp_path):
     with (
         patch(
             "agentzero.scrape.browser_board.launch_browser_page",
-            return_value=(MagicMock(), MagicMock(), mock_page),
+            return_value=_launch_return(mock_page),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
         patch(
             "agentzero.scrape.browser_board.validate_browser_page_url",
@@ -201,8 +215,9 @@ def test_browser_job_board_glassdoor_uses_consent_buttons(tmp_path):
     with (
         patch(
             "agentzero.scrape.browser_board.launch_browser_page",
-            return_value=(MagicMock(), MagicMock(), mock_page),
+            return_value=_launch_return(mock_page),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
         patch(
             "agentzero.scrape.browser_board.validate_browser_page_url",
@@ -235,8 +250,9 @@ def test_browser_job_board_title_filter_drops_off_topic(tmp_path):
     with (
         patch(
             "agentzero.scrape.browser_board.launch_browser_page",
-            return_value=(MagicMock(), MagicMock(), mock_page),
+            return_value=_launch_return(mock_page),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
         patch(
             "agentzero.scrape.browser_board.validate_browser_page_url",
@@ -263,6 +279,7 @@ def test_browser_job_board_fetch_exception_returns_empty(tmp_path):
             "agentzero.scrape.browser_board.launch_browser_page",
             side_effect=RuntimeError("boom"),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
     ):
         assert source.fetch() == []
@@ -283,8 +300,9 @@ def test_browser_job_board_preflight_login_skips(tmp_path):
     with (
         patch(
             "agentzero.scrape.browser_board.launch_browser_page",
-            return_value=(MagicMock(), MagicMock(), mock_page),
+            return_value=_launch_return(mock_page),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
         patch(
             "agentzero.scrape.browser_board.validate_browser_page_url",
@@ -314,8 +332,9 @@ def test_browser_job_board_pause_reloads_when_still_blocked(tmp_path):
     with (
         patch(
             "agentzero.scrape.browser_board.launch_browser_page",
-            return_value=(MagicMock(), MagicMock(), mock_page),
+            return_value=_launch_return(mock_page),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
         patch(
             "agentzero.scrape.browser_board.validate_browser_page_url",
@@ -351,8 +370,9 @@ def test_browser_job_board_empty_parse_retries_wait(tmp_path):
     with (
         patch(
             "agentzero.scrape.browser_board.launch_browser_page",
-            return_value=(MagicMock(), MagicMock(), mock_page),
+            return_value=_launch_return(mock_page),
         ),
+        patch("playwright.sync_api.sync_playwright", return_value=_sync_playwright_cm()[0]),
         patch("agentzero.scrape.browser_board.close_browser_session"),
         patch(
             "agentzero.scrape.browser_board.validate_browser_page_url",
