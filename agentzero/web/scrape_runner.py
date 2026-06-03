@@ -105,13 +105,16 @@ def _scrape_worker(
             errors=errors,
         )
     except Exception as exc:  # noqa: BLE001 — surface to operator UI
-        progress.error(str(exc))
+        from agentzero.log_redaction import redact_secrets
+
+        detail = redact_secrets(str(exc))
+        progress.error(detail)
         _write_worker_result(
             result_file,
-            message=f"Scrape failed: {exc}",
+            message=f"Scrape failed: {detail}",
             scraped=0,
             leads=0,
-            errors=[str(exc)],
+            errors=[detail],
         )
     finally:
         progress.set_running(False)

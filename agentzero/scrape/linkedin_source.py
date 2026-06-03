@@ -16,6 +16,10 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+class LinkedInFetchError(RuntimeError):
+    """LinkedIn browser fetch produced no rows (login, error, or empty parse)."""
+
+
 class LinkedInJobSource(JobSource):
     """Single-board LinkedIn fetch via shared Playwright service."""
 
@@ -31,22 +35,6 @@ class LinkedInJobSource(JobSource):
 
     def fetch(self, *, progress: object | None = None) -> Sequence[dict]:
         result = self._service.search(progress=progress)
-        if result.login_required:
-            from agentzero.scrape.browser_session import session_status_message
-
-            if result.session_state:
-                from agentzero.scrape.browser_session import SessionState
-
-                try:
-                    state = SessionState(result.session_state)
-                    print(session_status_message("linkedin", state), file=sys.stderr)
-                except ValueError:
-                    pass
-            log.warning("LinkedIn: login required — skipping fetch")
-            return []
-        if result.error:
-            log.warning("LinkedIn fetch error: %s", result.error)
-            return []
         if result.parsed_raw and result.after_title_filter is not None:
             dropped = result.parsed_raw - result.after_title_filter
             if dropped:
@@ -57,10 +45,34 @@ class LinkedInJobSource(JobSource):
                     result.after_title_filter,
                 )
         log.info(
-            "LinkedIn: %d rows (parsed_raw=%s after_filter=%s markers=%s)",
+            "LinkedIn: %d rows (parsed_raw=%s after_filter=%s markers=%s session=%s)",
             len(result.records),
             result.parsed_raw,
             result.after_title_filter,
             result.has_job_markers,
+            result.session_state,
         )
-        return result.records
+
+        if result.records:
+            return result.records
+
+        if result.login_required:
+            from agentzero.scrape.browser_session import SessionState, session_status_message
+
+            msg = session_status_message("linkedin", SessionState.LOGIN_REQUIRED)
+            print(msg, file=sys.stderr)
+            raise LinkedInFetchError(msg)
+
+        if result.error:
+            msg = f"LinkedIn search failed: {result.error}"
+            print(msg, file=sys.stderr)
+            raise LinkedInFetchError(msg)
+
+        msg = (
+            "LinkedIn returned 0 listings after filters. "
+            "Run: python scripts/debug_linkedin_search.py --live "
+            "(see docs/SCRAPING.md). Check session with "
+            "python scripts/verify_browser_session.py --site linkedin"
+        )
+        print(msg, file=sys.stderr)
+        raise LinkedInFetchError(msg)

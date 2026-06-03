@@ -14,7 +14,6 @@ from agentzero.scrape.browser_common import (
     close_browser_session,
     launch_browser_page,
     maybe_wait_for_human,
-    primary_scrape_query,
     validate_browser_page_url,
     wait_for_html,
 )
@@ -24,9 +23,11 @@ from agentzero.scrape.browser_linkedin import (
     page_needs_human,
     parse_linkedin_search_html,
 )
+from agentzero.scrape.scrape_query_params import iter_scrape_queries
 
 if TYPE_CHECKING:
     from agentzero.config import Settings
+    from agentzero.scrape.location import ParsedLocation
 
 log = logging.getLogger(__name__)
 
@@ -73,8 +74,7 @@ class LinkedInJobsService:
 
     def search(self, *, progress: object | None = None) -> LinkedInSearchResult:
         _ = progress
-        term, parsed = primary_scrape_query(self._settings)
-        url = build_linkedin_search_url(term=term, parsed=parsed)
+        queries = iter_scrape_queries(self._settings)
         pause = (
             not self._settings.scrape_browser_headless
             and self._settings.scrape_browser_pause_for_captcha
@@ -83,75 +83,85 @@ class LinkedInJobsService:
         playwright = context = browser = None
         session_state: str | None = None
         has_markers: bool | None = None
+        last_url = ""
+        combined: list[RawRecord] = []
+        seen: set[str] = set()
+        total_parsed = 0
+        total_filtered = 0
+        last_snapshot: str | None = None
+        login_required = False
+
         try:
             playwright, context, page, browser = launch_browser_page(
                 self._settings, site="linkedin"
             )
-            page.goto(url, wait_until="domcontentloaded", timeout=60_000)
-            if not validate_browser_page_url(page):
-                return LinkedInSearchResult(url=url, error="invalid_page_url")
+            for term, parsed in queries:
+                batch, stats, meta = self._search_query_on_page(
+                    page,
+                    term=term,
+                    parsed=parsed,
+                    pause=pause,
+                )
+                last_url = meta.get("url", last_url) or last_url
+                session_state = meta.get("session_state") or session_state
+                has_markers = meta.get("has_job_markers")
+                last_snapshot = meta.get("html_snapshot") or last_snapshot
+                if meta.get("login_required"):
+                    login_required = True
+                if meta.get("error"):
+                    return LinkedInSearchResult(
+                        url=last_url,
+                        error=str(meta["error"]),
+                        session_state=session_state,
+                        has_job_markers=has_markers,
+                        login_required=login_required,
+                    )
+                total_parsed += stats.parsed_raw
+                total_filtered += stats.after_title_filter
+                for record in batch:
+                    key = _record_dedupe_key(record)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    combined.append(record)
 
-            click_consent_buttons(page, _LINKEDIN_CONSENT)
-            _prepare_search_page(page)
-            html = wait_for_html(page, predicate=page_has_job_results, timeout_ms=30_000)
-            has_markers = page_has_job_results(html)
+            if (
+                self._settings.scrape_session_preflight
+                and login_required
+                and not combined
+            ):
+                from agentzero.scrape.browser_session import (
+                    SessionState,
+                    session_status_message,
+                )
 
-            def _reload_search(p: object) -> None:
-                p.goto(url, wait_until="domcontentloaded", timeout=60_000)  # type: ignore[union-attr]
-                if validate_browser_page_url(p):  # type: ignore[arg-type]
-                    click_consent_buttons(p, _LINKEDIN_CONSENT)
-                    _prepare_search_page(p)
-
-            maybe_wait_for_human(
-                page,
-                site=_DISPLAY,
-                html=html,
-                needs_human=page_needs_human,
-                input_fn=self._input_fn,
-                pause_enabled=pause,
-                has_results=page_has_job_results,
-                after_prompt=_reload_search if pause else None,
-            )
-
-            post_html = _safe_page_content(page)
-            has_markers = page_has_job_results(post_html)
-            from agentzero.scrape.browser_session import (
-                SessionState,
-                classify_session,
-                session_status_message,
-            )
-
-            post_state = classify_session("linkedin", post_html, page.url)
-            session_state = post_state.value
-            if self._settings.scrape_session_preflight and post_state is SessionState.LOGIN_REQUIRED:
-                print(session_status_message("linkedin", post_state), file=sys.stderr)
-                log.warning("%s: login required after search load", _DISPLAY)
+                print(
+                    session_status_message("linkedin", SessionState.LOGIN_REQUIRED),
+                    file=sys.stderr,
+                )
                 return LinkedInSearchResult(
-                    url=url,
+                    url=last_url,
                     login_required=True,
-                    session_state=session_state,
+                    session_state=session_state or SessionState.LOGIN_REQUIRED.value,
                     has_job_markers=has_markers,
                 )
 
-            records, stats = self._parse_with_retry(
-                page, url=url, term=term, parsed_remote=parsed.is_remote
-            )
-            snapshot = post_html[:500_000]
             return LinkedInSearchResult(
-                records=records[: self._settings.results_wanted],
-                url=url,
-                parsed_raw=stats.parsed_raw,
-                after_title_filter=stats.after_title_filter,
+                records=combined[: self._settings.results_wanted],
+                url=last_url,
+                parsed_raw=total_parsed or None,
+                after_title_filter=total_filtered or None,
                 session_state=session_state,
                 has_job_markers=has_markers,
-                html_snapshot=snapshot,
+                html_snapshot=last_snapshot,
+                login_required=login_required and not combined,
             )
         except Exception as exc:
             from agentzero.log_redaction import redact_secrets
 
             log.warning("%s search failed: %s", _DISPLAY, redact_secrets(str(exc)))
             return LinkedInSearchResult(
-                url=url,
+                url=last_url,
                 error=redact_secrets(str(exc)),
                 session_state=session_state,
                 has_job_markers=has_markers,
@@ -164,6 +174,68 @@ class LinkedInJobsService:
                 site="linkedin",
                 browser=browser,
             )
+
+    def _search_query_on_page(
+        self,
+        page: object,
+        *,
+        term: str,
+        parsed: ParsedLocation,
+        pause: bool,
+    ) -> tuple[list[RawRecord], _ParseStats, dict[str, object]]:
+        """Run one search URL on an open page; return records + telemetry meta."""
+        from agentzero.scrape.browser_session import (
+            SessionState,
+            classify_session,
+        )
+
+        url = build_linkedin_search_url(term=term, parsed=parsed)
+        meta: dict[str, object] = {"url": url}
+        page.goto(url, wait_until="domcontentloaded", timeout=60_000)  # type: ignore[union-attr]
+        if not validate_browser_page_url(page):
+            meta["error"] = "invalid_page_url"
+            return [], _ParseStats(), meta
+
+        click_consent_buttons(page, _LINKEDIN_CONSENT)
+        _prepare_search_page(page)
+        html = wait_for_html(page, predicate=page_has_job_results, timeout_ms=30_000)
+        has_markers = page_has_job_results(html)
+        meta["has_job_markers"] = has_markers
+
+        def _reload_search(p: object) -> None:
+            p.goto(url, wait_until="domcontentloaded", timeout=60_000)  # type: ignore[union-attr]
+            if validate_browser_page_url(p):  # type: ignore[arg-type]
+                click_consent_buttons(p, _LINKEDIN_CONSENT)
+                _prepare_search_page(p)
+
+        maybe_wait_for_human(
+            page,
+            site=_DISPLAY,
+            html=html,
+            needs_human=page_needs_human,
+            input_fn=self._input_fn,
+            pause_enabled=pause,
+            has_results=page_has_job_results,
+            after_prompt=_reload_search if pause else None,
+        )
+
+        post_html = _safe_page_content(page)
+        has_markers = page_has_job_results(post_html)
+        meta["has_job_markers"] = has_markers
+        meta["html_snapshot"] = post_html[:500_000]
+
+        post_state = classify_session("linkedin", post_html, page.url)  # type: ignore[union-attr]
+        meta["session_state"] = post_state.value
+
+        records, stats = self._parse_with_retry(
+            page, url=url, term=term, parsed_remote=parsed.is_remote
+        )
+        if records and post_state is not SessionState.READY:
+            meta["session_state"] = SessionState.READY.value
+        elif post_state is SessionState.LOGIN_REQUIRED and not records:
+            meta["login_required"] = True
+
+        return records, stats, meta
 
     def get_job_details_html(self, job_url: str) -> str | None:
         """Fetch a single job posting page (for MCP detail tool)."""
@@ -237,6 +309,15 @@ class LinkedInJobsService:
                 break
             records, last_stats = _parse_current()
         return records, last_stats
+
+
+def _record_dedupe_key(record: RawRecord) -> str:
+    url = str(record.get("url") or "").split("?")[0]
+    if url:
+        return url
+    return "|".join(
+        str(record.get(field, "")).strip().lower() for field in ("title", "company")
+    )
 
 
 def _safe_page_content(page: object, *, retries: int = 4) -> str:

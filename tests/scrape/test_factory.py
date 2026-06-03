@@ -56,3 +56,23 @@ def test_linkedin_browser_source_delegates_to_service():
     with patch.object(source._service, "search", return_value=mock_result):
         rows = source.fetch()
     assert len(rows) == 1
+
+
+def test_linkedin_job_source_raises_when_empty():
+    from agentzero.scrape.linkedin_source import LinkedInFetchError, LinkedInJobSource
+
+    settings = Settings(_env_file=None, scrape_browser_sites=["linkedin"])
+    source = LinkedInJobSource(settings)
+    mock_result = MagicMock()
+    mock_result.records = []
+    mock_result.login_required = True
+    mock_result.error = None
+    mock_result.parsed_raw = 0
+    mock_result.after_title_filter = 0
+    with patch.object(source._service, "search", return_value=mock_result):
+        try:
+            source.fetch()
+            raised = False
+        except LinkedInFetchError:
+            raised = True
+    assert raised

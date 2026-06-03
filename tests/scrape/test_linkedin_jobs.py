@@ -163,6 +163,41 @@ def test_search_jobs_login_required_returns_empty(tmp_path):
     assert result.records == []
 
 
+def test_search_runs_all_operator_terms(tmp_path):
+    html = (FIXTURES / "linkedin_search_spa.html").read_text(encoding="utf-8")
+    settings = Settings(
+        _env_file=None,
+        scrape_browser_profile_dir=tmp_path / "prof",
+        search_terms=["Staff Security Engineer", "Principal Security Engineer"],
+        locations=["remote - usa"],
+        scrape_primary_query_only=False,
+        scrape_session_preflight=False,
+        scrape_browser_headless=True,
+    )
+    mock_page = MagicMock()
+    mock_page.url = "https://www.linkedin.com/jobs/search"
+    mock_page.content.return_value = html
+    service = LinkedInJobsService(settings)
+    with (
+        patch(
+            "agentzero.scrape.linkedin_jobs.launch_browser_page",
+            return_value=(MagicMock(), MagicMock(), mock_page, None),
+        ),
+        patch("agentzero.scrape.linkedin_jobs.close_browser_session"),
+        patch(
+            "agentzero.scrape.linkedin_jobs.validate_browser_page_url",
+            return_value=True,
+        ),
+        patch("agentzero.scrape.linkedin_jobs.wait_for_html", return_value=html),
+        patch("agentzero.scrape.linkedin_jobs.maybe_wait_for_human"),
+        patch("agentzero.scrape.linkedin_jobs.click_consent_buttons"),
+        patch("agentzero.scrape.linkedin_jobs._prepare_search_page"),
+    ):
+        result = service.search()
+    assert mock_page.goto.call_count == 2
+    assert len(result.records) >= 1
+
+
 def test_search_retries_transient_empty(tmp_path):
     html_empty = "<html><body>no jobs</body></html>"
     html_ok = (FIXTURES / "linkedin_search_spa.html").read_text(encoding="utf-8")
