@@ -50,15 +50,11 @@ def build_host_instructions(
     operator: OperatorScrapeConfig | None,
 ) -> str:
     """Source-aware env and board notes (launch commands are separate in the UI)."""
-    browser_on, jobspy_on = effective_scrape_lists(settings, operator)
+    browser_on, _jobspy_ignored = effective_scrape_lists(settings, operator)
     lines: list[str] = []
 
-    if not browser_on and not jobspy_on:
+    if not browser_on:
         return "Enable at least one scrape source above."
-
-    if jobspy_on:
-        names = ", ".join(_label(s) for s in jobspy_on)
-        lines.append(f"JobSpy (HTTP, no browser): {names}.")
 
     cdp_sites = enabled_cdp_browser_sites(settings, operator)
     playwright_browser = [s for s in browser_on if s not in cdp_sites]

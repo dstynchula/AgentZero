@@ -1,4 +1,4 @@
-"""Build JobSpy keyword arguments from AgentZero settings + parsed locations."""
+"""Build scrape query parameters from AgentZero settings + parsed locations."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ if TYPE_CHECKING:
     from agentzero.config import Settings
 
 
-def build_jobspy_scrape_kwargs(
+def build_scrape_query_kwargs(
     settings: Settings,
     *,
     site: str,
     term: str,
     parsed: ParsedLocation,
 ) -> dict[str, Any]:
-    """Return kwargs for ``jobspy.scrape_jobs`` for one site/term/location."""
+    """Return location/search kwargs for one board query (browser or legacy HTTP)."""
     kwargs: dict[str, Any] = {
         "site_name": [site],
         "search_term": term,
@@ -35,13 +35,16 @@ def build_jobspy_scrape_kwargs(
     if parsed.is_remote:
         kwargs["is_remote"] = True
 
-    # Indeed cannot combine hours_old with is_remote (JobSpy uses date OR remote filter).
     if site == "indeed" and parsed.omit_hours_old:
         kwargs["hours_old"] = None
     else:
         kwargs["hours_old"] = settings.hours_old
 
     return kwargs
+
+
+# Back-compat alias for callers not yet renamed.
+build_jobspy_scrape_kwargs = build_scrape_query_kwargs
 
 
 def iter_scrape_queries(settings: Settings) -> list[tuple[str, ParsedLocation]]:

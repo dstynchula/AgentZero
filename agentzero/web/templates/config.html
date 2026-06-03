@@ -15,7 +15,7 @@
     <div class="source-grid">
       {% for row in sources %}
       <div class="source-row">
-        <input type="checkbox" name="{% if row.group == 'browser' %}browser_sites{% else %}jobspy_sites{% endif %}" value="{{ row.id }}" id="src-{{ row.id }}" {% if row.enabled %}checked{% endif %} />
+        <input type="checkbox" name="browser_sites" value="{{ row.id }}" id="src-{{ row.id }}" {% if row.enabled %}checked{% endif %} />
         <label for="src-{{ row.id }}">
           <strong>{{ row.name }}</strong>
           <span class="source-meta"> — {{ row.method }}{% if row.uses_cdp %} · CDP{% endif %}</span>

@@ -481,7 +481,7 @@ def create_app(
             browser_sites or [],
             jobspy_sites or [],
         )
-        if not normalized.scrape_browser_sites and not normalized.scrape_sites:
+        if not normalized.scrape_browser_sites:
             return _TEMPLATES.TemplateResponse(
                 request,
                 "config.html",

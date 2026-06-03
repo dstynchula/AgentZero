@@ -31,6 +31,7 @@ class FakeLLM:
                 "company": "Acme",
                 "url": "https://x.com/1",
                 "source": "fake",
+                "location": "Remote",
             }
         )
 
@@ -64,6 +65,7 @@ def test_pipeline_idempotent_scrape(tmp_path):
         "url": "https://x.com/1",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     source = FakeSource([raw])
     pipeline = Pipeline(db, source, settings=Settings(_env_file=None, remote_only=False), llm=None)
@@ -84,6 +86,7 @@ def test_pipeline_enrich_rank(tmp_path):
         "url": "https://x.com/1",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     source = FakeSource([raw])
     llm = FakeLLM()
@@ -140,6 +143,7 @@ def test_pipeline_unhealthy_source_skips_upserts(tmp_path, monkeypatch):
         "url": "https://x.com/1",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     raw_invalid = {"title": "", "company": "Bad", "url": "https://x.com/bad", "source": "fake"}
     source = FakeSource([raw_valid, raw_invalid])
@@ -166,6 +170,7 @@ def test_pipeline_remote_only_filter(tmp_path):
         "url": "https://x.com/remote",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     raw_onsite = {
         "title": "Software Engineer",
@@ -198,6 +203,7 @@ def test_pipeline_title_filter_rejects_non_matching(tmp_path):
         "url": "https://x.com/security",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     raw_reject = {
         "title": "Account Executive",
@@ -205,6 +211,7 @@ def test_pipeline_title_filter_rejects_non_matching(tmp_path):
         "url": "https://x.com/sales",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     source = FakeSource([raw_match, raw_reject])
     settings = Settings(
@@ -249,6 +256,7 @@ def test_pipeline_rank_failures_in_errors(tmp_path, monkeypatch):
         "url": "https://x.com/good",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     raw_bad = {
         "title": "Software Engineer",
@@ -256,6 +264,7 @@ def test_pipeline_rank_failures_in_errors(tmp_path, monkeypatch):
         "url": "https://x.com/bad",
         "source": "fake",
         "remote": True,
+        "location": "Remote",
     }
     source = FakeSource([raw_ok, raw_bad])
     llm = FakeLLM()

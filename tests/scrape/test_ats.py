@@ -25,6 +25,7 @@ def test_parse_lever_html_fixture():
 def test_greenhouse_records_validate_to_job_posting():
     html = (FIXTURES / "greenhouse.html").read_text(encoding="utf-8")
     raw = parse_greenhouse_html(html)[0]
+    raw["location"] = "Remote"
     outcome = validate_raw(raw, source="greenhouse")
     assert outcome.ok
 

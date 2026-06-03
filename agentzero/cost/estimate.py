@@ -22,7 +22,7 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     "claude-3-5-haiku-20241022": (0.80, 4.00),
 }
 
-# Typical token counts from AgentZero prompts (résumé ~9k chars, JobSpy descriptions).
+# Typical token counts from AgentZero prompts (résumé ~9k chars, job descriptions).
 TOKENS_RESUME_CALL_IN = 2_450
 TOKENS_RESUME_CALL_OUT = 400
 TOKENS_RANK_JOB_IN = 1_800  # after description truncation (see rank_description_max_chars)

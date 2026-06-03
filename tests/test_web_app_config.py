@@ -113,7 +113,7 @@ def test_save_sources_persists(client):
     loaded = load_operator_config(cfg_path)
     assert loaded is not None
     assert loaded.scrape_browser_sites == ["indeed"]
-    assert loaded.scrape_sites == ["google"]
+    assert loaded.scrape_sites == []
 
 
 def test_save_sources_requires_one(client):
@@ -129,7 +129,7 @@ def test_api_scraper_json(client):
     body = r.json()
     assert "sources" in body
     assert "cdp" in body
-    assert len(body["sources"]) == 5
+    assert len(body["sources"]) == 3
 
 
 def test_cdp_connect_redirect(client, monkeypatch):

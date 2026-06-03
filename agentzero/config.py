@@ -75,13 +75,11 @@ class Settings(BaseSettings):
     # Minimum match_score for CSV export (applied jobs always export).
     # Set to 0 or unset via blank env to disable filtering.
     min_match_score: float | None = 0.75
-    # JobSpy HTTP boards (Google + ZipRecruiter). Indeed/LinkedIn/Glassdoor use Playwright.
-    scrape_sites: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["google", "zip_recruiter"]
-    )
-    # Playwright boards — default LinkedIn only; enable Indeed/Glassdoor in Settings or env.
+    # Legacy env list (Google/ZipRecruiter via JobSpy) — ignored; stack is browser-only.
+    scrape_sites: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # Playwright boards: Indeed, LinkedIn, Glassdoor.
     scrape_browser_sites: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["linkedin"]
+        default_factory=lambda: ["indeed", "linkedin", "glassdoor"]
     )
     scrape_user_agent: str | None = None
     scrape_delay_seconds: float = 3.0

@@ -1,27 +1,29 @@
 # Scraping, OAuth, and first live run
 
-**Last updated: 2026-05-31**
+**Last updated: 2026-06-02**
 
-AgentZero sources jobs through **Playwright (real browser)** and **JobSpy (HTTP/TLS)**.
-Boards aggressively rate-limit automated traffic (HTTP 400/429). This document describes
-the architecture, configuration, scripts, and known limitations.
+AgentZero sources jobs through **Playwright (real browser)** on **three boards only**:
+Indeed, LinkedIn, and Glassdoor. Boards aggressively rate-limit automated traffic
+(HTTP 400/429). This document describes the architecture, configuration, scripts,
+and known limitations.
 
 ## Architecture
 
 ```
 résumé → LLM search profile → user confirms titles/locations/salary → scrape sources → …
                                     │
-        ┌───────────────────────────┴───────────────────────────┐
-        ▼                                                       ▼
- BrowserJobBoardSource (Playwright)                      JobSpySource (HTTP)
-  indeed → linkedin → glassdoor                          google → zip_recruiter
-        (sequential, delay between each)                  (one primary query each)
+                                    ▼
+              BrowserJobBoardSource (Playwright / CDP)
+               indeed → linkedin → glassdoor
+              (sequential, delay between each board)
 ```
 
 | Component | File | Role |
 |-----------|------|------|
-| Source factory | `agentzero/scrape/factory.py` | Fixed five-source stack; no JSON merge |
+| Source factory | `agentzero/scrape/factory.py` | Three browser boards only; no JobSpy |
 | Browser boards | `agentzero/scrape/browser_board.py` | Indeed, LinkedIn, Glassdoor (one query each) |
+| Listing gate | `agentzero/scrape/validate.py` | Company/title/url + min role context before SQLite |
+| Apply links | `agentzero/scrape/apply_links.py` | Parse apply / easy-apply URLs from detail HTML |
 | Title filter | `agentzero/scrape/title_filter.py` | Drop off-topic titles at scrape |
 | Remote policy | `agentzero/scrape/remote_policy.py` | Remote-only queries + post-scrape filter |
 | LinkedIn parser | `agentzero/scrape/browser_linkedin.py` | Legacy cards + SPA DOM + embedded Voyager JSON |
@@ -29,9 +31,8 @@ résumé → LLM search profile → user confirms titles/locations/salary → sc
 | Export filter | `agentzero/rank/export_filter.py` | Min match score for Sheet/CSV |
 | Application tracking | `agentzero/apply/tracking.py` | Sheet ↔ DB for applied jobs |
 | Browser helpers | `agentzero/scrape/browser_common.py` | CAPTCHA wait (max 3 prompts), primary query |
-| JobSpy wrapper | `agentzero/scrape/jobspy_source.py` | Google + ZipRecruiter only; sequential with delay |
 | Multi-source | `agentzero/scrape/multi.py` | Runs sources in factory order |
-| Resilience | `agentzero/scrape/resilience.py` | Default UA, core JobSpy site list |
+| Resilience | `agentzero/scrape/resilience.py` | Default UA, core browser site list |
 | Search prompt | `agentzero/ingest/search_interactive.py` | Per-run titles/locations/salary |
 
 ## Interactive search targeting
@@ -160,19 +161,19 @@ Code: `agentzero/apply/tracking.py`, `agentzero/apply/tracker_fields.py`, `agent
 
 ## Why we got 400/429
 
-The original JobSpy integration called **five boards concurrently** on every query.
-LinkedIn, Glassdoor, and ZipRecruiter block residential IPs quickly. Indeed often
-requires a **real browser** (consent banners, CAPTCHA).
+LinkedIn and Glassdoor block residential IPs quickly. Indeed often requires a **real
+browser** (consent banners, CAPTCHA).
 
-### Mitigations (2026-05-29)
+### Mitigations
 
-1. **Five core sources only** — Indeed, LinkedIn, Glassdoor (Playwright); Google + ZipRecruiter (JobSpy)
+1. **Three browser boards only** — Indeed, LinkedIn, Glassdoor (Playwright / CDP)
 2. **Sequential order with delay** — `AGENTZERO_SCRAPE_DELAY_SECONDS` between each fetch (no concurrent boards)
-3. **Single primary query** — `AGENTZERO_SCRAPE_PRIMARY_QUERY_ONLY=true` (one title per run, not 5×N sites)
+3. **Single primary query** — `AGENTZERO_SCRAPE_PRIMARY_QUERY_ONLY=true` (one title per run, not 3×N sites)
 4. **CAPTCHA cap** — max 3 human prompts; exits when job listings are visible
-5. **Chrome user-agent** — passed to JobSpy; Playwright uses realistic viewport/locale
+5. **Chrome user-agent** — Playwright uses realistic viewport/locale
 6. **Visible browser option** — `AGENTZERO_SCRAPE_BROWSER_HEADLESS=false` for Indeed consent/CAPTCHA
 7. **SQLite lock** — parallel enrich workers no longer corrupt the DB connection
+8. **Listing quality gate** — quarantine rows missing company/title/url or role context (location, comp, or description)
 
 ## Configuration (`.env`)
 
@@ -180,13 +181,13 @@ requires a **real browser** (consent banners, CAPTCHA).
 # Browser boards (Playwright) — fixed order: indeed, linkedin, glassdoor
 AGENTZERO_SCRAPE_BROWSER_SITES=indeed,linkedin,glassdoor
 
-# JobSpy boards (HTTP only) — google and zip_recruiter
-AGENTZERO_SCRAPE_SITES=google,zip_recruiter
+# Legacy (ignored): was Google Jobs / ZipRecruiter via JobSpy
+# AGENTZERO_SCRAPE_SITES=
 
 # One primary title per run (recommended)
 AGENTZERO_SCRAPE_PRIMARY_QUERY_ONLY=true
 
-# Seconds between each fetch (browser board or JobSpy site)
+# Seconds between each fetch (per browser board)
 AGENTZERO_SCRAPE_DELAY_SECONDS=3
 
 # false = visible browser window (Chrome recommended — see GETTING_STARTED.md)
@@ -198,7 +199,7 @@ AGENTZERO_SCRAPE_BROWSER_CHANNEL=chrome
 # Optional: attach to Chrome started with --remote-debugging-port=9222
 # AGENTZERO_SCRAPE_CDP_URL=http://127.0.0.1:9222
 
-# Optional residential/datacenter proxies for JobSpy (ZipRecruiter may 403 without)
+# Optional proxies (legacy; browser boards use CDP Chrome)
 AGENTZERO_PROXIES=
 
 # Minimum match_score for Sheet/CSV export (applied jobs always export). 0 = disable.
@@ -207,7 +208,7 @@ AGENTZERO_MIN_MATCH_SCORE=0.75
 # Web tracker (optional): docker compose up web → http://localhost:8080
 ```
 
-Per run (primary-query mode): **5 fetches** — Indeed → LinkedIn → Glassdoor → Google → ZipRecruiter.
+Per run (primary-query mode): **3 fetches** — Indeed → LinkedIn → Glassdoor.
 
 See also: [Cost and model selection](COST_AND_MODELS.md) for LLM pricing (`gpt-5-nano` default).
 
@@ -215,7 +216,7 @@ See also: [Cost and model selection](COST_AND_MODELS.md) for LLM pricing (`gpt-5
 
 **Not loaded by `run_scrape.py`.** The live stack is in [`agentzero/scrape/factory.py`](../agentzero/scrape/factory.py)
 and configured via `.env` (`AGENTZERO_SCRAPE_BROWSER_SITES`, `AGENTZERO_SCRAPE_SITES`). The JSON file
-documents the five core sources; empty `job_sources` is reserved for future custom boards via
+documents browser board examples; empty `job_sources` is reserved for future custom boards via
 [`sources_config.py`](../agentzero/scrape/sources_config.py).
 
 See also: **[GETTING_STARTED.md](GETTING_STARTED.md)** for install and Chrome setup.
@@ -383,8 +384,7 @@ Browser profile directories under `data/browser_profiles/` contain login cookies
 - [x] Local web tracker (`docker compose up web`)
 - [x] Application tracking in SQLite + web UI (`date_applied`, status, notes)
 - [x] Title + match-score filters for CSV export
-- [ ] Proxy rotation for ZipRecruiter (403 without proxies is expected; logged and skipped)
-- [x] Five-source sequential pipeline (Indeed, LinkedIn, Glassdoor, Google, ZipRecruiter)
+- [x] Three-board sequential pipeline (Indeed, LinkedIn, Glassdoor)
 - [x] Dedicated `scripts/run_scrape.py` (skip résumé re-ingest on repeat runs)
 
 ## Legal

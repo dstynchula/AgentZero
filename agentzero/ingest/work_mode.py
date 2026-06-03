@@ -7,8 +7,8 @@ from typing import Literal
 
 from agentzero.config import Settings
 from agentzero.ingest.search_profile import ResumeSearchProfile, apply_search_profile
-from agentzero.scrape.jobspy_params import build_jobspy_scrape_kwargs
 from agentzero.scrape.location import parse_locations_for_scrape
+from agentzero.scrape.scrape_query_params import build_scrape_query_kwargs
 
 WorkMode = Literal["remote", "in_office"]
 
@@ -111,7 +111,7 @@ def trace_scrape_targets(
         default_country=settings.country_indeed,
         remote_preferred=settings.remote_preferred,
     ):
-        kwargs = build_jobspy_scrape_kwargs(
+        kwargs = build_scrape_query_kwargs(
             settings,
             site="indeed",
             term=term,

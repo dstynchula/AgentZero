@@ -44,6 +44,20 @@ def test_job_posting_required_fields():
     assert len(job.job_id) == 16
 
 
+def test_job_posting_apply_url_fields():
+    job = JobPosting(
+        title="Role",
+        company="Co",
+        url="https://x.com/1",
+        source="indeed",
+        apply_url="https://apply.example.com/1",
+        easy_apply_url="https://easy.example.com/1",
+        easy_apply=True,
+    )
+    assert job.apply_url == "https://apply.example.com/1"
+    assert job.easy_apply is True
+
+
 def test_job_posting_optional_fields_nullable():
     job = JobPosting(
         title="Role",

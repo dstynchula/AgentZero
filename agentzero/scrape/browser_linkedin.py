@@ -271,6 +271,20 @@ def _parse_linkedin_spa_cards(soup: object, html: str, *, source: str) -> list[R
         )
         if comp_raw:
             record["comp_raw"] = comp_raw
+        card_text = card.get_text(" ", strip=True)  # type: ignore[union-attr]
+        from agentzero.scrape.apply_links import card_signals_easy_apply, safe_http_url
+
+        if card_signals_easy_apply(card_text):
+            record["easy_apply"] = True
+        for link in card.find_all("a", href=True):  # type: ignore[union-attr]
+            href = str(link.get("href") or "")
+            if "linkedin.com/jobs/view" in href:
+                continue
+            if "apply" in href.lower() or "apply" in link.get_text(" ", strip=True).lower():
+                external = safe_http_url(href, base_url=url)
+                if external:
+                    record["apply_url"] = external
+                    break
         records.append(record)
     return records
 

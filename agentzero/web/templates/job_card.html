@@ -27,17 +27,6 @@
       <button type="submit">Save status</button>
     </div>
   </form>
-  <form method="post" action="/jobs/{{ job_id }}/notes" class="detail-form">
-    <input type="hidden" name="return_to" value="detail" />
-    {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
-    <input type="hidden" name="sort" value="{{ sort }}" />
-    <input type="hidden" name="order" value="{{ order }}" />
-    <label class="detail-label" for="job-notes">Notes</label>
-    <div class="detail-form-row">
-      <input id="job-notes" type="text" name="notes" value="{{ job.notes or '' }}" class="detail-notes-input" />
-      <button type="submit">Save notes</button>
-    </div>
-  </form>
   <form method="post" action="/jobs/{{ job_id }}/reject" class="detail-form" onsubmit="return confirm('Mark this role as rejected (nope)?');">
     <input type="hidden" name="return_to" value="detail" />
     {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
@@ -45,6 +34,37 @@
     <input type="hidden" name="order" value="{{ order }}" />
     <button type="submit" class="btn-danger">Nope (reject)</button>
   </form>
+</section>
+
+<section class="card">
+  <h2>Notes</h2>
+  <form method="post" action="/jobs/{{ job_id }}/notes" class="detail-form">
+    <input type="hidden" name="return_to" value="detail" />
+    {% if show_rejected %}<input type="hidden" name="show_rejected" value="true" />{% endif %}
+    <input type="hidden" name="sort" value="{{ sort }}" />
+    <input type="hidden" name="order" value="{{ order }}" />
+    <label class="detail-label" for="job-notes">Your notes</label>
+    <textarea id="job-notes" name="notes" class="cover-letter-textarea" rows="6" placeholder="Fit, contacts, follow-ups, interview prep…">{{ job.notes or '' }}</textarea>
+    <div class="detail-form-row">
+      <button type="submit">Save notes</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Apply</h2>
+  {% set apply_href = job.apply_url or job.url %}
+  <p class="toolbar">
+    <a href="{{ apply_href }}" class="btn" target="_blank" rel="noopener noreferrer">Apply</a>
+    {% if job.easy_apply_url and job.easy_apply_url != apply_href %}
+    <a href="{{ job.easy_apply_url }}" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Easy apply</a>
+    {% endif %}
+  </p>
+  {% if not job.apply_url %}
+  <p class="muted">Opens the job posting (easy apply link not located).</p>
+  {% elif job.easy_apply and not job.easy_apply_url %}
+  <p class="muted">Easy apply on board; external apply URL not located — using posting link.</p>
+  {% endif %}
 </section>
 
 <section class="card">
@@ -69,9 +89,12 @@
 <section class="card">
   <h2>Links</h2>
   <dl class="detail-grid">
-    <dt>Posting</dt><dd><a href="{{ job.url }}" target="_blank" rel="noopener">{{ job.url }}</a></dd>
+    <dt>Posting</dt><dd><a href="{{ job.url }}" target="_blank" rel="noopener noreferrer">{{ job.url }}</a></dd>
+    {% if job.apply_url and job.apply_url != job.url %}
+    <dt>Apply URL</dt><dd><a href="{{ job.apply_url }}" target="_blank" rel="noopener noreferrer">{{ job.apply_url }}</a></dd>
+    {% endif %}
     {% if job.careers_url %}
-    <dt>Careers</dt><dd><a href="{{ job.careers_url }}" target="_blank" rel="noopener">{{ job.careers_url }}</a></dd>
+    <dt>Careers</dt><dd><a href="{{ job.careers_url }}" target="_blank" rel="noopener noreferrer">{{ job.careers_url }}</a></dd>
     {% endif %}
     <dt>Job ID</dt><dd><code>{{ job.job_id }}</code></dd>
   </dl>
