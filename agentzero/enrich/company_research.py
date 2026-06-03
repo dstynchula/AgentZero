@@ -19,6 +19,7 @@ from agentzero.enrich.snippet_parse import (
     parse_company_size_from_text,
     parse_glassdoor_from_text,
     parse_public_company_from_text,
+    snippet_mentions_company,
 )
 from agentzero.enrich.web_search import SearchHit, search_web
 from agentzero.models import JobPosting
@@ -105,8 +106,11 @@ def _parse_hits_for_facts(
     _merge_size(facts, parse_company_size_from_text(blob))
     rating, reviews = parse_glassdoor_from_text(blob)
     _merge_glassdoor(facts, rating, reviews)
-    is_public, ticker = parse_public_company_from_text(blob)
-    _merge_public_company(facts, is_public, ticker)
+    for hit in hits:
+        hit_text = f"{hit.title}\n{hit.snippet}"
+        if snippet_mentions_company(hit_text, company):
+            is_public, ticker = parse_public_company_from_text(hit_text, company=company)
+            _merge_public_company(facts, is_public, ticker)
     _merge_company_website(facts, pick_company_website(hits, company=company))
 
     for hit in hits:
@@ -241,10 +245,17 @@ def enrich_job_web_research(
             updates["careers_url"] = verified
     if not job.company_website and facts.company_website:
         updates["company_website"] = facts.company_website
-    if job.is_public_company is None and facts.is_public_company is not None:
-        updates["is_public_company"] = facts.is_public_company
-    if not job.stock_ticker and facts.stock_ticker:
+    if facts.stock_ticker:
         updates["stock_ticker"] = facts.stock_ticker
+        updates["is_public_company"] = True
+    elif facts.is_public_company is False:
+        updates["is_public_company"] = False
+        updates["stock_ticker"] = None
+    elif facts.is_public_company is True:
+        updates["is_public_company"] = True
+    elif job.is_public_company is not None or job.stock_ticker:
+        updates["is_public_company"] = None
+        updates["stock_ticker"] = None
 
     if not updates:
         return job

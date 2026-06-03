@@ -107,3 +107,61 @@ def test_job_detail_for_ui(tmp_path):
     assert "description" in detail
     assert job_detail_for_ui(db, "missing") is None
     db.close()
+
+
+def test_jobs_list_additive_filter_merge(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from agentzero.config import Settings
+    from agentzero.web.app import create_app
+
+    db_path = tmp_path / "jobs.db"
+    db = Database(db_path)
+    db.upsert_job(_job(title="Staff Security Engineer", company="SecureCo"))
+    db.upsert_job(
+        _job(title="Account Executive", company="SalesCo", url="https://jobs.example.com/2")
+    )
+    db.close()
+    app = create_app(db_path=db_path, settings=Settings(_env_file=None))
+    with TestClient(app) as client:
+        response = client.get(
+            "/jobs",
+            params={
+                "company": "secure",
+                "filter_key": "title",
+                "filter_value": "security",
+            },
+        )
+        assert response.status_code == 200
+        assert "SecureCo" in response.text
+        assert "SalesCo" not in response.text
+
+
+def test_job_list_filters_merge_and_without():
+    from agentzero.web.jobs import JobListFilters
+
+    base = JobListFilters.from_query(company="acme")
+    merged = JobListFilters.merge_filter(base, "title", "engineer")
+    assert merged.company == "acme"
+    assert merged.title == "engineer"
+    replaced = JobListFilters.merge_filter(merged, "company", "beta")
+    assert replaced.company == "beta"
+    assert replaced.title == "engineer"
+    trimmed = merged.without("company")
+    assert trimmed.company is None
+    assert trimmed.title == "engineer"
+
+
+def test_clear_filters_href_omits_filter_params():
+    from agentzero.web.jobs import JobListFilters, list_context
+
+    ctx = list_context(
+        filters=JobListFilters.from_query(company="acme", title="eng"),
+        sort="match_score",
+        order="desc",
+    )
+    href = ctx["clear_filters_href"]
+    assert "company=" not in href
+    assert "title=" not in href
+    assert "sort=match_score" in href
+    assert "order=desc" in href

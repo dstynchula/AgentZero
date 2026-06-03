@@ -22,6 +22,24 @@ if TYPE_CHECKING:
 
 UI_COLUMNS = (*TRACKER_UI_COLUMNS,)
 
+FILTER_KEYS: tuple[str, ...] = (
+    "company",
+    "title",
+    "status",
+    "min_score",
+    "min_comp",
+    "max_comp",
+)
+
+FILTER_LABELS: dict[str, str] = {
+    "company": "Company",
+    "title": "Title",
+    "status": "Status",
+    "min_score": "Min score",
+    "min_comp": "Min comp",
+    "max_comp": "Max comp",
+}
+
 # Default list-view columns (column picker can enable the rest).
 LIST_VIEW_DEFAULT_COLUMNS = (
     "source",
@@ -114,6 +132,48 @@ class JobListFilters:
             items.append(("max_comp", str(self.max_comp)))
         return items
 
+    def without(self, key: str) -> JobListFilters:
+        fields = {
+            "company": self.company,
+            "title": self.title,
+            "status": self.status,
+            "min_score": self.min_score,
+            "min_comp": self.min_comp,
+            "max_comp": self.max_comp,
+        }
+        if key in fields:
+            fields[key] = None
+        return JobListFilters(**fields)
+
+    @classmethod
+    def merge_filter(
+        cls,
+        filters: JobListFilters,
+        key: str,
+        value: str,
+    ) -> JobListFilters:
+        if key not in FILTER_KEYS:
+            return filters
+        raw = value.strip()
+        if not raw:
+            return filters
+        fields = {
+            "company": filters.company,
+            "title": filters.title,
+            "status": filters.status,
+            "min_score": filters.min_score,
+            "min_comp": filters.min_comp,
+            "max_comp": filters.max_comp,
+        }
+        if key in {"min_score", "min_comp", "max_comp"}:
+            try:
+                fields[key] = float(raw)
+            except ValueError:
+                return filters
+        else:
+            fields[key] = raw
+        return cls(**fields)
+
 
 def list_jobs_for_ui(
     db: Database,
@@ -187,11 +247,36 @@ def list_context(
     """Shared index template context for sort links and query preservation."""
     active_filters = filters or JobListFilters()
     sort_column, descending = parse_sort_params(sort, order)
+    filter_chips: list[dict[str, str]] = []
+    for key, value in active_filters.query_items():
+        filter_chips.append(
+            {
+                "key": key,
+                "label": FILTER_LABELS.get(key, key),
+                "value": value,
+                "remove_href": "/jobs"
+                + build_list_query(
+                    show_rejected=show_rejected,
+                    sort=sort_column,
+                    order="desc" if descending else "asc",
+                    filters=active_filters.without(key),
+                ),
+            }
+        )
     return {
         "sort": sort_column,
         "order": "desc" if descending else "asc",
         "sort_descending": descending,
         "filters": active_filters,
+        "filter_key_choices": [(key, FILTER_LABELS[key]) for key in FILTER_KEYS],
+        "filter_chips": filter_chips,
+        "clear_filters_href": "/jobs"
+        + build_list_query(
+            show_rejected=show_rejected,
+            sort=sort_column,
+            order="desc" if descending else "asc",
+            filters=JobListFilters(),
+        ),
         "list_query": build_list_query(
             show_rejected=show_rejected,
             sort=sort_column,
@@ -214,6 +299,8 @@ def list_context(
 __all__ = [
     "DEFAULT_SORT_COLUMN",
     "DEFAULT_SORT_ORDER",
+    "FILTER_KEYS",
+    "FILTER_LABELS",
     "JobListFilters",
     "LIST_VIEW_DEFAULT_COLUMNS",
     "UI_COLUMNS",

@@ -666,6 +666,29 @@
         }
       };
     };
+
+    window.agentzeroPollEnrich = function (opts) {
+      var intervalMs = (opts && opts.intervalMs) || 500;
+      var timer = null;
+      function poll() {
+        fetch("/api/enrich")
+          .then(function (r) { return r.json(); })
+          .then(function (s) {
+            if (opts && opts.onUpdate) opts.onUpdate(s || {});
+            if (s && s.running) timer = setTimeout(poll, intervalMs);
+          })
+          .catch(function () {
+            if (opts && opts.onError) opts.onError();
+          });
+      }
+      poll();
+      return {
+        stop: function () {
+          if (timer) clearTimeout(timer);
+          timer = null;
+        }
+      };
+    };
   </script>
   {% block head %}{% endblock %}
 </head>

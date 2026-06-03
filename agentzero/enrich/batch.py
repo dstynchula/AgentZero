@@ -17,6 +17,7 @@ from agentzero.models import JobPosting
 
 if TYPE_CHECKING:
     from agentzero.config import Settings
+    from agentzero.loops.run_progress import RunProgress
     from agentzero.storage.db import Database
 
 log = logging.getLogger(__name__)
@@ -70,6 +71,12 @@ class EnrichBatchResult:
     failed: int
 
 
+def _is_cancelled(run_progress: RunProgress | None) -> bool:
+    if run_progress is None:
+        return False
+    return run_progress.is_cancelled()
+
+
 def run_enrich_batch(
     db: Database,
     job_ids: list[str],
@@ -81,6 +88,7 @@ def run_enrich_batch(
     web_search: bool,
     allow_browser: bool,
     browser_delay_seconds: float,
+    run_progress: RunProgress | None = None,
 ) -> EnrichBatchResult:
     """Parallel HTTP + Glassdoor, then sequential browser fallback for stragglers."""
     if not job_ids:
@@ -99,11 +107,27 @@ def run_enrich_batch(
     )
 
     company_cache = CompanyFactsCache()
-    parallel_progress = Progress(len(job_ids), label="Enrich")
-    parallel_progress.announce("HTTP detail + parse + Glassdoor + web search")
+    progress_adapter = None
+    if run_progress is not None:
+        from agentzero.loops.run_progress import RunProgressAdapter
+
+        progress_adapter = RunProgressAdapter
+        parallel_progress = progress_adapter(
+            len(job_ids),
+            label="Enrich selected jobs",
+            run_progress=run_progress,
+            phase="enrich",
+            step_id="enrich.parallel",
+        )
+        parallel_progress.announce("HTTP detail + parse + Glassdoor + web search")
+    else:
+        parallel_progress = Progress(len(job_ids), label="Enrich")
+        parallel_progress.announce("HTTP detail + parse + Glassdoor + web search")
 
     def parallel_worker(job_id: str) -> None:
         nonlocal failed
+        if _is_cancelled(run_progress):
+            return
         job = db.get_job(job_id)
         if job is None:
             raise ValueError(f"job not found: {job_id}")
@@ -145,6 +169,9 @@ def run_enrich_batch(
     failed += len(failures)
     parallel_progress.finish()
 
+    if _is_cancelled(run_progress):
+        return EnrichBatchResult(improved=improved, total=len(job_ids), failed=failed)
+
     if not allow_browser or not fetch_detail:
         return EnrichBatchResult(improved=improved, total=len(job_ids), failed=failed)
 
@@ -156,6 +183,17 @@ def run_enrich_batch(
     if not browser_ids:
         return EnrichBatchResult(improved=improved, total=len(job_ids), failed=failed)
 
+    if run_progress is not None:
+        run_progress.enter_step(
+            "enrich.browser",
+            phase="enrich",
+            label="Browser detail fallback",
+            total=len(browser_ids),
+            done=0,
+            next_step_id="done",
+            next_step_label="Complete",
+        )
+
     browser_workers = min(
         len(browser_ids),
         max(1, settings.enrich_browser_max_concurrency),
@@ -165,13 +203,25 @@ def run_enrich_batch(
         f"({browser_workers} parallel browser worker(s))…",
         flush=True,
     )
-    browser_progress = Progress(len(browser_ids), label="Browser detail")
-    browser_progress.announce()
+    if run_progress is not None and progress_adapter is not None:
+        browser_progress = progress_adapter(
+            len(browser_ids),
+            label="Browser detail",
+            run_progress=run_progress,
+            phase="enrich",
+            step_id="enrich.browser",
+        )
+        browser_progress.announce()
+    else:
+        browser_progress = Progress(len(browser_ids), label="Browser detail")
+        browser_progress.announce()
     launch_lock = threading.Lock()
     launch_index = 0
 
     def browser_worker(job_id: str) -> None:
         nonlocal failed, improved, launch_index
+        if _is_cancelled(run_progress):
+            return
         with launch_lock:
             slot = launch_index
             launch_index += 1

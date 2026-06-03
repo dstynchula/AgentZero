@@ -364,6 +364,14 @@ Plan: [docs/docker-web-scrape-fix.plan.md](docs/docker-web-scrape-fix.plan.md)
 - [x] T07 Docker/docs defaults
 - [x] T08 Acceptance tests
 
+## P51 — Enrich progress UI + ticker accuracy + filter UX
+
+- [x] T01 Company-scoped ticker parsing + stale ticker cleanup
+- [x] T02 Wire enrich batch to RunProgress
+- [x] T03 Enrich progress/log panel on jobs page + stop
+- [x] T05 Additive jobs list filter selector
+- [x] T04 Integration gate + docs + prep-pr
+
 ## Pre-public release checklist
 
 - [ ] Rotate OpenAI key and Google OAuth tokens before first public push
