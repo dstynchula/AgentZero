@@ -101,6 +101,9 @@ This is **best-effort** for app-controlled logs. Do not run `docker compose conf
   Mutating tool calls (scrape, status, cover letter, leads) execute only after you click **Confirm**.
 - Intended for **local operator** use only. Do not publish 8080 to the public internet.
 - The web layer does **not** hard-delete rows; **Nope** sets `rejected` (same as MCP `reject_leads`).
+- **Scraper** search-targets form inputs (work mode, locations, comp floor) are validated server-side
+  (bounded strings, no control characters, capped list size and salary range) before persisting to
+  `data/web_operator_config.json`. They are not passed to LLM prompts except indirectly via scrape.
 ### Docker secrets
 
 - Never bake `.env` into the image (see `.dockerignore`).

@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from agentzero.config import Settings
 from agentzero.scrape.factory import CORE_BROWSER_SITES
+
+WorkModeField = Literal["remote", "in_office"]
 
 
 class OperatorScrapeConfig(BaseModel):
@@ -20,6 +23,12 @@ class OperatorScrapeConfig(BaseModel):
     search_terms: list[str] = Field(default_factory=list)
     # Profile titles the operator removed (hidden until re-added manually).
     excluded_search_terms: list[str] = Field(default_factory=list)
+    # Search targets (location / comp / remote) — applied when search_targets_configured.
+    work_mode: WorkModeField | None = None
+    locations: list[str] = Field(default_factory=list)
+    salary_min: float | None = None
+    scrape_remote_only: bool = False
+    search_targets_configured: bool = False
 
 
 def operator_config_path(db_path: Path) -> Path:
@@ -38,7 +47,7 @@ def save_operator_config(path: Path, config: OperatorScrapeConfig) -> None:
     path.write_text(config.model_dump_json(indent=2) + "\n", encoding="utf-8")
 
 
-def patch_operator_config(path: Path, **updates: list[str]) -> OperatorScrapeConfig:
+def patch_operator_config(path: Path, **updates: object) -> OperatorScrapeConfig:
     """Update selected fields; leave others unchanged."""
     existing = load_operator_config(path) or OperatorScrapeConfig()
     merged = existing.model_copy(update=updates)

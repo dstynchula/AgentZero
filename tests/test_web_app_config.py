@@ -82,6 +82,8 @@ def test_scraper_page_renders(client):
     assert "<h1>Scraper</h1>" in r.text
     assert "Scrape sources" in r.text
     assert "Search titles" in r.text
+    assert "Search targets" in r.text
+    assert 'action="/scraper/search-targets"' in r.text
     assert "Load résumé" in r.text
     assert "Chrome CDP" in r.text
     assert "Connect" in r.text
@@ -259,6 +261,112 @@ def test_remove_search_title_updates_list(client, tmp_path: Path):
     page = c.get("/scraper")
     assert 'value="Engineer"' not in page.text
     assert 'value="Architect"' in page.text
+
+
+def _save_minimal_profile(root: Path) -> None:
+    from agentzero.ingest.search_profile import ResumeSearchProfile, save_search_profile
+
+    save_search_profile(
+        ResumeSearchProfile(
+            search_terms=["Engineer"],
+            locations=["remote - usa"],
+            remote_preferred=True,
+            salary_min=150_000.0,
+            source_resume_path="resume/x.txt",
+            source_fingerprint="fp",
+            updated_at="2026-01-01T00:00:00Z",
+        ),
+        settings=Settings(_env_file=None, db_path=root / "t.db"),
+    )
+
+
+def test_save_search_targets_round_trip(client, tmp_path: Path):
+    c, root = client
+    _save_minimal_profile(root)
+    r = c.post(
+        "/scraper/search-targets",
+        data={
+            "work_mode": "remote",
+            "locations": "",
+            "salary_min": "180000",
+            "scrape_remote_only": "on",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "search_targets_saved=1" in r.headers["location"]
+    cfg_path = root / "web_operator_config.json"
+    loaded = load_operator_config(cfg_path)
+    assert loaded is not None
+    assert loaded.search_targets_configured is True
+    assert loaded.work_mode == "remote"
+    assert loaded.salary_min == 180_000.0
+    assert loaded.scrape_remote_only is True
+    page = c.get("/scraper")
+    assert 'value="180000"' in page.text
+    assert "Remote (USA)" in page.text
+
+
+def test_save_search_targets_in_office(client, tmp_path: Path):
+    c, root = client
+    _save_minimal_profile(root)
+    r = c.post(
+        "/scraper/search-targets",
+        data={
+            "work_mode": "in_office",
+            "locations": "Los Angeles, CA",
+            "salary_min": "",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    loaded = load_operator_config(root / "web_operator_config.json")
+    assert loaded is not None
+    assert loaded.work_mode == "in_office"
+    assert "Los Angeles" in loaded.locations[0]
+
+
+def test_save_search_targets_rejects_empty_in_office(client, tmp_path: Path):
+    c, root = client
+    _save_minimal_profile(root)
+    cfg_path = root / "web_operator_config.json"
+    r = c.post(
+        "/scraper/search-targets",
+        data={"work_mode": "in_office", "locations": "", "salary_min": ""},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert "at least one location" in r.text.lower()
+    if cfg_path.is_file():
+        loaded = load_operator_config(cfg_path)
+        assert loaded is None or not loaded.search_targets_configured
+
+
+def test_save_search_targets_rejects_script_in_location(client, tmp_path: Path):
+    c, root = client
+    _save_minimal_profile(root)
+    cfg_path = root / "web_operator_config.json"
+    r = c.post(
+        "/scraper/search-targets",
+        data={
+            "work_mode": "in_office",
+            "locations": "<script>alert(1)</script>",
+            "salary_min": "",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+    assert "<script>alert(1)</script>" not in r.text or "invalid characters" in r.text.lower()
+    if cfg_path.is_file():
+        loaded = load_operator_config(cfg_path)
+        assert loaded is None or not loaded.search_targets_configured
+
+
+def test_config_redirect_search_targets_to_scraper(client):
+    c, _ = client
+    r = c.get("/config/search-targets?search_targets_saved=1", follow_redirects=False)
+    assert r.status_code == 307
+    assert r.headers["location"] == "/scraper/search-targets?search_targets_saved=1"
 
 
 def test_scrape_endpoint_returns_redirect(client, monkeypatch):

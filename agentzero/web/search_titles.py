@@ -137,10 +137,12 @@ def add_operator_title(
     profile_terms: list[str],
 ) -> list[str]:
     from agentzero.web.operator_config import load_operator_config, patch_operator_config
+    from agentzero.web.search_targets import MAX_TITLE_LEN, sanitize_free_text
 
-    cleaned = term.strip()
-    if not cleaned:
-        raise ValueError("Title cannot be empty")
+    try:
+        cleaned = sanitize_free_text(term, max_len=MAX_TITLE_LEN, field_name="Title")
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
     existing = load_operator_config(config_path) or OperatorScrapeConfig()
     active = effective_search_terms(profile_terms, existing)
     key = cleaned.lower()
