@@ -31,7 +31,7 @@ def test_job_detail_200(web_client):
 
 def test_job_detail_404(web_client):
     client, _ = web_client
-    assert client.get("/jobs/doesnotexist123456").status_code == 404
+    assert client.get("/jobs/deadbeef00000001").status_code == 404
 
 
 def test_back_link_preserves_show_rejected(web_client):
