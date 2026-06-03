@@ -151,8 +151,12 @@ cannot reach `127.0.0.1` on the host). Then use **Connect** on Scraper.
 
 **Scraper** saves source toggles to `data/web_operator_config.json` (beside the DB). Background
 scrapes use `data/search_profile.json` (beside the DB; résumé files stay in read-only `resume/`)
-and need an LLM API key; new rows land as `lead`.
+and need an LLM API key; new rows land as `lead`. Scrapes run in a **child process** so sync
+Playwright is not blocked by Uvicorn's asyncio loop; live progress is written to
+`data/scrape_progress.json` and polled by the UI (~500ms).
 Chrome CDP must run on the **host** — Scraper shows PS1, Python, and shell launch commands plus env vars.
+When Chrome returns a loopback WebSocket URL (`127.0.0.1:9223`), the scraper rewrites it to
+`host.docker.internal:9222` so Playwright inside the container attaches through the host proxy.
 
 Use the header **Dark mode** toggle (stored in the browser). JSON: `GET /api/scraper`.
 
@@ -176,7 +180,9 @@ do not expose port 8080 on untrusted networks. See [SECURITY.md](SECURITY.md).
 | Connect fails; host `curl :9222` works | Restart `launch_chrome_cdp` so the proxy rewrites `Host: host.docker.internal` → `127.0.0.1` (Chrome rejects the Docker hostname) |
 | `UnsafeCDPURLError` for docker host | Set `AGENTZERO_CDP_ALLOW_DOCKER_HOST=true` in `.env` |
 | `Chromium distribution 'chrome' is not found` | Compose clears `AGENTZERO_SCRAPE_BROWSER_CHANNEL`; do not force `chrome` in container |
-| Playwright "Sync API inside asyncio loop" during full scrape | Use host venv for full scrape; run `verify_browser_session.py` per board if the pipeline errors in Docker |
+| Playwright "Sync API inside asyncio loop" during full scrape | Fixed in P48: web scrapes run in a subprocess; rebuild the `web` image after pulling P48+ |
+| CDP `ECONNREFUSED 127.0.0.1:9223` from Docker web scrape | Fixed in P48: Playwright rewrites Chrome's loopback WebSocket URL to `host.docker.internal:9222`; ensure `AGENTZERO_CDP_ALLOW_DOCKER_HOST=true` and relaunch host Chrome via `launch_chrome_cdp` |
+| Full scrape still fails after P48 | Confirm host proxy on `0.0.0.0:9222`, **Connect** succeeds on Scraper, and `docker compose up web --build` picked up the new image |
 | Build appears stuck | Check `data/.docker-build-status.json`; Playwright step often takes 5+ minutes (`SLOW` vs `STALL?`) |
 | Every code change re-runs pip/Playwright | Ensure BuildKit is on; pull P30+ Dockerfile; use override bind-mount for hot reload |
 | LinkedIn login | Use `scripts/import_browser_cookies.py` or interactive run with profile under `data/browser_profiles/` |

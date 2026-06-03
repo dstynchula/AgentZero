@@ -82,6 +82,36 @@ def test_launch_browser_page_cdp_only_for_configured_sites(tmp_path):
         ctx.close.assert_called_once()
 
 
+def test_launch_browser_page_cdp_docker_uses_connect_ws_endpoint(tmp_path):
+    s = Settings(
+        _env_file=None,
+        scrape_browser_profile_dir=tmp_path / "indeed_browser_profile",
+        scrape_cdp_url="http://host.docker.internal:9222",
+        scrape_cdp_sites=["glassdoor"],
+        cdp_allow_docker_host=True,
+        scrape_cdp_auto_launch=False,
+    )
+    mock_pw = MagicMock()
+    mock_browser = MagicMock()
+    mock_context = MagicMock()
+    mock_browser.contexts = [mock_context]
+    mock_context.new_page.return_value = MagicMock()
+    mock_pw.chromium.connect.return_value = mock_browser
+    ws = "ws://host.docker.internal:9222/devtools/browser/abc"
+
+    with (
+        patch("agentzero.scrape.browser_common.cdp_endpoint_reachable", return_value=True),
+        patch("agentzero.scrape.browser_common.resolve_cdp_ws_endpoint", return_value=ws),
+        patch("playwright.sync_api.sync_playwright", return_value=MagicMock(start=MagicMock(return_value=mock_pw))),
+    ):
+        from agentzero.scrape.browser_common import launch_browser_page
+
+        launch_browser_page(s, site="glassdoor")
+
+    mock_pw.chromium.connect.assert_called_once_with(ws_endpoint=ws)
+    mock_pw.chromium.connect_over_cdp.assert_not_called()
+
+
 def test_ensure_cdp_ready_auto_launches_when_down(tmp_path):
     s = Settings(
         _env_file=None,
