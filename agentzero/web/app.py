@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from agentzero.config import Settings, get_settings
 from agentzero.generate.cover_letter import COVER_LETTER_DIR, save_cover_letter
 from agentzero.models import ApplicationStatus, JobPosting
+from agentzero.storage.backup import create_backup
 from agentzero.storage.db import Database
 from agentzero.web.cdp_status import cdp_status_payload, retry_cdp_connection
 from agentzero.web.chat.agent import run_agent_turn
@@ -344,6 +345,31 @@ def create_app(
             request,
             "chat.html",
             {"nav_active": "chat"},
+        )
+
+    @app.get("/data", response_class=HTMLResponse)
+    def data_page(request: Request) -> HTMLResponse:
+        cfg = request.app.state.settings
+        return _TEMPLATES.TemplateResponse(
+            request,
+            "data.html",
+            {
+                "nav_active": "data",
+                "db_path": str(cfg.db_path),
+            },
+        )
+
+    @app.post("/api/data/backup")
+    def api_data_backup(request: Request) -> FileResponse:
+        cfg = request.app.state.settings
+        try:
+            result = create_backup(cfg.db_path)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return FileResponse(
+            result.backup_path,
+            filename=result.filename,
+            media_type="application/octet-stream",
         )
 
     @app.get("/api/jobs")

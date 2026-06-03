@@ -19,11 +19,30 @@ if TYPE_CHECKING:
     from agentzero.config import Settings
 
 
-def enrich_job(job: JobPosting) -> JobPosting:
-    """Parse comp / size / rating from fields already on the job (usually description)."""
+def _needs_company_web_facts(job: JobPosting) -> bool:
+    careers_gap = not job.careers_url or is_low_quality_careers_url(
+        job.careers_url, job.company
+    )
+    return (
+        not job.company_size
+        or job.glassdoor_rating is None
+        or job.glassdoor_reviews is None
+        or careers_gap
+        or not job.company_website
+        or job.is_public_company is None
+    )
+
+
+def enrich_job(job: JobPosting, *, settings: Settings | None = None) -> JobPosting:
+    """Parse comp / size / rating from fields on the job; optional web research."""
+    from agentzero.config import get_settings
+
     job = enrich_comp(job)
     job = enrich_company_size(job)
     job = enrich_glassdoor(job)
+    cfg = settings or get_settings()
+    if cfg.enrich_web_search and _needs_company_web_facts(job):
+        job = enrich_job_web_research(job, settings=cfg)
     return job
 
 
@@ -53,13 +72,7 @@ def enrich_job_deep(
     ):
         job = enrich_glassdoor_company(job, user_agent=ua)
 
-    needs_web = (
-        not job.company_size
-        or job.glassdoor_rating is None
-        or job.glassdoor_reviews is None
-        or not job.careers_url
-        or is_low_quality_careers_url(job.careers_url, job.company)
-    )
+    needs_web = _needs_company_web_facts(job)
     if web_search and cfg.enrich_web_search and needs_web:
         job = enrich_job_web_research(
             job,

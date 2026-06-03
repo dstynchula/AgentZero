@@ -273,6 +273,41 @@ Plan: [docs/scrape-three-boards-apply.plan.md](docs/scrape-three-boards-apply.pl
 - [x] P41b Job card Apply buttons
 - [x] P42 Job card Notes section
 
+## P41 — Chat delete UI
+
+Plan: [docs/chat-data-enrich-docs.plan.md](docs/chat-data-enrich-docs.plan.md)
+
+- [x] P41a Chat delete API tests
+- [x] P41b Chat history delete button
+
+## P42 — Data tab backup
+
+- [x] P42a Backup module
+- [x] P42b Data tab UI
+
+## P43 — Company enrichment
+
+- [x] P43a Model fields
+- [x] P43b Public company detection
+- [x] P43c Company website URL
+- [x] P43d Job card + pipeline
+
+## P46 — Docs refresh
+
+- [x] P46a README + PROGRESS
+- [x] P46b Diagram refresh
+
+## Pytest hang fix
+
+Plan: [docs/pytest-hang-diagnosis.plan.md](docs/pytest-hang-diagnosis.plan.md)
+
+- [x] T01 Bisect tool
+- [x] T02 Confirm suspect test
+- [x] T03 Conftest network guard
+- [x] T04 Pipeline settings pass-through
+- [x] T05 pytest-timeout
+- [x] T06 Full gate + docs
+
 ## Reference docs
 
 | Doc | Contents |
@@ -295,11 +330,12 @@ Plan: [docs/scrape-three-boards-apply.plan.md](docs/scrape-three-boards-apply.pl
 | docs/web-chat.plan.md | P38 web chat (default landing, HITL tools) |
 | docs/web-chat-ux.plan.md | P39 chat send UX (optimistic echo, waiting) |
 | docs/scrape-three-boards-apply.plan.md | P40 three-board scrape, apply URLs, job card UX |
+| docs/chat-data-enrich-docs.plan.md | P41–P46 chat delete, data backup, enrichment, docs |
 | docs/PUBLIC_RELEASE_CHECKLIST.md | Pre-publish include/exclude + quality checklist |
 
 ## Pre-public release checklist
 
 - [ ] Rotate OpenAI key and Google OAuth tokens before first public push
 - [ ] `python tools/fix_encoding.py` then verify `git status` (no `.env`, `token.json`, profiles)
-- [ ] `pytest -q` and `ruff check agentzero tests scripts tools` (513 tests as of P26k on main)
+- [ ] `pytest -q` and `ruff check agentzero tests scripts tools`
 - [ ] `docker compose up web` — verify tracker after a scrape + rank

@@ -44,6 +44,41 @@ def test_job_posting_required_fields():
     assert len(job.job_id) == 16
 
 
+def test_job_posting_accepts_company_website():
+    job = JobPosting(
+        title="Role",
+        company="Co",
+        url="https://x.com/1",
+        source="indeed",
+        company_website="https://www.co.com/",
+    )
+    assert job.company_website == "https://www.co.com/"
+
+
+def test_job_posting_public_company_fields():
+    job = JobPosting(
+        title="Role",
+        company="Co",
+        url="https://x.com/1",
+        source="indeed",
+        is_public_company=True,
+        stock_ticker="ACME",
+    )
+    assert job.is_public_company is True
+    assert job.stock_ticker == "ACME"
+
+
+def test_linkedin_connections_field_optional_null():
+    job = JobPosting(
+        title="Role",
+        company="Co",
+        url="https://x.com/1",
+        source="linkedin",
+        linkedin_connections_note=None,
+    )
+    assert job.linkedin_connections_note is None
+
+
 def test_job_posting_apply_url_fields():
     job = JobPosting(
         title="Role",

@@ -43,11 +43,17 @@ def test_estimate_unique_jobs_single_query():
     assert high == 50
 
 
-def test_search_profile_session_cache_avoids_duplicate_llm(tmp_path):
+def test_search_profile_session_cache_avoids_duplicate_llm(tmp_path, monkeypatch):
     clear_search_profile_session_cache()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(
+        "agentzero.config.get_settings",
+        lambda: Settings(_env_file=None, db_path=data_dir / "agentzero.db"),
+    )
     resume_dir = tmp_path / "resume"
     resume_dir.mkdir()
-    (resume_dir / "r.txt").write_text("body", encoding="utf-8")
+    (resume_dir / "r.txt").write_text("resume body for cache test", encoding="utf-8")
     llm = FakeLLM()
     resolve_search_from_resume(llm=llm, resume_dir=resume_dir)
     resolve_search_from_resume(llm=llm, resume_dir=resume_dir)

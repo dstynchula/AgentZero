@@ -141,7 +141,7 @@ class Pipeline:
                 job = self._db.get_job(job_id)
                 if job is None:
                     raise KeyError(f"job not found: {job_id}")
-                enriched = enrich_job(job)
+                enriched = enrich_job(job, settings=cfg)
                 self._db.upsert_job(enriched)
                 self._db.mark_pipeline(job_id, "enrich_status", "done")
 
@@ -216,7 +216,7 @@ class Pipeline:
 
     def _enrich_scraped_job(self, job: JobPosting, cfg: Settings) -> JobPosting:
         """Parse comp from description; fetch LinkedIn detail page when salary missing."""
-        job = enrich_job(job)
+        job = enrich_job(job, settings=cfg)
         if job.comp_min is not None or job.comp_max is not None:
             return job
         if "linkedin" not in job.source.lower():
@@ -224,7 +224,7 @@ class Pipeline:
         from agentzero.enrich.detail_fetch import fetch_and_merge_detail
 
         job = fetch_and_merge_detail(job, settings=cfg, allow_browser=True)
-        return enrich_job(job)
+        return enrich_job(job, settings=cfg)
 
     @staticmethod
     def _merge_scrape_job(

@@ -14,9 +14,11 @@ from agentzero.enrich.careers_urls import (
     is_low_quality_careers_url,
     pick_verified_careers_url,
 )
+from agentzero.enrich.company_website import pick_company_website
 from agentzero.enrich.snippet_parse import (
     parse_company_size_from_text,
     parse_glassdoor_from_text,
+    parse_public_company_from_text,
 )
 from agentzero.enrich.web_search import SearchHit, search_web
 from agentzero.models import JobPosting
@@ -37,6 +39,9 @@ class CompanyWebFacts:
     glassdoor_rating: float | None = None
     glassdoor_reviews: int | None = None
     careers_urls: list[str] = field(default_factory=list)
+    company_website: str | None = None
+    is_public_company: bool | None = None
+    stock_ticker: str | None = None
 
 
 def _company_key(company: str) -> str:
@@ -63,6 +68,22 @@ def _merge_size(facts: CompanyWebFacts, size: str | None) -> None:
         facts.company_size = size
 
 
+def _merge_public_company(
+    facts: CompanyWebFacts,
+    is_public: bool | None,
+    ticker: str | None,
+) -> None:
+    if is_public is not None and facts.is_public_company is None:
+        facts.is_public_company = is_public
+    if ticker and not facts.stock_ticker:
+        facts.stock_ticker = ticker
+
+
+def _merge_company_website(facts: CompanyWebFacts, url: str | None) -> None:
+    if url and not facts.company_website:
+        facts.company_website = url
+
+
 def _fetch_glassdoor_page(url: str, *, user_agent: str) -> tuple[float | None, int | None]:
     html = safe_get_text(url, user_agent=user_agent, max_chars=50_000)
     if not html:
@@ -84,6 +105,9 @@ def _parse_hits_for_facts(
     _merge_size(facts, parse_company_size_from_text(blob))
     rating, reviews = parse_glassdoor_from_text(blob)
     _merge_glassdoor(facts, rating, reviews)
+    is_public, ticker = parse_public_company_from_text(blob)
+    _merge_public_company(facts, is_public, ticker)
+    _merge_company_website(facts, pick_company_website(hits, company=company))
 
     for hit in hits:
         if url_host_matches(hit.url, "glassdoor.com"):
@@ -104,6 +128,8 @@ def _facts_incomplete(facts: CompanyWebFacts) -> bool:
         facts.company_size is None
         or facts.glassdoor_rating is None
         or facts.glassdoor_reviews is None
+        or facts.company_website is None
+        or facts.is_public_company is None
     )
 
 
@@ -122,6 +148,8 @@ def research_company(
         f"{company} glassdoor reviews rating",
         f"{company} number of employees company size linkedin",
         f"{company} careers jobs site",
+        f"{company} official website",
+        f"{company} stock ticker publicly traded NASDAQ NYSE",
     ]
     for index, query in enumerate(queries):
         hits = search_web(
@@ -211,6 +239,12 @@ def enrich_job_web_research(
         )
         if verified:
             updates["careers_url"] = verified
+    if not job.company_website and facts.company_website:
+        updates["company_website"] = facts.company_website
+    if job.is_public_company is None and facts.is_public_company is not None:
+        updates["is_public_company"] = facts.is_public_company
+    if not job.stock_ticker and facts.stock_ticker:
+        updates["stock_ticker"] = facts.stock_ticker
 
     if not updates:
         return job

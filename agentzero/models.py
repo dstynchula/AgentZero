@@ -73,6 +73,10 @@ class JobPosting(BaseModel):
     remote: bool | None = None
     description: str | None = None
     careers_url: str | None = None
+    company_website: str | None = None
+    is_public_company: bool | None = None
+    stock_ticker: str | None = None
+    linkedin_connections_note: str | None = None
     apply_url: str | None = None
     easy_apply_url: str | None = None
     easy_apply: bool | None = None
@@ -93,7 +97,7 @@ class JobPosting(BaseModel):
             url=self.url,
         )
 
-    @field_validator("url", "apply_url", "easy_apply_url", "careers_url")
+    @field_validator("url", "apply_url", "easy_apply_url", "careers_url", "company_website")
     @classmethod
     def url_is_http(cls, value: str | None) -> str | None:
         if value is None:

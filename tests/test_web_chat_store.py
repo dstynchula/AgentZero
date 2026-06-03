@@ -24,6 +24,8 @@ def test_create_session_returns_id(chat_store: ChatStore):
     assert session.archived is False
 
 
+@pytest.mark.slow
+@pytest.mark.timeout(10)
 def test_list_sessions_newest_first(chat_store: ChatStore):
     first = chat_store.create_session(title="First")
     time.sleep(1.1)

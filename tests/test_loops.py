@@ -1,4 +1,3 @@
-from agentzero.config import Settings
 from agentzero.ingest.resume import ResumeProfile
 from agentzero.loops.pipeline import Pipeline, PipelineResult
 from agentzero.loops.ralph import run_parallel
@@ -57,7 +56,7 @@ def test_run_parallel_collects_failures():
     assert "bad" in failures[0]
 
 
-def test_pipeline_idempotent_scrape(tmp_path):
+def test_pipeline_idempotent_scrape(tmp_path, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     raw = {
         "title": "Software Engineer",
@@ -68,7 +67,7 @@ def test_pipeline_idempotent_scrape(tmp_path):
         "location": "Remote",
     }
     source = FakeSource([raw])
-    pipeline = Pipeline(db, source, settings=Settings(_env_file=None, remote_only=False), llm=None)
+    pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=None)
     r1 = pipeline.run()
     assert r1.scraped == 1
     r2 = pipeline.run()
@@ -78,7 +77,7 @@ def test_pipeline_idempotent_scrape(tmp_path):
     db.close()
 
 
-def test_pipeline_enrich_rank(tmp_path):
+def test_pipeline_enrich_rank(tmp_path, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     raw = {
         "title": "Software Engineer",
@@ -91,7 +90,7 @@ def test_pipeline_enrich_rank(tmp_path):
     source = FakeSource([raw])
     llm = FakeLLM()
     profile = ResumeProfile(raw_text="x", skills=["Python"], experience=[], source_path="")
-    pipeline = Pipeline(db, source, settings=Settings(_env_file=None, remote_only=False), llm=llm)
+    pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=llm)
     result = pipeline.run(profile=profile)
     assert result.enriched >= 1
     assert result.ranked >= 1
@@ -100,7 +99,7 @@ def test_pipeline_enrich_rank(tmp_path):
     db.close()
 
 
-def test_pipeline_comp_filter_uses_run_settings(tmp_path):
+def test_pipeline_comp_filter_uses_run_settings(tmp_path, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     raw_low = {
         "title": "Junior Software Engineer",
@@ -120,7 +119,7 @@ def test_pipeline_comp_filter_uses_run_settings(tmp_path):
         "remote": True,
     }
     source = FakeSource([raw_low, raw_ok])
-    settings = Settings(_env_file=None, salary_min=230_000, remote_only=False)
+    settings = pipeline_test_settings(salary_min=230_000)
     pipeline = Pipeline(db, source, settings=settings, llm=None)
     result = pipeline.run()
     assert result.scraped == 1
@@ -135,7 +134,7 @@ def test_pipeline_result_ok():
     assert not PipelineResult(errors=["Source health check failed"]).ok
 
 
-def test_pipeline_unhealthy_source_skips_upserts(tmp_path, monkeypatch):
+def test_pipeline_unhealthy_source_skips_upserts(tmp_path, monkeypatch, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     raw_valid = {
         "title": "Software Engineer",
@@ -152,7 +151,7 @@ def test_pipeline_unhealthy_source_skips_upserts(tmp_path, monkeypatch):
         raise RuntimeError("Source health check failed: valid_pct=50.0 (minimum 80.0)")
 
     monkeypatch.setattr("agentzero.loops.pipeline.assert_source_healthy", _unhealthy)
-    pipeline = Pipeline(db, source, settings=Settings(_env_file=None, remote_only=False), llm=None)
+    pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=None)
     result = pipeline.run()
     assert not result.ok
     assert any("Source health check failed" in err for err in result.errors)
@@ -162,7 +161,7 @@ def test_pipeline_unhealthy_source_skips_upserts(tmp_path, monkeypatch):
     db.close()
 
 
-def test_pipeline_remote_only_filter(tmp_path):
+def test_pipeline_remote_only_filter(tmp_path, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     raw_remote = {
         "title": "Software Engineer",
@@ -181,8 +180,7 @@ def test_pipeline_remote_only_filter(tmp_path):
         "location": "San Francisco, CA",
     }
     source = FakeSource([raw_remote, raw_onsite])
-    settings = Settings(
-        _env_file=None,
+    settings = pipeline_test_settings(
         remote_only=True,
         search_terms=[],
         salary_min=None,
@@ -195,7 +193,7 @@ def test_pipeline_remote_only_filter(tmp_path):
     db.close()
 
 
-def test_pipeline_title_filter_rejects_non_matching(tmp_path):
+def test_pipeline_title_filter_rejects_non_matching(tmp_path, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     raw_match = {
         "title": "Staff Security Engineer",
@@ -214,9 +212,7 @@ def test_pipeline_title_filter_rejects_non_matching(tmp_path):
         "location": "Remote",
     }
     source = FakeSource([raw_match, raw_reject])
-    settings = Settings(
-        _env_file=None,
-        remote_only=False,
+    settings = pipeline_test_settings(
         search_terms=["security engineer"],
         salary_min=None,
     )
@@ -228,7 +224,32 @@ def test_pipeline_title_filter_rejects_non_matching(tmp_path):
     db.close()
 
 
-def test_pipeline_pending_enrich_backfill(tmp_path):
+def test_pipeline_backfill_enrich_uses_run_settings(tmp_path, pipeline_test_settings, monkeypatch):
+    db = Database(tmp_path / "jobs.db")
+    job = JobPosting(
+        title="Backfill Role",
+        company="StaleCo",
+        url="https://example.com/backfill",
+        source="fake",
+        description="Build reliable systems.",
+    )
+    db.upsert_job(job)
+    settings = pipeline_test_settings()
+    seen: list[object] = []
+
+    def _track_enrich(job, *, settings=None):
+        seen.append(settings)
+        return job
+
+    monkeypatch.setattr("agentzero.loops.pipeline.enrich_job", _track_enrich)
+    pipeline = Pipeline(db, FakeSource([]), settings=settings, llm=None)
+    pipeline.run()
+    assert seen
+    assert all(s is settings for s in seen)
+    db.close()
+
+
+def test_pipeline_pending_enrich_backfill(tmp_path, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     job = JobPosting(
         title="Backfill Role",
@@ -241,14 +262,14 @@ def test_pipeline_pending_enrich_backfill(tmp_path):
     assert db.list_pending("enrich_status") == [job.job_id]
 
     source = FakeSource([])
-    pipeline = Pipeline(db, source, settings=Settings(_env_file=None, remote_only=False), llm=None)
+    pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=None)
     result = pipeline.run()
     assert result.enriched >= 1
     assert db.list_pending("enrich_status") == []
     db.close()
 
 
-def test_pipeline_rank_failures_in_errors(tmp_path, monkeypatch):
+def test_pipeline_rank_failures_in_errors(tmp_path, monkeypatch, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
     raw_ok = {
         "title": "Software Engineer",
@@ -278,7 +299,7 @@ def test_pipeline_rank_failures_in_errors(tmp_path, monkeypatch):
         return SimpleNamespace(match_score=0.8, rationale="good fit")
 
     monkeypatch.setattr("agentzero.loops.pipeline.rank_job", _rank)
-    pipeline = Pipeline(db, source, settings=Settings(_env_file=None, remote_only=False), llm=llm)
+    pipeline = Pipeline(db, source, settings=pipeline_test_settings(), llm=llm)
     result = pipeline.run(profile=profile)
     assert result.ranked == 1
     assert len(result.errors) == 1
@@ -287,12 +308,13 @@ def test_pipeline_rank_failures_in_errors(tmp_path, monkeypatch):
     db.close()
 
 
-def test_pipeline_enrich_scraped_job_linkedin_detail(tmp_path, monkeypatch):
+def test_pipeline_enrich_scraped_job_linkedin_detail(tmp_path, monkeypatch, pipeline_test_settings):
     db = Database(tmp_path / "jobs.db")
+    settings = pipeline_test_settings()
     pipeline = Pipeline(
         db,
         FakeSource([]),
-        settings=Settings(_env_file=None),
+        settings=settings,
         llm=None,
     )
     job = JobPosting(
@@ -311,7 +333,7 @@ def test_pipeline_enrich_scraped_job_linkedin_detail(tmp_path, monkeypatch):
         "agentzero.enrich.detail_fetch.fetch_and_merge_detail",
         _fetch_detail,
     )
-    enriched = pipeline._enrich_scraped_job(job, Settings(_env_file=None))
+    enriched = pipeline._enrich_scraped_job(job, settings)
     assert enriched.comp_min == 180_000
     assert enriched.comp_max == 220_000
     db.close()

@@ -10,7 +10,9 @@ from agentzero.enrich.company_research import (
     CompanyWebFacts,
     _company_key,
     _facts_incomplete,
+    _merge_company_website,
     _merge_glassdoor,
+    _merge_public_company,
     _merge_size,
     enrich_job_web_research,
     research_company,
@@ -137,6 +139,8 @@ def test_company_research_helpers():
     facts = CompanyWebFacts()
     _merge_size(facts, "51-200")
     _merge_glassdoor(facts, 4.2, 100)
+    _merge_company_website(facts, "https://www.acme.com/")
+    _merge_public_company(facts, False, None)
     assert facts.company_size == "51-200"
     assert facts.glassdoor_rating == 4.2
     assert not _facts_incomplete(facts)

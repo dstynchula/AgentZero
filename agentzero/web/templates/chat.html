@@ -111,6 +111,30 @@
       overflow-y: auto;
     }
     .chat-sidebar .session-list li { margin-bottom: 0.35rem; }
+    .session-row {
+      display: flex;
+      gap: 0.35rem;
+      align-items: stretch;
+    }
+    .session-row .session-open {
+      flex: 1;
+      min-width: 0;
+    }
+    .session-row .session-delete {
+      flex: 0 0 auto;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.75rem;
+      line-height: 1.2;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .session-row .session-delete:hover {
+      border-color: var(--danger, #c44);
+      color: var(--text);
+    }
     .chat-sidebar .session-list button {
       width: 100%;
       text-align: left;
@@ -259,19 +283,54 @@
     hitlCard.hidden = false;
   }
 
+  async function deleteSession(id) {
+    if (!window.confirm("Delete this chat from history? Active chats are archived first.")) return;
+    clearChatError();
+    var res = await fetch("/api/chat/sessions/" + id, { method: "DELETE" });
+    if (!res.ok) {
+      var err = await res.json().catch(function () { return {}; });
+      showChatError(err.detail || "Delete failed");
+      return;
+    }
+    if (sessionId === id) {
+      sessionId = null;
+      renderMessages([]);
+      showPending(null);
+      empty.hidden = false;
+    }
+    await loadSessions();
+  }
+
   async function loadSessions() {
     var res = await fetch("/api/chat/sessions");
     var sessions = await res.json();
     sessionList.innerHTML = "";
     sessions.forEach(function (s) {
       var li = document.createElement("li");
+      var row = document.createElement("div");
+      row.className = "session-row";
       var btn = document.createElement("button");
       btn.type = "button";
+      btn.className = "session-open";
       btn.textContent = s.title || "Chat " + s.session_id.slice(0, 8);
       btn.dataset.id = s.session_id;
+      btn.dataset.action = "open-session";
       if (s.session_id === sessionId) btn.classList.add("active");
       btn.addEventListener("click", function () { selectSession(s.session_id); });
-      li.appendChild(btn);
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "session-delete";
+      del.setAttribute("data-action", "delete-session");
+      del.setAttribute("aria-label", "Delete chat");
+      del.title = "Delete chat from history";
+      del.textContent = "Delete";
+      del.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        deleteSession(s.session_id);
+      });
+      row.appendChild(btn);
+      row.appendChild(del);
+      li.appendChild(row);
       sessionList.appendChild(li);
     });
   }
