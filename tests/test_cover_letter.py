@@ -13,6 +13,7 @@ from agentzero.generate.cover_letter import (
     save_cover_letter,
 )
 from agentzero.llm.provider import OpenAIProvider, build_cover_letter_provider
+from agentzero.models import normalize_job_id
 from tests.test_db import _job
 
 
@@ -50,25 +51,25 @@ def test_generate_cover_letter_writes_output_file(tmp_path):
     llm = FakeCoverLLM()
     out_dir = tmp_path / "letters"
     path = generate_cover_letter(job, "Jane Doe\nStaff engineer at TrueCar.", llm=llm, base_dir=out_dir)
-    assert path == cover_letter_path(job.job_id, base_dir=out_dir)
+    assert path == cover_letter_path(job, base_dir=out_dir)
     assert path.read_text(encoding="utf-8") == llm.text
-    assert read_cover_letter(job.job_id, base_dir=out_dir) == llm.text
+    assert read_cover_letter(job, base_dir=out_dir) == llm.text
 
 
 def test_read_and_save_cover_letter_round_trip(tmp_path):
     job = _job()
     out_dir = tmp_path / "letters"
-    save_cover_letter(job.job_id, "Edited letter body.", base_dir=out_dir)
-    assert read_cover_letter(job.job_id, base_dir=out_dir) == "Edited letter body."
+    save_cover_letter(job, "Edited letter body.", base_dir=out_dir)
+    assert read_cover_letter(job, base_dir=out_dir) == "Edited letter body."
 
 
 def test_save_rejects_empty_and_oversized(tmp_path):
     job = _job()
     out_dir = tmp_path / "letters"
     with pytest.raises(ValueError, match="empty"):
-        save_cover_letter(job.job_id, "   ", base_dir=out_dir)
+        save_cover_letter(job, "   ", base_dir=out_dir)
     with pytest.raises(ValueError, match="exceeds"):
-        save_cover_letter(job.job_id, "x" * (MAX_COVER_LETTER_CHARS + 1), base_dir=out_dir)
+        save_cover_letter(job, "x" * (MAX_COVER_LETTER_CHARS + 1), base_dir=out_dir)
 
 
 def test_prompt_includes_fact_based_neutral_instructions():
@@ -90,10 +91,9 @@ def test_rejects_empty_llm_response():
         generate_cover_letter_text(job, "resume text", llm=llm)
 
 
-def test_cover_letter_path_rejects_invalid_job_id(tmp_path):
-    out_dir = tmp_path / "letters"
+def test_normalize_job_id_rejects_invalid():
     with pytest.raises(ValueError, match="invalid job_id"):
-        cover_letter_path("../escape", base_dir=out_dir)
+        normalize_job_id("../escape")
     with pytest.raises(ValueError, match="invalid job_id"):
-        cover_letter_path("not-a-valid-id", base_dir=out_dir)
+        normalize_job_id("not-a-valid-id")
 

@@ -93,7 +93,7 @@ def test_post_save_persists_edited_text(web_client):
     assert "cover_saved=1" in r.headers["location"]
     from agentzero.generate.cover_letter import read_cover_letter
 
-    assert read_cover_letter(job.job_id, base_dir=letters_dir) == "My edited cover letter."
+    assert read_cover_letter(job, base_dir=letters_dir) == "My edited cover letter."
 
 
 def test_post_save_redirects_to_job_card(web_client):
@@ -110,7 +110,7 @@ def test_post_save_redirects_to_job_card(web_client):
         data={"text": "Letter body"},
         follow_redirects=False,
     )
-    assert r.headers["location"].startswith(f"/jobs/{job.job_id}")
+    assert f"/jobs/{job.job_id}" in r.headers["location"]
     assert "cover_saved=1" in r.headers["location"]
 
 
@@ -122,7 +122,7 @@ def test_api_cover_letter_status_returns_text_when_file_exists(web_client):
     job = _job()
     db.upsert_job(job)
     db.close()
-    save_cover_letter(job.job_id, "Stored letter.", base_dir=letters_dir)
+    save_cover_letter(job, "Stored letter.", base_dir=letters_dir)
 
     r = client.get(f"/api/jobs/{job.job_id}/cover-letter")
     assert r.status_code == 200
@@ -139,7 +139,7 @@ def test_download_cover_letter_returns_txt_attachment(web_client):
     job = _job(company="Acme Corp", title="Staff Engineer")
     db.upsert_job(job)
     db.close()
-    save_cover_letter(job.job_id, "Download me.", base_dir=letters_dir)
+    save_cover_letter(job, "Download me.", base_dir=letters_dir)
 
     r = client.get(f"/jobs/{job.job_id}/cover-letter/download")
     assert r.status_code == 200
@@ -156,7 +156,7 @@ def test_download_reflects_saved_edits(web_client):
     job = _job()
     db.upsert_job(job)
     db.close()
-    save_cover_letter(job.job_id, "Version two.", base_dir=letters_dir)
+    save_cover_letter(job, "Version two.", base_dir=letters_dir)
 
     r = client.get(f"/jobs/{job.job_id}/cover-letter/download")
     assert r.text == "Version two."
@@ -270,7 +270,7 @@ def test_job_card_cover_letter_is_editable_textarea(web_client):
     job = _job()
     db.upsert_job(job)
     db.close()
-    save_cover_letter(job.job_id, "Editable text.", base_dir=letters_dir)
+    save_cover_letter(job, "Editable text.", base_dir=letters_dir)
 
     r = client.get(f"/jobs/{job.job_id}")
     assert '<textarea name="text"' in r.text
@@ -299,7 +299,7 @@ def test_job_card_shows_download_when_letter_exists(web_client):
     job = _job()
     db.upsert_job(job)
     db.close()
-    save_cover_letter(job.job_id, "x", base_dir=letters_dir)
+    save_cover_letter(job, "x", base_dir=letters_dir)
 
     r = client.get(f"/jobs/{job.job_id}")
     assert "cover-letter/download" in r.text
@@ -314,7 +314,7 @@ def test_regenerate_has_confirm_when_letter_exists(web_client):
     job = _job()
     db.upsert_job(job)
     db.close()
-    save_cover_letter(job.job_id, "existing", base_dir=letters_dir)
+    save_cover_letter(job, "existing", base_dir=letters_dir)
 
     r = client.get(f"/jobs/{job.job_id}")
     assert "Replace existing cover letter" in r.text

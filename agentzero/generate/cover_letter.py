@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from agentzero.models import JobPosting, normalize_job_id
+from agentzero.models import JobPosting
 
 if TYPE_CHECKING:
     from agentzero.llm.provider import LLMProvider
@@ -33,15 +33,15 @@ COVER_LETTER_SYSTEM_PROMPT = (
 )
 
 
-def cover_letter_path(job_id: str, *, base_dir: Path = COVER_LETTER_DIR) -> Path:
-    """Path to the on-disk cover letter for ``job_id``."""
-    safe_id = normalize_job_id(job_id)
+def cover_letter_path(job: JobPosting, *, base_dir: Path = COVER_LETTER_DIR) -> Path:
+    """Path to the on-disk cover letter for a stored job row."""
+    stable_id = job.job_id
     root = base_dir.resolve()
-    path = (root / f"{safe_id}.txt").resolve()
+    path = (root / f"{stable_id}.txt").resolve()
     try:
         path.relative_to(root)
     except ValueError as exc:
-        raise ValueError(f"invalid job_id path: {job_id!r}") from exc
+        raise ValueError(f"invalid cover letter path for job {stable_id!r}") from exc
     return path
 
 
@@ -95,15 +95,15 @@ def generate_cover_letter_text(
     return text
 
 
-def read_cover_letter(job_id: str, *, base_dir: Path = COVER_LETTER_DIR) -> str | None:
-    path = cover_letter_path(job_id, base_dir=base_dir)
+def read_cover_letter(job: JobPosting, *, base_dir: Path = COVER_LETTER_DIR) -> str | None:
+    path = cover_letter_path(job, base_dir=base_dir)
     if not path.is_file():
         return None
     return path.read_text(encoding="utf-8")
 
 
 def save_cover_letter(
-    job_id: str,
+    job: JobPosting,
     text: str,
     *,
     base_dir: Path = COVER_LETTER_DIR,
@@ -114,7 +114,7 @@ def save_cover_letter(
         raise ValueError("cover letter text is empty")
     if len(cleaned) > MAX_COVER_LETTER_CHARS:
         raise ValueError(f"cover letter exceeds {MAX_COVER_LETTER_CHARS} characters")
-    path = cover_letter_path(job_id, base_dir=base_dir)
+    path = cover_letter_path(job, base_dir=base_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(cleaned, encoding="utf-8", newline="\n")
     return path
@@ -135,4 +135,4 @@ def generate_cover_letter(
         llm=llm,
         max_description_chars=max_description_chars,
     )
-    return save_cover_letter(job.job_id, text, base_dir=base_dir)
+    return save_cover_letter(job, text, base_dir=base_dir)

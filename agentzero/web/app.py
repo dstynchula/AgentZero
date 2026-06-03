@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi import Path as FPath
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from agentzero.config import Settings, get_settings
 from agentzero.generate.cover_letter import COVER_LETTER_DIR, save_cover_letter
-from agentzero.models import ApplicationStatus, normalize_job_id
+from agentzero.models import ApplicationStatus, JobPosting
 from agentzero.storage.db import Database
 from agentzero.web.cdp_status import cdp_status_payload, retry_cdp_connection
 from agentzero.web.cover_letter_io import (
@@ -57,6 +58,8 @@ from agentzero.web.search_titles import (
     title_rows,
 )
 from agentzero.web.sources import active_source_names, source_catalog
+
+JobId = Annotated[str, FPath(pattern=r"^[a-f0-9]{16}$", min_length=16, max_length=16)]
 
 _TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 _STATUS_CHOICES = [status.value for status in ApplicationStatus]
@@ -130,14 +133,15 @@ def create_app(
     def _letters_dir(request: Request) -> Path:
         return cover_letters_dir(getattr(request.app.state, "cover_letters_dir", None))
 
-    def _safe_job_id(job_id: str) -> str:
-        try:
-            return normalize_job_id(job_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail="job not found") from exc
+    def _require_job(request: Request, job_id: JobId) -> JobPosting:
+        job = _db(request).get_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="job not found")
+        return job
 
     def _redirect_job_detail(
-        job_id: str,
+        request: Request,
+        job: JobPosting,
         show_rejected: bool,
         sort: str | None = None,
         order: str | None = None,
@@ -147,7 +151,6 @@ def create_app(
     ) -> RedirectResponse:
         from urllib.parse import parse_qsl, urlencode
 
-        safe_id = _safe_job_id(job_id)
         query_items: list[tuple[str, str]] = list(
             parse_qsl(build_list_query(show_rejected=show_rejected, sort=sort, order=order).lstrip("?"))
         )
@@ -157,8 +160,10 @@ def create_app(
                 query_items.append((key, value or "1"))
         if msg:
             query_items.append(("msg", msg[:500]))
-        suffix = f"?{urlencode(query_items)}" if query_items else ""
-        return RedirectResponse(url=f"/jobs/{safe_id}{suffix}", status_code=303)
+        url = str(request.url_for("job_detail", job_id=job.job_id))
+        if query_items:
+            url = f"{url}?{urlencode(query_items)}"
+        return RedirectResponse(url=url, status_code=303)
 
     def _job_detail_flash(request: Request) -> tuple[str, bool]:
         params = request.query_params
@@ -182,14 +187,14 @@ def create_app(
 
     def _job_detail_context(
         request: Request,
-        job_id: str,
+        job: JobPosting,
         *,
         show_rejected: bool,
         sort: str | None,
         order: str | None,
     ) -> dict:
         flash, flash_ok = _job_detail_flash(request)
-        letter_text = load_cover_letter_text(job_id, base_dir=_letters_dir(request))
+        letter_text = load_cover_letter_text(job, base_dir=_letters_dir(request))
         runner = request.app.state.cover_letter_runner.snapshot()
         return {
             **list_context(show_rejected=show_rejected, sort=sort, order=order),
@@ -198,7 +203,7 @@ def create_app(
             "status_choices": _STATUS_CHOICES,
             "cover_letter_text": letter_text or "",
             "has_cover_letter": letter_text is not None,
-            "cover_letter_running": runner.get("running") and runner.get("job_id") == job_id,
+            "cover_letter_running": runner.get("running") and runner.get("job_id") == job.job_id,
         }
 
     @app.get("/health")
@@ -253,14 +258,15 @@ def create_app(
             },
         )
 
-    @app.get("/jobs/{job_id}", response_class=HTMLResponse)
+    @app.get("/jobs/{job_id}", response_class=HTMLResponse, name="job_detail")
     def job_detail(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         show_rejected: bool = Query(default=False),
         sort: str | None = Query(default=None),
         order: str | None = Query(default=None),
     ) -> HTMLResponse:
+        job = _require_job(request, job_id)
         detail = job_detail_for_ui(_db(request), job_id)
         if detail is None:
             raise HTTPException(status_code=404, detail="job not found")
@@ -270,11 +276,11 @@ def create_app(
             {
                 "nav_active": "jobs",
                 "job": detail,
-                "job_id": job_id,
+                "job_id": job.job_id,
                 "show_rejected": show_rejected,
                 **_job_detail_context(
                     request,
-                    job_id,
+                    job,
                     show_rejected=show_rejected,
                     sort=sort,
                     order=order,
@@ -544,9 +550,9 @@ def create_app(
         query = build_list_query(show_rejected=show_rejected, sort=sort, order=order)
         return RedirectResponse(url=f"/{query}", status_code=303)
 
-    def _apply_status(request: Request, job_id: str, status: str) -> None:
+    def _apply_status(request: Request, job_id: JobId, status: str) -> JobPosting:
         try:
-            update_job_status(_db(request), job_id, status)
+            return update_job_status(_db(request), job_id, status)
         except JobNotFoundError:
             raise HTTPException(status_code=404, detail="job not found") from None
         except ValueError as exc:
@@ -555,17 +561,18 @@ def create_app(
     @app.post("/jobs/{job_id}/status", response_model=None)
     def post_status_html(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         status: Annotated[str, Form()],
         show_rejected: Annotated[bool, Form()] = False,
         sort: Annotated[str, Form()] = "",
         order: Annotated[str, Form()] = "",
         return_to: Annotated[str, Form()] = "",
     ) -> RedirectResponse:
-        _apply_status(request, job_id, status)
+        job = _apply_status(request, job_id, status)
         if return_to == "detail":
             return _redirect_job_detail(
-                job_id,
+                request,
+                job,
                 show_rejected,
                 sort=sort or None,
                 order=order or None,
@@ -576,13 +583,13 @@ def create_app(
     @app.post("/api/jobs/{job_id}/status", response_model=None)
     def post_status_api(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         status: Annotated[str, Form()],
     ) -> JSONResponse:
         _apply_status(request, job_id, status)
         return JSONResponse({"job_id": job_id, "status": status})
 
-    def _apply_notes(request: Request, job_id: str, notes: str) -> str:
+    def _apply_notes(request: Request, job_id: JobId, notes: str) -> str:
         try:
             update_job_notes(_db(request), job_id, notes)
         except JobNotFoundError:
@@ -594,7 +601,7 @@ def create_app(
     @app.post("/jobs/{job_id}/notes", response_model=None)
     def post_notes_html(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         notes: Annotated[str, Form()] = "",
         show_rejected: Annotated[bool, Form()] = False,
         sort: Annotated[str, Form()] = "",
@@ -602,9 +609,11 @@ def create_app(
         return_to: Annotated[str, Form()] = "",
     ) -> RedirectResponse:
         _apply_notes(request, job_id, notes)
+        job = _require_job(request, job_id)
         if return_to == "detail":
             return _redirect_job_detail(
-                job_id,
+                request,
+                job,
                 show_rejected,
                 sort=sort or None,
                 order=order or None,
@@ -615,31 +624,32 @@ def create_app(
     @app.post("/api/jobs/{job_id}/notes", response_model=None)
     def post_notes_api(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         notes: Annotated[str, Form()] = "",
     ) -> JSONResponse:
         cleaned = _apply_notes(request, job_id, notes)
         return JSONResponse({"job_id": job_id, "notes": cleaned})
 
-    def _apply_reject(request: Request, job_id: str) -> None:
+    def _apply_reject(request: Request, job_id: JobId) -> JobPosting:
         try:
-            reject_job(_db(request), job_id)
+            return reject_job(_db(request), job_id)
         except JobNotFoundError:
             raise HTTPException(status_code=404, detail="job not found") from None
 
     @app.post("/jobs/{job_id}/reject", response_model=None)
     def post_reject_html(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         show_rejected: Annotated[bool, Form()] = False,
         sort: Annotated[str, Form()] = "",
         order: Annotated[str, Form()] = "",
         return_to: Annotated[str, Form()] = "",
     ) -> RedirectResponse:
-        _apply_reject(request, job_id)
+        job = _apply_reject(request, job_id)
         if return_to == "detail":
             return _redirect_job_detail(
-                job_id,
+                request,
+                job,
                 show_rejected,
                 sort=sort or None,
                 order=order or None,
@@ -650,29 +660,30 @@ def create_app(
     @app.post("/jobs/{job_id}/cover-letter/generate", response_model=None)
     def post_cover_letter_generate(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         show_rejected: Annotated[bool, Form()] = False,
         sort: Annotated[str, Form()] = "",
         order: Annotated[str, Form()] = "",
     ) -> RedirectResponse:
-        if _db(request).get_job(job_id) is None:
-            raise HTTPException(status_code=404, detail="job not found")
+        job = _require_job(request, job_id)
         ok, message = request.app.state.cover_letter_runner.start(
             db=_db(request),
             settings=request.app.state.settings,
-            job_id=job_id,
+            job_id=job.job_id,
             cover_letters_dir=_letters_dir(request),
         )
         if ok:
             return _redirect_job_detail(
-                job_id,
+                request,
+                job,
                 show_rejected,
                 sort=sort or None,
                 order=order or None,
                 flag="cover_started=1",
             )
         return _redirect_job_detail(
-            job_id,
+            request,
+            job,
             show_rejected,
             sort=sort or None,
             order=order or None,
@@ -683,20 +694,20 @@ def create_app(
     @app.post("/jobs/{job_id}/cover-letter/save", response_model=None)
     def post_cover_letter_save(
         request: Request,
-        job_id: str,
+        job_id: JobId,
         text: Annotated[str, Form()] = "",
         show_rejected: Annotated[bool, Form()] = False,
         sort: Annotated[str, Form()] = "",
         order: Annotated[str, Form()] = "",
     ) -> RedirectResponse:
-        if _db(request).get_job(job_id) is None:
-            raise HTTPException(status_code=404, detail="job not found")
+        job = _require_job(request, job_id)
         try:
-            save_cover_letter(job_id, text, base_dir=_letters_dir(request))
+            save_cover_letter(job, text, base_dir=_letters_dir(request))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _redirect_job_detail(
-            job_id,
+            request,
+            job,
             show_rejected,
             sort=sort or None,
             order=order or None,
@@ -704,14 +715,11 @@ def create_app(
         )
 
     @app.get("/jobs/{job_id}/cover-letter/download")
-    def get_cover_letter_download(request: Request, job_id: str) -> FileResponse:
+    def get_cover_letter_download(request: Request, job_id: JobId) -> FileResponse:
         from agentzero.generate.cover_letter import cover_letter_path
 
-        safe_id = _safe_job_id(job_id)
-        job = _db(request).get_job(safe_id)
-        if job is None:
-            raise HTTPException(status_code=404, detail="job not found")
-        path = cover_letter_path(safe_id, base_dir=_letters_dir(request))
+        job = _require_job(request, job_id)
+        path = cover_letter_path(job, base_dir=_letters_dir(request))
         if not path.is_file():
             raise HTTPException(status_code=404, detail="cover letter not found")
         filename = cover_letter_download_filename(job)
@@ -722,14 +730,13 @@ def create_app(
         )
 
     @app.get("/api/jobs/{job_id}/cover-letter")
-    def api_cover_letter_status(request: Request, job_id: str) -> JSONResponse:
-        if _db(request).get_job(job_id) is None:
-            raise HTTPException(status_code=404, detail="job not found")
+    def api_cover_letter_status(request: Request, job_id: JobId) -> JSONResponse:
+        job = _require_job(request, job_id)
         runner = request.app.state.cover_letter_runner.snapshot()
-        text = load_cover_letter_text(job_id, base_dir=_letters_dir(request))
+        text = load_cover_letter_text(job, base_dir=_letters_dir(request))
         payload: dict[str, object] = {
-            "job_id": job_id,
-            "running": bool(runner.get("running") and runner.get("job_id") == job_id),
+            "job_id": job.job_id,
+            "running": bool(runner.get("running") and runner.get("job_id") == job.job_id),
             "ok": runner.get("ok"),
             "message": runner.get("message") or "",
             "text": text,
@@ -737,7 +744,7 @@ def create_app(
         return JSONResponse(payload)
 
     @app.post("/api/jobs/{job_id}/reject", response_model=None)
-    def post_reject_api(request: Request, job_id: str) -> JSONResponse:
+    def post_reject_api(request: Request, job_id: JobId) -> JSONResponse:
         _apply_reject(request, job_id)
         return JSONResponse({"job_id": job_id, "status": ApplicationStatus.REJECTED.value})
 

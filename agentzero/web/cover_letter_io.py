@@ -21,5 +21,5 @@ def cover_letter_download_filename(job: JobPosting) -> str:
     return f"{company}-{title}-cover-letter.txt"
 
 
-def load_cover_letter_text(job_id: str, *, base_dir: Path | None = None) -> str | None:
-    return read_cover_letter(job_id, base_dir=cover_letters_dir(base_dir))
+def load_cover_letter_text(job: JobPosting, *, base_dir: Path | None = None) -> str | None:
+    return read_cover_letter(job, base_dir=cover_letters_dir(base_dir))
