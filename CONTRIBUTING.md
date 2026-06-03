@@ -26,12 +26,31 @@ sure all of the local gates pass:
 
 ```bash
 ruff check agentzero tests scripts tools   # lint + import order
-pytest -q                                  # full test suite
+pytest -q                                  # full test suite (target <2 min locally)
 python tools/encoding_check.py             # UTF-8 / no UTF-16 text files
 ```
 
 These are the same checks CI enforces (`.github/workflows/ci.yml`). Ruff is
 pinned (`ruff==0.15.15`) so local and CI results match.
+
+**Unit tests must not perform live HTTP** (DuckDuckGo, Glassdoor, job boards).
+The suite stubs outbound enrichment calls in [`tests/conftest.py`](../tests/conftest.py).
+Use `@pytest.mark.external` for opt-in integration tests and run them separately:
+
+```bash
+pytest -m external -q
+```
+
+Default CI runs `pytest -q` only (no live network). Per-test timeout defaults to
+30s via `pytest-timeout`; mark longer tests with `@pytest.mark.slow` and
+`@pytest.mark.timeout(...)`.
+
+To bisect a hanging test file:
+
+```bash
+python tools/pytest_bisect.py --dry-run
+python tools/pytest_bisect.py
+```
 
 Guidelines:
 

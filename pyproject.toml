@@ -23,6 +23,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "pytest-asyncio>=0.23",
+    "pytest-timeout>=2.3",
     "respx>=0.21",
     "vcrpy>=6.0",
     "ruff==0.15.15",
@@ -57,12 +58,13 @@ include = ["agentzero*"]
 agentzero = ["web/templates/*.html", "web/static/*.svg"]
 
 [tool.pytest.ini_options]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers --timeout=30 --timeout_method=thread"
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
     "external: tests that touch live external services (skipped by default in the loop)",
+    "slow: tests that may exceed the default timeout (see @pytest.mark.timeout)",
 ]
 
 [tool.coverage.run]

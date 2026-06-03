@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Data — AgentZero{% endblock %}
+{% block body %}
+<h1>Data</h1>
+<p class="muted">SQLite database: <code>{{ db_path }}</code></p>
+
+<section class="card">
+  <h2>Backup</h2>
+  <p>Download a timestamped copy of your job tracker database. Backups are also written under <code>data/backups/</code> on the server.</p>
+  <form method="post" action="/api/data/backup">
+    <button type="submit" class="btn">Make a backup of the DB</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Restore</h2>
+  <p class="muted">Restore from backup is not available in the web UI yet. Keep downloaded <code>.db</code> files safe; a guided restore flow is planned.</p>
+</section>
+{% endblock %}

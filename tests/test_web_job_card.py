@@ -144,6 +144,29 @@ def test_job_card_shows_easy_apply_not_located_hint_when_no_apply_url(card_clien
     assert "easy apply" in r.text.lower()
 
 
+def test_job_card_shows_company_website_and_public_badge(card_client):
+    client, db_path = card_client
+    from agentzero.storage.db import Database
+
+    db = Database(db_path)
+    job = _job(
+        company_website="https://www.acme.com/",
+        is_public_company=True,
+        stock_ticker="ACME",
+    )
+    db.upsert_job(job)
+    db.close()
+
+    r = client.get(f"/jobs/{job.job_id}")
+    assert r.status_code == 200
+    assert "Company website" in r.text
+    company_host = ".".join(["www", "acme", "com"])
+    assert company_host in r.text
+    assert "Public company" in r.text
+    assert "ACME" in r.text
+    assert "Not available yet" in r.text
+
+
 def test_job_card_has_notes_section_with_textarea(card_client):
     client, db_path = card_client
     from agentzero.storage.db import Database

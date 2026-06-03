@@ -10,7 +10,7 @@ AgentZero is a **local, résumé-driven job search agent**. Drop your résumé i
 daily pipeline, and it will:
 
 - Scrape **three job boards** (Indeed, LinkedIn, Glassdoor)
-- **Enrich** listings (comp, company size, Glassdoor, careers URLs)
+- **Enrich** listings (comp, company size, Glassdoor, careers/company URLs, public-company signal)
 - **Rank** jobs against your résumé with an LLM
 - Mirror everything to **SQLite** and a **local web tracker** (Docker on port 8080)
 - Track applications you mark in the UI — it never auto-submits
@@ -69,7 +69,7 @@ flowchart TB
 | Layer | Tools |
 |-------|--------|
 | Config | **Pydantic Settings**, `.env`, typed `Settings` |
-| Scrape | **Playwright**, host **Chrome CDP**, **JobSpy**, BeautifulSoup |
+| Scrape | **Playwright**, host **Chrome CDP**, three boards (Indeed, LinkedIn, Glassdoor) |
 | Intelligence | **OpenAI** / Anthropic APIs, résumé-driven rank prompts |
 | Storage | **SQLite**, idempotent upsert, pipeline status columns |
 | Operator | **Cursor** + **FastMCP** lead session, **Docker** web service |

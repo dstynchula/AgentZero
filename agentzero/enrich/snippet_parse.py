@@ -45,6 +45,20 @@ LINKEDIN_EMPLOYEES_RE = re.compile(
     re.IGNORECASE,
 )
 
+EXCHANGE_TICKER_RE = re.compile(
+    r"\b(?:NASDAQ|NYSE|AMEX|NYSEARCA)\s*:\s*(?P<ticker>[A-Z]{1,5})\b"
+)
+
+PUBLIC_COMPANY_RE = re.compile(
+    r"publicly\s+traded|public\s+company|listed\s+on\s+(?:the\s+)?(?:nasdaq|nyse|amex)",
+    re.IGNORECASE,
+)
+
+PRIVATE_COMPANY_RE = re.compile(
+    r"privately\s+held|private\s+company|not\s+publicly\s+traded|venture[- ]backed\s+startup",
+    re.IGNORECASE,
+)
+
 
 def _parse_int(raw: str) -> int | None:
     cleaned = raw.replace(",", "").strip()
@@ -123,3 +137,17 @@ def parse_glassdoor_from_text(text: str) -> tuple[float | None, int | None]:
     if rating is not None and not 0.0 <= rating <= 5.0:
         return None, reviews
     return rating, reviews
+
+
+def parse_public_company_from_text(text: str) -> tuple[bool | None, str | None]:
+    """Return (is_public_company, stock_ticker) from search snippets; None when unknown."""
+    if not text.strip():
+        return None, None
+    if PRIVATE_COMPANY_RE.search(text):
+        return False, None
+    match = EXCHANGE_TICKER_RE.search(text)
+    if match:
+        return True, match.group("ticker")
+    if PUBLIC_COMPANY_RE.search(text):
+        return True, None
+    return None, None

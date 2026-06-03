@@ -14,7 +14,7 @@ from agentzero.storage.csv_export import (
 def test_tracker_ui_columns_are_subset_of_export():
     assert set(TRACKER_UI_COLUMNS) <= set(EXPORT_COLUMNS)
     assert len(TRACKER_UI_COLUMNS) == 13
-    assert len(EXPORT_COLUMNS) == 27
+    assert len(EXPORT_COLUMNS) == 31
 
 
 def test_job_to_tracker_ui_row_omits_internal_fields():

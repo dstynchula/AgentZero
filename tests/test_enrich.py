@@ -90,10 +90,13 @@ def test_enrich_glassdoor_company_skips_unknown():
 
 
 def test_enrich_job_runs_all_steps():
+    from agentzero.config import Settings
+
     job = _job(
         description="Salary $120k-150k. 120 employees. Glassdoor rating: 4.1",
     )
-    enriched = enrich_job(job)
+    settings = Settings(_env_file=None, enrich_web_search=False)
+    enriched = enrich_job(job, settings=settings)
     assert enriched.comp_min == 120_000
     assert enriched.company_size == "51-200"
     assert enriched.glassdoor_rating == 4.1

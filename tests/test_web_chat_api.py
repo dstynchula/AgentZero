@@ -66,3 +66,29 @@ def test_confirm_endpoint_applies_pending(api_client):
     assert r.json()["ok"] is True
     detail = api_client.get(f"/api/chat/sessions/{session_id}")
     assert detail.json()["pending_action"] is None
+
+
+def test_delete_session_archives_active(api_client):
+    created = api_client.post("/api/chat/sessions", json={"title": "Archive me"})
+    session_id = created.json()["session_id"]
+    r = api_client.delete(f"/api/chat/sessions/{session_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["session_id"] == session_id
+    assert body["archived"] is True
+    listed = api_client.get("/api/chat/sessions").json()
+    assert session_id not in {row["session_id"] for row in listed}
+    detail = api_client.get(f"/api/chat/sessions/{session_id}")
+    assert detail.status_code == 200
+    assert detail.json()["archived"] is True
+
+
+def test_delete_session_hard_deletes_when_archived(api_client):
+    created = api_client.post("/api/chat/sessions", json={"title": "Remove me"})
+    session_id = created.json()["session_id"]
+    first = api_client.delete(f"/api/chat/sessions/{session_id}")
+    assert first.json()["archived"] is True
+    second = api_client.delete(f"/api/chat/sessions/{session_id}")
+    assert second.status_code == 200
+    assert second.json()["archived"] is False
+    assert api_client.get(f"/api/chat/sessions/{session_id}").status_code == 404

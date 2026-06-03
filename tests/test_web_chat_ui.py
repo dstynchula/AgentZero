@@ -37,11 +37,20 @@ def test_chat_page_has_new_chat_and_history_controls(web_client):
     assert 'id="hitl-confirm"' in r.text
 
 
+def test_chat_history_row_has_delete_control(web_client):
+    r = web_client.get("/")
+    assert r.status_code == 200
+    assert "session-delete" in r.text
+    assert "deleteSession" in r.text
+    assert "Delete chat from history" in r.text
+
+
 def test_nav_includes_chat_jobs_scraper(web_client):
     r = web_client.get("/")
     assert ">Chat</a>" in r.text or ">Chat<" in r.text
     assert 'href="/jobs"' in r.text
     assert 'href="/scraper"' in r.text
+    assert 'href="/data"' in r.text
 
 
 def test_chat_page_has_waiting_indicator(web_client):

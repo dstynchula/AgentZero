@@ -94,3 +94,26 @@ def test_cost_doc_mentions_chat_model():
     text = Path("docs/COST_AND_MODELS.md").read_text(encoding="utf-8")
     assert "AGENTZERO_CHAT_MODEL" in text
 
+
+def test_readme_no_jobspy_scrape_stack():
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "JobSpy" not in text
+
+
+def test_readme_mentions_p40_three_boards():
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "three boards" in text.lower() or "Indeed, LinkedIn, and Glassdoor" in text
+
+
+def test_progress_lists_p41_epic():
+    text = Path("PROGRESS.md").read_text(encoding="utf-8")
+    assert "P41 — Chat delete UI" in text
+    assert "P42 — Data tab backup" in text
+
+
+def test_readme_architecture_mermaid_valid():
+    text = Path("README.md").read_text(encoding="utf-8")
+    assert "```mermaid" in text
+    assert "flowchart TB" in text
+    assert text.count('subgraph SC["① Scrape') <= 1
+

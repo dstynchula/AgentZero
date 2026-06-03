@@ -81,6 +81,13 @@
     </dd>
     <dt>Glassdoor</dt>
     <dd>{% if job.glassdoor_rating %}{{ job.glassdoor_rating }}{% if job.glassdoor_reviews %} ({{ job.glassdoor_reviews }} reviews){% endif %}{% else %}—{% endif %}</dd>
+    <dt>Public company</dt>
+    <dd>
+      {% if job.is_public_company is not none and job.is_public_company %}Yes{% if job.stock_ticker %} ({{ job.stock_ticker }}){% endif %}
+      {% elif job.is_public_company is not none %}No
+      {% else %}Unknown{% endif %}
+    </dd>
+    <dt>LinkedIn connections</dt><dd class="muted">Not available yet</dd>
     <dt>Posted</dt><dd>{{ job.date_posted or "—" }}{% if job.posting_age_days is not none %} ({{ job.posting_age_days }}d ago){% endif %}</dd>
     <dt>Applied</dt><dd>{{ job.date_applied or "—" }}</dd>
   </dl>
@@ -92,6 +99,9 @@
     <dt>Posting</dt><dd><a href="{{ job.url }}" target="_blank" rel="noopener noreferrer">{{ job.url }}</a></dd>
     {% if job.apply_url and job.apply_url != job.url %}
     <dt>Apply URL</dt><dd><a href="{{ job.apply_url }}" target="_blank" rel="noopener noreferrer">{{ job.apply_url }}</a></dd>
+    {% endif %}
+    {% if job.company_website %}
+    <dt>Company website</dt><dd><a href="{{ job.company_website }}" target="_blank" rel="noopener noreferrer">{{ job.company_website }}</a></dd>
     {% endif %}
     {% if job.careers_url %}
     <dt>Careers</dt><dd><a href="{{ job.careers_url }}" target="_blank" rel="noopener noreferrer">{{ job.careers_url }}</a></dd>
