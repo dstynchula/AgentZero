@@ -151,7 +151,7 @@ def parse_linkedin_search_html(html: str, *, source: str = "linkedin") -> list[R
     records: list[RawRecord] = []
     for record in merged.values():
         enriched = _fill_record_gaps(html, soup, record)
-        records.append(enriched)
+        records.append(canonicalize_linkedin_record(enriched))
     return records
 
 
@@ -165,9 +165,32 @@ def _record_dedupe_key(record: RawRecord) -> str:
     )
 
 
-def _job_id_from_url(url: str) -> str | None:
+def linkedin_numeric_job_id(url: str) -> str | None:
+    """LinkedIn posting id from ``/jobs/view/…`` URLs (slug or numeric path)."""
     match = _JOB_ID_FROM_URL_RE.search(url.rstrip("/"))
     return match.group(1) if match else None
+
+
+def _job_id_from_url(url: str) -> str | None:
+    return linkedin_numeric_job_id(url)
+
+
+def canonical_linkedin_job_url(url: str) -> str | None:
+    """Stable view URL for dedupe/upsert (numeric id path only)."""
+    job_id = linkedin_numeric_job_id(url)
+    if job_id:
+        return f"{LINKEDIN_BASE}/jobs/view/{job_id}"
+    return None
+
+
+def canonicalize_linkedin_record(record: RawRecord) -> RawRecord:
+    """Normalize ``url`` so the same posting does not get multiple stable ids."""
+    canonical = canonical_linkedin_job_url(str(record.get("url") or ""))
+    if not canonical:
+        return record
+    out = dict(record)
+    out["url"] = canonical
+    return out
 
 
 def _merge_record(existing: RawRecord, new: RawRecord) -> RawRecord:

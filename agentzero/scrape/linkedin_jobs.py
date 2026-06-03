@@ -18,7 +18,9 @@ from agentzero.scrape.browser_common import (
     wait_for_html,
 )
 from agentzero.scrape.browser_linkedin import (
+    _record_dedupe_key,
     build_linkedin_search_url,
+    canonicalize_linkedin_record,
     page_has_job_results,
     page_needs_human,
     parse_linkedin_search_html,
@@ -119,11 +121,12 @@ class LinkedInJobsService:
                 total_parsed += stats.parsed_raw
                 total_filtered += stats.after_title_filter
                 for record in batch:
-                    key = _record_dedupe_key(record)
+                    canonical = canonicalize_linkedin_record(record)
+                    key = _record_dedupe_key(canonical)
                     if key in seen:
                         continue
                     seen.add(key)
-                    combined.append(record)
+                    combined.append(canonical)
 
             if (
                 self._settings.scrape_session_preflight
@@ -309,15 +312,6 @@ class LinkedInJobsService:
                 break
             records, last_stats = _parse_current()
         return records, last_stats
-
-
-def _record_dedupe_key(record: RawRecord) -> str:
-    url = str(record.get("url") or "").split("?")[0]
-    if url:
-        return url
-    return "|".join(
-        str(record.get(field, "")).strip().lower() for field in ("title", "company")
-    )
 
 
 def _safe_page_content(page: object, *, retries: int = 4) -> str:

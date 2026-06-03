@@ -78,6 +78,29 @@ def test_parse_linkedin_search_embedded_only_html():
     assert by_company["Harvey"]["title"] == "Staff Cloud Security Engineer"
 
 
+def test_linkedin_slug_and_numeric_urls_share_dedupe_key():
+    from agentzero.scrape.browser_linkedin import _record_dedupe_key, canonicalize_linkedin_record
+
+    slug = canonicalize_linkedin_record(
+        {
+            "title": "Engineer",
+            "company": "Co",
+            "url": "https://www.linkedin.com/jobs/view/staff-engineer-1234567890",
+            "source": "linkedin",
+        }
+    )
+    numeric = canonicalize_linkedin_record(
+        {
+            "title": "Engineer",
+            "company": "Co",
+            "url": "https://www.linkedin.com/jobs/view/1234567890",
+            "source": "linkedin",
+        }
+    )
+    assert _record_dedupe_key(slug) == _record_dedupe_key(numeric)
+    assert slug["url"] == "https://www.linkedin.com/jobs/view/1234567890"
+
+
 def test_page_has_job_results_job_posting_marker():
     assert page_has_job_results('<script>"jobPosting:1234567890"</script>')
 

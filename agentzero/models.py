@@ -33,6 +33,14 @@ _JOB_ID_RE = re.compile(r"^[a-f0-9]{16}$")
 
 def stable_job_id(*, source: str, company: str, title: str, url: str) -> str:
     """Deterministic id for deduplication across boards and loop re-runs."""
+    source_key = _normalize_id_part(source)
+    if source_key == "linkedin":
+        from agentzero.scrape.browser_linkedin import linkedin_numeric_job_id
+
+        linkedin_id = linkedin_numeric_job_id(url)
+        if linkedin_id:
+            key = f"linkedin|{linkedin_id}"
+            return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
     parts = (source, company, title, url)
     key = "|".join(_normalize_id_part(p) for p in parts)
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
